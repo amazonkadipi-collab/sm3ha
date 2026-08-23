@@ -39,3 +39,62 @@ button { cursor: pointer; }
 @keyframes float-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 .animate-float-in { animation: float-in .55s cubic-bezier(.23,1,.32,1) both; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
+
+/* Reference-inspired compact catalog surface: original NaghmaHub branding, denser SEO list layout. */
+.reference-home { color: #354b4a; }
+.reference-hero { padding: 1.2rem 0 2.2rem; text-align: center; }
+.reference-mark { display: inline-grid; grid-template-columns: auto auto; column-gap: .35rem; align-items: center; color: #507765; margin: .5rem auto 1.5rem; }
+.reference-mark .mark-orbit { grid-row: span 2; display: grid; place-items: center; width: 2.8rem; height: 2.8rem; border: 3px solid #72ad83; border-radius: 999px; color: #5a9c70; font-size: 1.1rem; }
+.reference-mark strong { font-size: 2.15rem; letter-spacing: -.08em; line-height: .9; }
+.reference-mark small { text-align: right; font-size: .62rem; letter-spacing: .25em; color: #76a185; }
+.reference-search { display: flex; max-width: 720px; margin: 0 auto; gap: .45rem; padding: .28rem; border: 1px solid #c7d0cc; background: #fff; box-shadow: 0 2px 10px rgba(43,65,60,.06); }
+.reference-search input { min-width: 0; flex: 1; border: 0; outline: 0; padding: .82rem 1rem; text-align: right; color: #314845; background: transparent; }
+.reference-search input::placeholder { color: #9ba7a4; }
+.reference-search button { border: 0; background: #3f5c56; color: #fff; padding: 0 1.6rem; font-weight: 700; cursor: pointer; }
+.reference-search button:hover { background: #304a45; }
+.reference-trust { display: flex; justify-content: center; align-items: center; gap: .35rem; margin-top: .8rem; font-size: .72rem; color: #82918c; }
+.reference-list { overflow: hidden; border: 1px solid #d9dfdc; background: rgba(255,255,255,.82); }
+.reference-list-heading { padding: .8rem 1rem; background: #354943; color: white; text-align: right; font-size: 1.05rem; font-weight: 700; }
+.reference-list-item { display: flex; align-items: center; gap: .45rem; min-height: 2.1rem; padding: .35rem 1rem; border-bottom: 1px solid #e5e9e7; color: #42655d; text-decoration: none; text-align: right; font-size: .9rem; transition: background .16s ease, padding-right .16s ease; }
+.reference-list-item:last-child { border-bottom: 0; }
+.reference-list-item:hover { padding-right: 1.25rem; background: #f0f7f2; color: #28453e; }
+.reference-list-item span { color: #65a679; font-size: .75rem; }
+.reference-loading { padding: 2rem; color: #899793; text-align: center; }
+.reference-footer-card { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1.4rem 0; color: #82918c; font-size: .8rem; }
+.reference-footer-card div { display: flex; gap: 1rem; }
+.reference-footer-card a { color: #527566; text-decoration: none; }
+@media (max-width: 640px) { .reference-mark strong { font-size: 1.85rem; } .reference-search button { padding: 0 1rem; } .reference-list-item { min-height: 2.4rem; font-size: .85rem; } .reference-footer-card { align-items: flex-start; flex-direction: column; } }
+
+/* The reference catalog is intentionally neutral and utility-first. */
+.naghma-shell { background: #f3f5f4; }
+.reference-home .reference-hero { background: transparent; }
+
+.reference-page { color: #354b4a; }
+.reference-back { display: inline-flex; align-items: center; gap: .35rem; color: #527566; font-size: .8rem; font-weight: 700; text-decoration: none; }
+.reference-page-head { display: flex; align-items: end; justify-content: space-between; gap: 2rem; padding: 2.5rem 0 2rem; }
+.reference-page-head > div > span { color: #78938a; font-size: .75rem; font-weight: 700; }
+.reference-page-head h1 { margin: .35rem 0 0; color: #344d49; font-family: Georgia, serif; font-size: clamp(2.2rem, 5vw, 3.5rem); font-weight: 400; }
+.reference-search-small { width: min(100%, 450px); }
+.reference-search-small svg { order: -1; color: #78938a; margin-left: .7rem; }
+.reference-results { border: 1px solid #d9dfdc; background: rgba(255,255,255,.84); }
+.reference-results-title { padding: .8rem 1rem; background: #354943; color: #fff; font-size: 1rem; font-weight: 700; text-align: right; }
+.reference-result-row { display: grid; grid-template-columns: 1.2rem 1fr auto; align-items: center; gap: .5rem; min-height: 2.8rem; padding: .45rem 1rem; border-bottom: 1px solid #e5e9e7; color: #45685f; text-decoration: none; text-align: right; }
+.reference-result-row:last-child { border-bottom: 0; }
+.reference-result-row:hover { background: #f0f7f2; }
+.reference-result-row span { color: #65a679; }
+.reference-result-row strong { font-size: .9rem; font-weight: 600; }
+.reference-result-row small { color: #9aa8a3; font-size: .72rem; }
+.reference-empty { padding: 2.4rem 1rem; text-align: center; color: #8b9995; }
+.reference-detail, .reference-media { border: 1px solid #d9dfdc; background: rgba(255,255,255,.9); }
+.reference-detail { display: grid; grid-template-columns: 210px 1fr; gap: 2rem; padding: 1.2rem; }
+.reference-detail img { width: 100%; aspect-ratio: 1; object-fit: cover; }
+.reference-detail h1, .reference-media h1 { color: #344d49; font-family: Georgia, serif; font-weight: 400; }
+.reference-detail h1 { margin: .35rem 0; font-size: 2.6rem; }
+.reference-detail .reference-action, .reference-media .reference-action { display: inline-flex; align-items: center; gap: .4rem; background: #3f5c56; color: #fff; padding: .7rem 1rem; text-decoration: none; }
+.reference-media { max-width: 720px; margin: 2rem auto; padding: 1.4rem; }
+.reference-media h1 { margin: .25rem 0; font-size: 2.4rem; }
+.reference-media .media-code { margin: 1.4rem 0; padding: .8rem; background: #f0f4f2; color: #607a71; font-family: monospace; font-size: .8rem; direction: ltr; text-align: left; }
+.reference-media .media-tabs { display: flex; border: 1px solid #d9dfdc; }
+.reference-media .media-tabs button { flex: 1; border: 0; padding: .7rem; background: #fff; color: #526b64; }
+.reference-media .media-tabs button.active { background: #3f5c56; color: #fff; }
+@media (max-width: 680px) { .reference-page-head { align-items: stretch; flex-direction: column; gap: 1.1rem; } .reference-search-small { width: 100%; } .reference-result-row { grid-template-columns: 1rem 1fr; } .reference-result-row small { grid-column: 2; } .reference-detail { grid-template-columns: 1fr; } .reference-detail img { max-height: 260px; } }
