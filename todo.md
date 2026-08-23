@@ -37,3 +37,7 @@
 - [x] Ajouter un test Vitest de `admin.previewImport` et documenter le commit demo sans fixtures persistantes de test.
 - [x] التحقق فعلياً من حالة git والـremote وتجهيز push إلى المستودع المحدد.
 - [x] تطبيق تعديل بصري واضح بعد المراجعة على wordmark والهرمية ثم إعادة screenshot desktop/mobile.
+
+- [x] مواءمة البنية العامة وتجربة الاستخدام مع v1.sm3ha.io دون نسخ الهوية أو الكود أو الأصول المحمية.
+- [x] مراجعة routes البحث والنتائج وmedia والتحويل لتكون أقرب إلى structure المرجعي مع بقاء التدفق demo وآمناً.
+- [x] إعادة فحص الواجهة desktop/mobile والاختبارات بعد التعديلات.
