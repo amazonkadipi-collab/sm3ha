@@ -39,7 +39,7 @@ Configure `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in the managed environm
 
 ## Vercel notes
 
-The frontend build is Vite-based and the production build command is `pnpm build`. For Vercel, configure the project to use Node 22, install with `pnpm install --frozen-lockfile`, build with `pnpm build`, and provide the same environment variables as the managed project. The current project server is optimized for the managed single-process runtime; if deploying to Vercel Functions, adapt the Express entrypoint to a Vercel function adapter and keep the database connection lazy/server-side.
+The frontend build is Vite-based and the production build command is `pnpm build`. For Vercel, configure Node 22, install with `pnpm install --frozen-lockfile`, build with `pnpm build`, and provide the same environment variables as the managed project. The root `index.ts` exports the Express application as the Vercel entrypoint; `server/_core/index.ts` only starts a local listener when `VERCEL` is not `1`. The `vercel.json` SPA fallback excludes `/api/*`, while Vercel serves the generated `dist/public` assets statically.
 
 ## GitHub
 
@@ -60,6 +60,6 @@ For Vercel, configure `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` as server-s
 
 ## نشر Vercel
 
-يستخدم المشروع `dist/public` كمجلد للواجهة الثابتة، بينما تُوجَّه طلبات `/api/*` إلى Vercel Functions الموجودة في `api/index.ts` و`api/[...path].ts`. تم فصل إنشاء تطبيق Express عن تشغيل listener محلي؛ عند ضبط `VERCEL=1` لا يفتح الخادم منفذاً، ويُصدّر التطبيق كـhandler serverless. يجب إضافة `SUPABASE_URL` و`SUPABASE_SERVICE_ROLE_KEY` وجميع متغيرات المصادقة المطلوبة في إعدادات Vercel، وعدم وضع أي قيمة سرية داخل Git.
+يستخدم المشروع `dist/public` كمجلد للواجهة الثابتة، ويُصدّر تطبيق Express من `index.ts` في جذر المشروع وفق نمط Vercel الرسمي. عند ضبط `VERCEL=1` لا يفتح الخادم listener محلياً، وتبقى مسارات `/api/*` داخل تطبيق Express. يستثني `vercel.json` مسارات API من SPA fallback، بينما تُخدم ملفات الواجهة وملفات SEO الثابتة من مخرجات Vite. يجب إضافة `SUPABASE_URL` و`SUPABASE_SERVICE_ROLE_KEY` وجميع متغيرات المصادقة المطلوبة في إعدادات Vercel، وعدم وضع أي قيمة سرية داخل Git.
 
 التحويل في هذا الإصدار تجريبي وآمن فقط. لا يحتوي المشروع على تجاوز لحماية YouTube ولا يتيح تنزيل محتوى غير مصرّح به.

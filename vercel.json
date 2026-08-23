@@ -1,18 +1,14 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
   "buildCommand": "pnpm build",
   "installCommand": "pnpm install --frozen-lockfile",
   "outputDirectory": "dist/public",
   "framework": null,
-  "functions": {
-    "api/index.ts": {
-      "runtime": "nodejs22.x"
-    },
-    "api/[...path].ts": {
-      "runtime": "nodejs22.x"
-    }
-  },
   "rewrites": [
-    { "source": "/((?!api(?:/|$)).*)", "destination": "/index.html" }
+    {
+      "source": "/:path((?!api(?:/|$)|manus-storage(?:/|$)).*)",
+      "destination": "/index.html"
+    }
   ]
 }

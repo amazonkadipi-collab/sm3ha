@@ -61,3 +61,7 @@
 - [x] تشخيص خطأ نشر Vercel: المرفق كان bundle مبنيّاً وليس سجل خطأ صريحاً؛ تم تحديد تعارض static rewrite مع Express server.
 - [x] إصلاح إعدادات وentrypoints Vercel مع الحفاظ على تشغيل Manus الحالي، مع استثناء `/api/*` من SPA rewrite وإضافة catch-all Function.
 - [x] إعادة تشغيل الاختبارات وbuild والتحقق من entrypoint serverless ومسار `/api/demo-download/:token` محلياً قبل الدفع.
+
+- [x] تحليل مشكلة Vercel الحالية من المستودع والسجلات وإعدادات functions/rewrites.
+- [x] إعادة اختبار الواجهة ومسارات `/api/trpc` و`/api/oauth/callback` و`/api/demo-download` وتحديد سبب المشكلة.
+- [x] تطبيق إصلاح root Express entrypoint واستثناء storage proxy من SPA fallback وتوثيق النتيجة وتشغيل الاختبارات والبناء.
