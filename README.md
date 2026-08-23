@@ -57,3 +57,9 @@ The catalog can use the Supabase project configured for this deployment. The ser
 The active Supabase project is `dfocwmbnazuygbazdctn` in `eu-west-2`. The SQL migration in `supabase/0002_import_takedown.sql` adds import batches, import rows, takedown requests, indexes, and public read policies for active catalog records. Catalog reads use Supabase when configured, while admin imports upsert artists and songs and record batch/row outcomes in Supabase. Media remains demonstration-only and produces short-lived signed URLs only for authorized demo files.
 
 For Vercel, configure `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` as server-side project environment variables. Do not use the service-role key in any `VITE_*` variable. Run `pnpm test`, `pnpm check`, and `pnpm build` before deployment.
+
+## نشر Vercel
+
+يستخدم المشروع `dist/public` كمجلد للواجهة الثابتة، بينما تُوجَّه طلبات `/api/*` إلى Vercel Functions الموجودة في `api/index.ts` و`api/[...path].ts`. تم فصل إنشاء تطبيق Express عن تشغيل listener محلي؛ عند ضبط `VERCEL=1` لا يفتح الخادم منفذاً، ويُصدّر التطبيق كـhandler serverless. يجب إضافة `SUPABASE_URL` و`SUPABASE_SERVICE_ROLE_KEY` وجميع متغيرات المصادقة المطلوبة في إعدادات Vercel، وعدم وضع أي قيمة سرية داخل Git.
+
+التحويل في هذا الإصدار تجريبي وآمن فقط. لا يحتوي المشروع على تجاوز لحماية YouTube ولا يتيح تنزيل محتوى غير مصرّح به.
