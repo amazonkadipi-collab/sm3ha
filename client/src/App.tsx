@@ -23,7 +23,7 @@ function PublicLayout({ children }: { children: React.ReactNode }) {
     <header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-6">
       <Link href="/" className="flex items-center gap-3 text-decoration-none" onClick={() => setMenuOpen(false)}>
         <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#756590] text-white shadow-lg shadow-[#756590]/20"><Sparkles size={20} /></span>
-        <span className="wordmark"><span className="serif block text-[1.65rem] font-semibold leading-none tracking-tight text-[#433857]">نغمة</span><span className="mt-1 block text-[9px] font-bold uppercase tracking-[.42em] text-[#756590]">NAGHMAHUB · DISCOVER</span></span>
+        <span className="wordmark"><span className="serif block text-[1.65rem] font-semibold leading-none tracking-tight text-[#433857]">نغمة</span><span className="mt-1 block text-[9px] font-bold uppercase tracking-[.42em] text-[#756590]">اكتشاف الصوت</span></span>
       </Link>
       <nav className={`${menuOpen ? "flex" : "hidden"} absolute right-5 top-20 z-20 flex-col gap-4 rounded-2xl bg-white p-5 shadow-xl md:static md:flex md:flex-row md:items-center md:bg-transparent md:p-0 md:shadow-none`}>
         <Link href="/" className="text-sm font-semibold text-[#6f628f] hover:text-[#3d3556]">الرئيسية</Link>
