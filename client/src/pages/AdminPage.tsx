@@ -2,11 +2,14 @@ import { FileUp, ShieldCheck, UploadCloud } from "lucide-react";
 import { useState } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
 
 export default function AdminPage() {
+  const { user, loading } = useAuth();
   const [text, setText] = useState("title,artist,providerVideoId\nليلة هادئة,نورا الورد,demo-layla\n");
   const [preview, setPreview] = useState<{ total: number; duplicates: number; rows: Array<{ title: string; artist: string; slug: string; providerVideoId: string; duplicate: boolean }> } | null>(null);
+  if (!loading && user && user.role !== "admin") return <div className="mx-auto max-w-xl px-5 py-24 text-center"><div className="soft-card rounded-[28px] p-10"><ShieldCheck className="mx-auto text-[#a86f87]" size={36} /><h1 className="serif mt-4 text-4xl text-[#514568]">الوصول غير مسموح</h1><p className="mt-3 text-sm leading-7 text-[#81768f]">هذه المساحة متاحة للمشرفين فقط.</p><Link href="/" className="mt-6 inline-block font-bold text-[#756590]">العودة للموقع</Link></div></div>;
   const mutation = trpc.admin.previewImport.useMutation({ onSuccess: setPreview });
   const commitMutation = trpc.admin.commitImport.useMutation();
   const runPreview = () => { try { if (text.trim().startsWith("[")) { mutation.mutate({ rows: JSON.parse(text) }); return; } const lines = text.trim().split("\\n").slice(1).filter(Boolean); const rows = lines.map(line => { const [title, artist, providerVideoId] = line.split(","); return { title: title?.trim() || "", artist: artist?.trim() || "", providerVideoId: providerVideoId?.trim() || "" }; }).filter(row => row.title && row.artist && row.providerVideoId); mutation.mutate({ rows }); } catch { setPreview(null); } };

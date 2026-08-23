@@ -31,6 +31,20 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 
 async function startServer() {
   const app = express();
+  const requestWindow = new Map<string, { count: number; resetAt: number }>();
+  app.use((req, res, next) => {
+    res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; img-src 'self' https: data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' ws: wss:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    if (req.path.startsWith("/api/")) {
+      const key = req.ip || "anonymous";
+      const now = Date.now(); const current = requestWindow.get(key);
+      const entry = !current || current.resetAt <= now ? { count: 0, resetAt: now + 60_000 } : current;
+      entry.count += 1; requestWindow.set(key, entry);
+      if (entry.count > 120) return res.status(429).json({ error: "Too many requests" });
+    }
+    next();
+  });
   const server = createServer(app);
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
