@@ -1,0 +1,9 @@
+generator client { provider = "prisma-client-js" }
+datasource db { provider = "postgresql" url = env("DATABASE_URL") }
+model Artist { id Int @id @default(autoincrement()) name String slug String @unique songs Song[] }
+model Album { id Int @id @default(autoincrement()) title String slug String @unique thumbnailUrl String? songs Song[] }
+model Song { id Int @id @default(autoincrement()) title String normalizedTitle String slug String @unique artistId Int albumId Int? provider String providerVideoId String @unique opaqueToken String? @unique thumbnailUrl String? durationSeconds Int? status String @default("active") createdAt DateTime @default(now()) updatedAt DateTime @updatedAt artist Artist @relation(fields:[artistId],references:[id]) album Album? @relation(fields:[albumId],references:[id]) variants MediaVariant[] jobs ConversionJob[] @@index([normalizedTitle]) @@index([providerVideoId]) }
+model MediaVariant { id Int @id @default(autoincrement()) songId Int format String quality String fileSize BigInt? status String @default("ready") expiresAt DateTime? signedUrlMetadata String? song Song @relation(fields:[songId],references:[id]) }
+model ConversionJob { id String @id @default(uuid()) songId Int format String quality String status String @default("queued") errorMessage String? createdAt DateTime @default(now()) completedAt DateTime? song Song @relation(fields:[songId],references:[id]) }
+model SearchLog { id Int @id @default(autoincrement()) query String songId Int? hashedIp String userAgent String? createdAt DateTime @default(now()) }
+model AdminUser { id Int @id @default(autoincrement()) email String @unique passwordHash String role String @default("admin") }
