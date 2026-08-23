@@ -44,3 +44,9 @@
 
 - [x] مواءمة التصميم البصري مع v1.sm3ha.io: الخلفية، الهيدر، search hero، البطاقات، والمسافات مع الحفاظ على branding أصلي.
 - [x] إعادة فحص صفحات homepage/search/song/media على desktop وmobile بعد تعديل التصميم.
+
+- [x] اختيار مشروع Supabase وتوثيق project ID وconnection method: `dfocwmbnazuygbazdctn`، EU West 2، URL موثق في إعدادات البيئة.
+- [x] إنشاء وتطبيق migration/schema Supabase صريح للكتالوج والفنانين والألبومات والـmedia/import/takedown؛ الجداول العشرة موثقة ومفعّل عليها RLS.
+- [x] إضافة اتصال server-side آمن مع Supabase وإبقاء fallback demo.
+- [ ] إدخال بيانات catalog production عبر admin import المصرح والتحقق من search/resolve على صفوف Supabase فعلية؛ حالياً المشروع يستخدم fallback demo لأن الجداول فارغة.
+- [x] تحديث README وSupabase migration واختبار اتصال Supabase؛ secrets لا تدخل إلى GitHub ولا توجد fixtures دائمة.

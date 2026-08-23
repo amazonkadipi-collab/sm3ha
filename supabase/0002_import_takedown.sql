@@ -1,0 +1,48 @@
+create table if not exists public.import_batches (
+  id uuid primary key default gen_random_uuid(),
+  source text not null default 'admin',
+  total_rows integer not null default 0 check (total_rows >= 0),
+  accepted_rows integer not null default 0 check (accepted_rows >= 0),
+  duplicate_rows integer not null default 0 check (duplicate_rows >= 0),
+  status text not null default 'completed' check (status in ('preview', 'completed', 'failed')),
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.import_rows (
+  id uuid primary key default gen_random_uuid(),
+  batch_id uuid not null references public.import_batches(id) on delete cascade,
+  provider_video_id text not null,
+  title text not null,
+  artist text not null,
+  slug text,
+  status text not null default 'accepted' check (status in ('accepted', 'duplicate', 'failed')),
+  error_message text,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.takedown_requests (
+  id uuid primary key default gen_random_uuid(),
+  song_id uuid references public.songs(id) on delete set null,
+  claimant_name text not null,
+  claimant_email text not null,
+  reason text not null,
+  status text not null default 'open' check (status in ('open', 'reviewing', 'resolved', 'rejected')),
+  created_at timestamptz not null default now(),
+  resolved_at timestamptz
+);
+
+alter table public.import_batches enable row level security;
+alter table public.import_rows enable row level security;
+alter table public.takedown_requests enable row level security;
+
+create index if not exists import_rows_batch_id_idx on public.import_rows(batch_id);
+create index if not exists import_rows_provider_video_id_idx on public.import_rows(provider_video_id);
+create index if not exists takedown_requests_song_id_idx on public.takedown_requests(song_id);
+create index if not exists takedown_requests_status_idx on public.takedown_requests(status);
+
+ drop policy if exists "public can read active songs" on public.songs;
+ create policy "public can read active songs" on public.songs for select to anon, authenticated using (status = 'active');
+ drop policy if exists "public can read artists" on public.artists;
+ create policy "public can read artists" on public.artists for select to anon, authenticated using (true);
+ drop policy if exists "public can read albums" on public.albums;
+ create policy "public can read albums" on public.albums for select to anon, authenticated using (true);

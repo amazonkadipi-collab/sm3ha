@@ -8,7 +8,7 @@ The conversion flow is intentionally demonstrative. It does not scrape YouTube, 
 
 ## Stack
 
-The app uses React, TypeScript, Vite, TailwindCSS, Express/tRPC, Drizzle ORM, and the managed MySQL-compatible database provided by the project template. The public catalog is rendered through reusable dynamic routes such as `/s/:slug` and `/media?d=:token`.
+The app uses React, TypeScript, Vite, TailwindCSS, Express/tRPC, Drizzle ORM, and Supabase Postgres for the catalog when configured. The public catalog is rendered through reusable dynamic routes such as `/s/:slug` and `/media?d=:token`, with a local Drizzle/demo fallback for development.
 
 ## Local development
 
@@ -24,7 +24,7 @@ The database schema is defined in `drizzle/schema.ts`. Generate a migration with
 
 ## Environment
 
-Copy `.env.example` to your local environment. Secrets are injected by the managed project environment and must never be committed. The demo mode does not require YouTube or converter credentials.
+Configure `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in the managed environment when using Supabase. The service-role key is server-only and must never be committed or exposed through `VITE_*`. The demo mode does not require YouTube or converter credentials.
 
 ## Routes
 
@@ -48,3 +48,12 @@ This repository is ready for a private GitHub push. Do not commit `.env`, provid
 ## Testing strategy for admin import
 
 `server/admin.import.test.ts` exercises the protected `admin.previewImport` procedure with an authenticated admin context, including slug generation and duplicate provider-ID detection. The `commitImport` procedure persists only demo rows when explicitly invoked by an authenticated administrator and is not called from Vitest fixtures, so automated tests never create persistent database records or contaminate a shared environment. Its database path returns an explicit `database_unavailable` result when no connection exists and is intended for manual integration validation against a disposable database.
+
+
+## Supabase integration
+
+The catalog can use the Supabase project configured for this deployment. The server reads `SUPABASE_URL` and the server-only `SUPABASE_SERVICE_ROLE_KEY` from the managed environment; the service-role key must never be exposed to the browser or committed to GitHub. When these variables are absent, the application falls back to the local Drizzle/demo catalog.
+
+The active Supabase project is `dfocwmbnazuygbazdctn` in `eu-west-2`. The SQL migration in `supabase/0002_import_takedown.sql` adds import batches, import rows, takedown requests, indexes, and public read policies for active catalog records. Catalog reads use Supabase when configured, while admin imports upsert artists and songs and record batch/row outcomes in Supabase. Media remains demonstration-only and produces short-lived signed URLs only for authorized demo files.
+
+For Vercel, configure `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` as server-side project environment variables. Do not use the service-role key in any `VITE_*` variable. Run `pnpm test`, `pnpm check`, and `pnpm build` before deployment.
