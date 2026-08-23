@@ -7,6 +7,7 @@ import { registerOAuthRoutes } from "./oauth";
 import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
+import { verifyDemoDownloadToken } from "../download";
 import { serveStatic, setupVite } from "./vite";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -44,6 +45,14 @@ async function startServer() {
       createContext,
     })
   );
+  app.get("/api/demo-download/:token", (req, res) => {
+    const verified = verifyDemoDownloadToken(req.params.token);
+    if (!verified) return res.status(410).json({ error: "This demo link has expired or is invalid." });
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.setHeader("Content-Disposition", 'attachment; filename="naghmahub-demo.txt"');
+    return res.send(`NaghmaHub demonstration file\\nToken: ${verified.opaqueToken}\\nThis placeholder is authorized for demonstration only.`);
+  });
+
   // development mode uses Vite, production mode uses static files
   if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);
