@@ -9,6 +9,19 @@ import { verifyDemoDownloadToken } from "./download";
 export function createApp() {
   const app = express();
   const requestWindow = new Map<string, { count: number; resetAt: number }>();
+  const adminLoginWindow = new Map<string, { count: number; resetAt: number }>();
+
+  const allowRequest = (window: Map<string, { count: number; resetAt: number }>, key: string, limit: number, windowMs: number) => {
+    const now = Date.now();
+    const current = window.get(key);
+    const entry = !current || current.resetAt <= now ? { count: 0, resetAt: now + windowMs } : current;
+    entry.count += 1;
+    window.set(key, entry);
+    if (window.size > 10_000) {
+      for (const [storedKey, storedEntry] of window) if (storedEntry.resetAt <= now) window.delete(storedKey);
+    }
+    return entry.count <= limit;
+  };
 
   app.use((req, res, next) => {
     res.setHeader(
@@ -17,25 +30,28 @@ export function createApp() {
     );
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()" );
 
     if (req.path.startsWith("/api/")) {
       const key = req.ip || "anonymous";
-      const now = Date.now();
-      const current = requestWindow.get(key);
-      const entry = !current || current.resetAt <= now ? { count: 0, resetAt: now + 60_000 } : current;
-      entry.count += 1;
-      requestWindow.set(key, entry);
-      if (entry.count > 120) return res.status(429).json({ error: "Too many requests" });
+      if (!allowRequest(requestWindow, key, 120, 60_000)) return res.status(429).json({ error: "Too many requests" });
     }
     next();
   });
 
-  app.use(express.json({ limit: "50mb" }));
-  app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  app.use(express.json({ limit: "2mb" }));
+  app.use(express.urlencoded({ limit: "1mb", extended: true }));
   registerStorageProxy(app);
   registerOAuthRoutes(app);
   app.use(
     "/api/trpc",
+    (req, res, next) => {
+      if (req.method === "POST" && req.url.includes("adminLogin")) {
+        const key = req.ip || "anonymous";
+        if (!allowRequest(adminLoginWindow, key, 5, 15 * 60_000)) return res.status(429).json({ error: "Too many login attempts" });
+      }
+      next();
+    },
     createExpressMiddleware({
       router: appRouter,
       createContext,
