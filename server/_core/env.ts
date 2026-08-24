@@ -1,6 +1,7 @@
 export const ENV = {
   appId: process.env.VITE_APP_ID ?? "",
   cookieSecret: process.env.NAGHMAHUB_JWT_SECRET || process.env.JWT_SECRET || "",
+  downloadSecret: process.env.NAGHMAHUB_DOWNLOAD_SECRET || "",
   databaseUrl: process.env.DATABASE_URL ?? "",
   oAuthServerUrl: process.env.OAUTH_SERVER_URL ?? "",
   ownerOpenId: process.env.OWNER_OPEN_ID ?? "",
@@ -11,3 +12,15 @@ export const ENV = {
   adminUsername: process.env.ADMIN_USERNAME ?? "",
   adminPassword: process.env.ADMIN_PASSWORD ?? "",
 };
+
+if (ENV.isProduction) {
+  const required = [
+    ["NAGHMAHUB_JWT_SECRET", ENV.cookieSecret],
+    ["NAGHMAHUB_DOWNLOAD_SECRET", ENV.downloadSecret],
+    ["ADMIN_USERNAME", ENV.adminUsername],
+    ["ADMIN_PASSWORD", ENV.adminPassword],
+  ] as const;
+  for (const [name, value] of required) {
+    if (!value || value.length < 16) throw new Error(`${name} must be configured in production`);
+  }
+}
