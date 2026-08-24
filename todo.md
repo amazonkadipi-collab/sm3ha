@@ -115,3 +115,5 @@
 - [x] اختبار فتح وإغلاق mobile menu وتأكد إغلاقها عند النقر على رابط.
 - [x] التقاط walkthrough كامل يثبت header/footer وحالة menu المفتوحة على desktop/mobile.
 - [x] التقاط لقطات full-page للـheader والـfooter على desktop وmobile، مع توثيق حالة menu المفتوحة باختبار DOM قبل checkpoint.
+
+- [x] تبسيط روابط Header والـmobile menu إلى «الرئيسية» و«جديد البحث» فقط، مع إبقاء باقي الصفحات في Footer.

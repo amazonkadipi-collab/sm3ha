@@ -30,8 +30,6 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
       <nav aria-label="التنقل الرئيسي" className={`${menuOpen ? "flex" : "hidden"} absolute right-5 top-[4.5rem] z-30 flex-col gap-4 rounded-2xl border border-[#756590]/10 bg-white p-5 shadow-xl md:static md:flex md:flex-row md:items-center md:gap-7 md:border-0 md:bg-transparent md:p-0 md:shadow-none`}>
         <Link href="/" className="text-sm font-semibold text-[#6f628f] transition-colors hover:text-[#3d3556]" onClick={() => setMenuOpen(false)}>الرئيسية</Link>
         <Link href="/trending" className="text-sm font-semibold text-[#6f628f] transition-colors hover:text-[#3d3556]" onClick={() => setMenuOpen(false)}>جديد البحث</Link>
-        <Link href="/artists" className="text-sm font-semibold text-[#6f628f] transition-colors hover:text-[#3d3556]" onClick={() => setMenuOpen(false)}>الفنانون</Link>
-        <Link href="/terms" className="text-sm font-semibold text-[#6f628f] transition-colors hover:text-[#3d3556]" onClick={() => setMenuOpen(false)}>المسؤولية</Link>
       </nav>
       <div className="flex items-center gap-1"><button className="rounded-full p-2 text-[#6f628f] transition-colors hover:bg-white/70" aria-label="تبديل المظهر" onClick={toggleTheme}>{theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}</button><button className="rounded-full p-2 text-[#6f628f] transition-colors hover:bg-white/70 md:hidden" aria-label={menuOpen ? "إغلاق القائمة" : "فتح القائمة"} aria-expanded={menuOpen} onClick={() => setMenuOpen(v => !v)}><Menu size={20} /></button></div>
     </header>
