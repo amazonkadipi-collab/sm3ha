@@ -46,9 +46,12 @@ describe("Vercel entrypoint", () => {
     const config = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), "vercel.json"), "utf8")) as {
       rewrites?: Array<{ source?: string; destination?: string }>;
     };
-    const source = config.rewrites?.[0]?.source ?? "";
-    expect(source).toContain("api");
-    expect(source).toContain("manus-storage");
-    expect(config.rewrites?.[0]?.destination).toBe("/index.html");
+    const apiRewrite = config.rewrites?.[0];
+    const spaRewrite = config.rewrites?.[1];
+    expect(apiRewrite?.source).toBe("/api/:path*");
+    expect(apiRewrite?.destination).toBe("/api/[...path]");
+    expect(spaRewrite?.source).toContain("api");
+    expect(spaRewrite?.source).toContain("manus-storage");
+    expect(spaRewrite?.destination).toBe("/index.html");
   });
 });
