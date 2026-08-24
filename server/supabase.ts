@@ -17,7 +17,7 @@ export function hashOpaqueToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
 
-export async function persistImportedRows(rows: Array<{ title: string; artist: string; providerVideoId: string }>) {
+export async function persistImportedRows(rows: Array<{ title: string; artist: string; providerVideoId: string; provider?: string; thumbnailUrl?: string; durationSeconds?: number }>) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return { accepted: 0, status: "database_unavailable" as const };
   const { data: batch, error: batchError } = await supabase.from("import_batches").insert({ source: "admin", total_rows: rows.length, status: "completed" }).select("id").single();
@@ -32,12 +32,20 @@ export async function persistImportedRows(rows: Array<{ title: string; artist: s
       await supabase.from("import_rows").insert({ batch_id: batch.id, provider_video_id: row.providerVideoId, title: row.title, artist: row.artist, slug: songSlug, status: "failed", error_message: artistError?.message ?? "Artist insert failed" });
       continue;
     }
-    const { error: songError } = await supabase.from("songs").upsert({ title: row.title, normalized_title: normalizeArabic(row.title), slug: songSlug, artist_id: artist.id, provider: "demo", provider_video_id: row.providerVideoId, opaque_token_hash: hashOpaqueToken(token), status: "active" }, { onConflict: "provider,provider_video_id" });
+    const { error: songError } = await supabase.from("songs").upsert({ title: row.title, normalized_title: normalizeArabic(row.title), slug: songSlug, artist_id: artist.id, provider: row.provider ?? "demo", provider_video_id: row.providerVideoId, thumbnail_url: row.thumbnailUrl ?? null, duration_seconds: row.durationSeconds ?? 0, rights_status: row.provider === "youtube" ? "metadata_only" : "demo", opaque_token_hash: hashOpaqueToken(token), status: "active" }, { onConflict: "provider,provider_video_id" });
     await supabase.from("import_rows").insert({ batch_id: batch.id, provider_video_id: row.providerVideoId, title: row.title, artist: row.artist, slug: songSlug, status: songError ? "failed" : "accepted", error_message: songError?.message ?? null });
     if (!songError) accepted += 1;
   }
   await supabase.from("import_batches").update({ accepted_rows: accepted, duplicate_rows: rows.length - accepted }).eq("id", batch.id);
   return { accepted, status: "persisted_demo" as const };
+}
+
+export async function updateSupabaseSongStatus(slug: string, status: "available" | "removed") {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return null;
+  const { error } = await supabase.from("songs").update({ status: status === "available" ? "active" : "removed" }).eq("slug", slug);
+  if (error) throw new Error(error.message);
+  return { slug, status };
 }
 
 export function mapSupabaseSong(row: any): CatalogSong {
@@ -54,5 +62,6 @@ export function mapSupabaseSong(row: any): CatalogSong {
     durationSeconds: row.duration_seconds ?? 0,
     isFeatured: Boolean(row.is_featured),
     rightsStatus: row.rights_status === "licensed" ? "licensed" : row.rights_status === "metadata_only" ? "metadata_only" : "demo",
+    availabilityStatus: row.status === "removed" ? "removed" : "available",
   };
 }

@@ -13,6 +13,7 @@ export type CatalogSong = {
   durationSeconds: number;
   isFeatured?: boolean;
   rightsStatus: "demo" | "licensed" | "metadata_only";
+  availabilityStatus?: "available" | "removed";
 };
 
 export const demoSongs: CatalogSong[] = [

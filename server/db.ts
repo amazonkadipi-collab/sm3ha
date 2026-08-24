@@ -34,11 +34,12 @@ export async function getUserByOpenId(openId: string) {
 
 const songSelect = "id,title,normalized_title,slug,provider,provider_video_id,opaque_token_hash,thumbnail_url,duration_seconds,status,created_at,artists(name,slug),albums(title)";
 
-async function supabaseSongs(query?: string, limit = 12) {
+async function supabaseSongs(query?: string, limit = 12, includeRemoved = false) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return null;
   const safeLimit = Math.min(Math.max(limit, 1), 50);
-  let request = supabase.from("songs").select(songSelect).eq("status", "active").order("created_at", { ascending: false }).limit(safeLimit);
+  let request = supabase.from("songs").select(songSelect).order("created_at", { ascending: false }).limit(safeLimit);
+  if (!includeRemoved) request = request.eq("status", "active");
   if (query?.trim()) {
     const term = query.trim().replace(/[%,()]/g, " ");
     request = request.or(`title.ilike.%${term}%,normalized_title.ilike.%${term}%,slug.ilike.%${term}%`);
@@ -48,15 +49,22 @@ async function supabaseSongs(query?: string, limit = 12) {
   return (data ?? []).map(mapSupabaseSong);
 }
 
-export async function findSongs(query?: string, limit = 12) {
-  const supabaseResult = await supabaseSongs(query, limit);
+export async function findSongs(query?: string, limit = 12, includeRemoved = false) {
+  const supabaseResult = await supabaseSongs(query, limit, includeRemoved);
   if (supabaseResult) return supabaseResult;
   const db = await getDb();
   if (!db) return [];
   const safeLimit = Math.min(Math.max(limit, 1), 50);
-  if (!query?.trim()) return db.select().from(songs).orderBy(desc(songs.isFeatured), desc(songs.createdAt)).limit(safeLimit);
+      if (!query?.trim()) return db.select().from(songs).orderBy(desc(songs.isFeatured), desc(songs.createdAt)).limit(safeLimit);
   const pattern = `%${query.trim()}%`;
   return db.select().from(songs).where(or(like(songs.title, pattern), like(songs.normalizedTitle, pattern), like(songs.slug, pattern))).orderBy(desc(songs.isFeatured), desc(songs.createdAt)).limit(safeLimit);
+}
+
+export async function updateDrizzleSongStatus(slug: string, status: "available" | "removed") {
+  const db = await getDb();
+  if (!db) return null;
+  await db.update(songs).set({ availabilityStatus: status }).where(eq(songs.slug, slug));
+  return { slug, status };
 }
 
 export async function findSongBySlug(slug: string) {

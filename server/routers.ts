@@ -7,11 +7,13 @@ import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { createOpaqueToken, demoSongs, formatDuration, makeSlug, normalizeArabic, searchDemoSongs } from "./catalog";
 import { createDemoDownloadToken } from "./download";
-import { findSongBySlug, findSongByToken, findSongs, getDb } from "./db";
-import { getSupabaseAdmin, persistImportedRows } from "./supabase";
+import { findSongBySlug, findSongByToken, findSongs, getDb, updateDrizzleSongStatus } from "./db";
+import { getSupabaseAdmin, persistImportedRows, updateSupabaseSongStatus } from "./supabase";
+import { searchYouTubeVideos } from "./youtube";
 import { artists, songs } from "../drizzle/schema";
 
 const paginationInput = z.object({ query: z.string().trim().max(120).optional(), limit: z.number().int().min(1).max(50).default(12) });
+const importRowInput = z.object({ title: z.string().min(1), artist: z.string().min(1), providerVideoId: z.string().min(1), provider: z.string().max(64).optional(), thumbnailUrl: z.string().url().optional(), durationSeconds: z.number().int().min(0).max(86400).optional() });
 
 const demoResult = (song: typeof demoSongs[number]) => ({ ...song, duration: formatDuration(song.durationSeconds), mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}` });
 
@@ -59,13 +61,33 @@ export const appRouter = router({
       return { id: `demo-job-${song.id}-${Date.now()}`, status: "ready" as const, progress: 100, expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(), downloadUrl: `/api/demo-download/${signedToken}`, notice: "Demo only: no external media was downloaded." };
     }),
   }),
+  youtube: router({
+    search: adminProcedure.input(z.object({ query: z.string().trim().min(2).max(120), limit: z.number().int().min(1).max(25).default(10) })).query(async ({ input }) => {
+      try {
+        return await searchYouTubeVideos(input.query, input.limit);
+      } catch (error) {
+        throw new TRPCError({ code: "BAD_GATEWAY", message: error instanceof Error ? error.message : "YouTube search failed" });
+      }
+    }),
+  }),
   admin: router({
+    listCatalog: adminProcedure.input(z.object({ limit: z.number().int().min(1).max(50).default(25) })).query(async ({ input }) => {
+      const songs = await findSongs(undefined, input.limit, true);
+      return songs.map(song => ({ ...song, artist: "artist" in song ? song.artist : "فنان تجريبي", provider: "provider" in song ? song.provider : "demo", status: "availabilityStatus" in song && song.availabilityStatus === "removed" ? "removed" as const : "available" as const }));
+    }),
+    setSongStatus: adminProcedure.input(z.object({ slug: z.string().min(1).max(255), status: z.enum(["available", "removed"]) })).mutation(async ({ input }) => {
+      const supabaseResult = await updateSupabaseSongStatus(input.slug, input.status);
+      if (supabaseResult) return supabaseResult;
+      const drizzleResult = await updateDrizzleSongStatus(input.slug, input.status);
+      if (!drizzleResult) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Database unavailable" });
+      return drizzleResult;
+    }),
     previewImport: adminProcedure.input(z.object({ rows: z.array(z.object({ title: z.string().min(1), artist: z.string().min(1), providerVideoId: z.string().min(1) })).max(1000) })).mutation(({ input }) => {
       const seen = new Set<string>();
       const rows = input.rows.map(row => { const duplicate = seen.has(row.providerVideoId); seen.add(row.providerVideoId); return { ...row, slug: makeSlug(`${row.artist}-${row.title}`), normalizedTitle: normalizeArabic(row.title), duplicate }; });
       return { rows, total: rows.length, duplicates: rows.filter(row => row.duplicate).length };
     }),
-    commitImport: adminProcedure.input(z.object({ rows: z.array(z.object({ title: z.string().min(1), artist: z.string().min(1), providerVideoId: z.string().min(1) })).max(1000) })).mutation(async ({ input }) => { if (getSupabaseAdmin()) { const result = await persistImportedRows(input.rows); return { ...result, message: `${result.accepted} ligne(s) enregistrée(s) dans Supabase en mode demo.` }; } const db = await getDb(); if (!db) return { accepted: 0, status: "database_unavailable" as const, message: "Database unavailable; no rows were written." }; let accepted = 0; for (const row of input.rows) { const artistSlug = makeSlug(row.artist); const songSlug = makeSlug(`${row.artist}-${row.title}`); await db.insert(artists).values({ name: row.artist, normalizedName: normalizeArabic(row.artist), slug: artistSlug }).onDuplicateKeyUpdate({ set: { name: row.artist, normalizedName: normalizeArabic(row.artist) } }); const artistRows = await db.select({ id: artists.id }).from(artists).where(eq(artists.slug, artistSlug)).limit(1); const artistId = artistRows[0]?.id; if (!artistId) continue; await db.insert(songs).values({ title: row.title, normalizedTitle: normalizeArabic(row.title), slug: songSlug, artistId, provider: "demo", providerVideoId: row.providerVideoId, opaqueToken: createOpaqueToken(`${row.providerVideoId}:${songSlug}`), availabilityStatus: "available", rightsStatus: "demo" }).onDuplicateKeyUpdate({ set: { title: row.title, artistId } }); accepted += 1; } return { accepted, status: "persisted_demo" as const, message: `${accepted} ligne(s) enregistrée(s) en mode demo.` }; }),
+    commitImport: adminProcedure.input(z.object({ rows: z.array(importRowInput).max(1000) })).mutation(async ({ input }) => { if (getSupabaseAdmin()) { const result = await persistImportedRows(input.rows); return { ...result, message: `${result.accepted} ligne(s) enregistrée(s) dans Supabase en mode demo.` }; } const db = await getDb(); if (!db) return { accepted: 0, status: "database_unavailable" as const, message: "Database unavailable; no rows were written." }; let accepted = 0; for (const row of input.rows) { const artistSlug = makeSlug(row.artist); const songSlug = makeSlug(`${row.artist}-${row.title}`); await db.insert(artists).values({ name: row.artist, normalizedName: normalizeArabic(row.artist), slug: artistSlug }).onDuplicateKeyUpdate({ set: { name: row.artist, normalizedName: normalizeArabic(row.artist) } }); const artistRows = await db.select({ id: artists.id }).from(artists).where(eq(artists.slug, artistSlug)).limit(1); const artistId = artistRows[0]?.id; if (!artistId) continue; await db.insert(songs).values({ title: row.title, normalizedTitle: normalizeArabic(row.title), slug: songSlug, artistId, provider: row.provider ?? "demo", providerVideoId: row.providerVideoId, thumbnailUrl: row.thumbnailUrl, durationSeconds: row.durationSeconds, opaqueToken: createOpaqueToken(`${row.providerVideoId}:${songSlug}`), availabilityStatus: "available", rightsStatus: row.provider === "youtube" ? "metadata_only" : "demo" }).onDuplicateKeyUpdate({ set: { title: row.title, artistId } }); accepted += 1; } return { accepted, status: "persisted_demo" as const, message: `${accepted} ligne(s) enregistrée(s) en mode demo.` }; }),
   }),
 });
 
