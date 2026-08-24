@@ -39,7 +39,7 @@ Configure `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in the managed environm
 
 ## Vercel notes
 
-The frontend build is Vite-based and the production build command is `pnpm build`. The public journey is `/search?q=...` → `/s/:slug` → `/media?d=...` → `/videos_dl?v=...`; imported YouTube records keep `metadata_only` rights until separately licensed. For Vercel, configure Node 22, install with `pnpm install --frozen-lockfile`, build with `pnpm build`, and provide the same environment variables as the managed project. The root `index.ts` exports the Express application as the Vercel entrypoint; `server/_core/index.ts` only starts a local listener when `VERCEL` is not `1`. The `vercel.json` SPA fallback excludes `/api/*`, while Vercel serves the generated `dist/public` assets statically.
+The frontend build is Vite-based and the production build command is `pnpm build`. The public journey is `/search?q=...` → `/s/:slug` → `/media?d=...` → `/videos_dl?v=...`; imported YouTube records keep `metadata_only` rights until separately licensed. For Vercel, configure Node 22, install with `pnpm install --frozen-lockfile`, build with `pnpm build`, and provide the same environment variables as the managed project. The `api/[...path].ts` file exports the Express application as a Vercel serverless catch-all, while `server/_core/index.ts` only starts a local listener outside Vercel. The `vercel.json` SPA fallback excludes `/api/*` and `/manus-storage/*`, while Vercel serves the generated `dist/public` assets as static output.
 
 ## GitHub
 
@@ -60,7 +60,7 @@ For Vercel, configure `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `YOUTUBE_
 
 ## نشر Vercel
 
-يستخدم المشروع `dist/public` كمجلد للواجهة الثابتة، ويُصدّر تطبيق Express من `index.ts` في جذر المشروع وفق نمط Vercel الرسمي. عند ضبط `VERCEL=1` لا يفتح الخادم listener محلياً، وتبقى مسارات `/api/*` داخل تطبيق Express. يستثني `vercel.json` مسارات API من SPA fallback، بينما تُخدم ملفات الواجهة وملفات SEO الثابتة من مخرجات Vite. يجب إضافة `SUPABASE_URL` و`SUPABASE_SERVICE_ROLE_KEY` وجميع متغيرات المصادقة المطلوبة في إعدادات Vercel، وعدم وضع أي قيمة سرية داخل Git.
+يبني المشروع الواجهة إلى `dist/public`، ويُصدّر تطبيق Express من `api/[...path].ts` كـVercel Function catch-all وفق نمط Functions الرسمي. عند تشغيل المشروع محلياً يبدأ `server/_core/index.ts` listener، أما داخل Vercel فلا يبدأ listener محلياً. يستثني `vercel.json` مسارات API وstorage proxy من SPA fallback، بينما تُخدم ملفات الواجهة وملفات SEO الثابتة من مخرجات Vite. يجب إضافة `SUPABASE_URL` و`SUPABASE_SERVICE_ROLE_KEY` ومتغيرات المصادقة المطلوبة في إعدادات Vercel، وعدم وضع أي قيمة سرية داخل Git.
 
 التحويل في هذا الإصدار تجريبي وآمن فقط. لا يحتوي المشروع على تجاوز لحماية YouTube ولا يتيح تنزيل محتوى غير مصرّح به.
 

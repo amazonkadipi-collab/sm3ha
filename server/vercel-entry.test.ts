@@ -3,18 +3,14 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 describe("Vercel entrypoint", () => {
-  it("exports the Express app from the root entrypoint without starting a listener", async () => {
+  it("exports the Express app from the Vercel API catch-all without starting a listener", async () => {
     const previous = process.env.VERCEL;
     process.env.VERCEL = "1";
 
     try {
-      const { createApp } = await import("./_core/index");
-      const { default: handler } = await import("../index");
-      const app = createApp();
-
+      const { default: handler } = await import("../api/[...path]");
       expect(typeof handler).toBe("function");
       expect(handler).toHaveProperty("listen");
-      expect(app).toHaveProperty("listen");
 
       const stack = (handler as typeof handler & { _router?: { stack?: Array<{ route?: { path?: string } }> } })._router?.stack ?? [];
       const paths = stack.map(layer => layer.route?.path).filter(Boolean);
