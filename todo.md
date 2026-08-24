@@ -118,3 +118,7 @@
 
 - [x] تبسيط روابط Header والـmobile menu إلى «الرئيسية» و«جديد البحث» فقط، مع إبقاء باقي الصفحات في Footer.
 - [x] تشخيص وإصلاح عدم دخول المستخدم إلى لوحة Admin والتحقق من login/session والصلاحيات.
+- [x] تشخيص رفض بيانات دخول Admin والتحقق من Secrets في بيئة التشغيل والنشر.
+- [ ] إصلاح 404 لمسارات `/api/trpc` وlogin في Vercel عبر إضافة serverless catch-all entrypoint؛ تم التحقق محلياً، وتبقى إعادة النشر والفحص الخارجي.
+- [ ] إعادة نشر Vercel بعد إضافة `api/[...path].ts` والتحقق من زوال 404 في `/api/trpc/auth.me` و`/api/trpc/auth.adminLogin`.
+- [ ] إجراء فحص وظيفي بعد النشر على `/admin` والتأكد من نجاح دخول admin ومرور session.

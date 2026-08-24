@@ -25,6 +25,13 @@ describe("Vercel entrypoint", () => {
     }
   });
 
+  it("exposes the API catch-all entrypoint for Vercel", () => {
+    const source = fs.readFileSync(path.resolve(process.cwd(), "api/[...path].ts"), "utf8");
+    expect(source).toContain('import { createApp } from "../server/_core/index"');
+    expect(source).toContain("const app = createApp()");
+    expect(source).toContain("export default app");
+  });
+
   it("keeps server routes outside the SPA fallback", () => {
     const config = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), "vercel.json"), "utf8")) as {
       rewrites?: Array<{ source?: string; destination?: string }>;
