@@ -126,4 +126,6 @@
 - [x] دفع commit إضافة Google verification إلى GitHub `main` ثم التحقق من SHA البعيد: `de1377f284884a74db37d853b2fe7cb2b07662af`.
 - [ ] التحقق بعد النشر من ظهور Google verification meta في HTML الفعلي على Vercel؛ alias `sm3haa.vercel.app` مازال يعرض deployment مختلفاً.
 - [ ] ربط alias `sm3haa.vercel.app` بمشروع Vercel المتصل بمستودع `amazonkadipi-collab/sm3ha` ثم إعادة التحقق.
+- [ ] إعادة تدقيق GitHub وVercel وتحديد سبب خلل النشر أو اختلاف النسخة ثم تطبيق الإصلاح الممكن.
+- [ ] تنفيذ audit جديد لـGitHub وVercel، إصلاح الخلل الممكن، والتحقق من النشر والـalias وAPI.
 - [x] تحليل الملف المرفق ومقارنة bundle المنشور بالمستودع الحالي لتحديد سبب اختلاف نسخة Vercel؛ تبيّن أنه backend bundle وليس HTML الواجهة، مع اختلاف إعدادات Vercel/output عن الإصدار الحالي.

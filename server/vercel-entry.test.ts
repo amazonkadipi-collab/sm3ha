@@ -29,6 +29,11 @@ describe("Vercel entrypoint", () => {
 
     const packageJson = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), "package.json"), "utf8")) as { scripts?: { build?: string } };
     expect(packageJson.scripts?.build).toContain("cp -R dist/public/. public/");
+
+    const apiSource = fs.readFileSync(path.resolve(process.cwd(), "api/[...path].ts"), "utf8");
+    expect(apiSource).toContain('import { createApp } from "../server/_core/index"');
+    expect(apiSource).toContain("const app = createApp()");
+    expect(apiSource).toContain("export default app");
   });
 
   it("includes the Google Search Console verification meta tag", () => {
