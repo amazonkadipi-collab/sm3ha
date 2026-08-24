@@ -41,12 +41,12 @@ describe("Vercel entrypoint", () => {
   it("keeps server routes outside the SPA fallback", () => {
     const config = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), "vercel.json"), "utf8")) as {
       rewrites?: Array<{ source?: string; destination?: string }>;
-      functions?: Record<string, { includeFiles?: string[] }>;
+      functions?: Record<string, { includeFiles?: string }>;
     };
     const apiRewrite = config.rewrites?.[0];
     const spaRewrite = config.rewrites?.[1];
     const functionConfig = config.functions?.["api/[...path].ts"];
-    expect(functionConfig?.includeFiles).toContain("public/**");
+    expect(functionConfig?.includeFiles).toBe("public/**");
     expect(apiRewrite?.source).toBe("/api/:path*");
     expect(apiRewrite?.destination).toBe("/api/[...path]");
     expect(spaRewrite?.source).toBe("/:path*");
