@@ -30,11 +30,11 @@ export function createApp() {
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
     res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()" );
 
+    const forwardedProto = req.headers["x-forwarded-proto"];
+    const secureRequest = req.protocol === "https" || (typeof forwardedProto === "string" && forwardedProto.split(",")[0].trim().toLowerCase() === "https");
     const originalCookie = res.cookie.bind(res);
     res.cookie = ((name: string, value: unknown, options: any = {}) => {
-      if (name === COOKIE_NAME) {
-        return originalCookie(name, value, { ...options, sameSite: "lax", secure: true });
-      }
+      if (name === COOKIE_NAME) return originalCookie(name, value, { ...options, sameSite: "lax", secure: secureRequest });
       return originalCookie(name, value, options);
     }) as typeof res.cookie;
 
@@ -62,17 +62,14 @@ export function createApp() {
 
   registerStorageProxy(app);
   registerOAuthRoutes(app);
-  app.use(
-    "/api/trpc",
-    (req, res, next) => {
-      if (req.method === "POST" && req.url.includes("adminLogin")) {
-        const key = req.ip || "anonymous";
-        if (!allowRequest(adminLoginWindow, key, 5, 15 * 60_000)) return res.status(429).json({ error: "Too many login attempts" });
-      }
-      next();
-    },
-    createExpressMiddleware({ router: appRouter, createContext }),
-  );
+  app.use("/api/trpc", (req, res, next) => {
+    if (req.method === "POST" && req.url.includes("adminLogin")) {
+      const key = req.ip || "anonymous";
+      if (!allowRequest(adminLoginWindow, key, 5, 15 * 60_000)) return res.status(429).json({ error: "Too many login attempts" });
+    }
+    next();
+  }, createExpressMiddleware({ router: appRouter, createContext }));
+
   app.get("/api/demo-download/:token", (req, res) => {
     const verified = verifyDemoDownloadToken(req.params.token);
     if (!verified) return res.status(410).json({ error: "This demo link has expired or is invalid." });
