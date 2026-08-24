@@ -1,4 +1,4 @@
-import { createApp } from "../dist/index.js";
+import { createApp } from "../dist/app.js";
 
 const app = createApp();
 
