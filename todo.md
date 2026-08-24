@@ -136,3 +136,7 @@
 - [x] توليد `NAGHMAHUB_JWT_SECRET` آمن، إضافته كـSecret، وربطه بـ`ENV.cookieSecret` مع اختبار أولوية المفتاح.
 
 - [ ] تشغيل deployment جديد على Vercel بعد تحديث `NAGHMAHUB_JWT_SECRET` وبيانات Admin، ثم إعادة اختبار login الحي.
+
+- [ ] تنفيذ full audit جديد لـGitHub وVercel والـdeployment الحي، مع توثيق الحالة والإصلاحات والمخاطر المتبقية.
+
+- [x] إصلاح رفض session في Production عندما يكون `VITE_APP_ID` فارغاً: ضمان appId داخلي غير فارغ لجلسات Admin وإضافة اختبار HTTP end-to-end لـadminLogin ثم auth.me.

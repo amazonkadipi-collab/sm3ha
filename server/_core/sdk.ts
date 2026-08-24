@@ -190,7 +190,7 @@ class SDKServer {
 
     return new SignJWT({
       openId: payload.openId,
-      appId: payload.appId,
+      appId: payload.appId || "naghmahub",
       name: payload.name,
     })
       .setProtectedHeader({ alg: "HS256", typ: "JWT" })
