@@ -1,4 +1,5 @@
 import { Toaster } from "@/components/ui/sonner";
+import React from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import Home from "@/pages/Home";
@@ -17,24 +18,25 @@ import { useState } from "react";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 
-function PublicLayout({ children }: { children: React.ReactNode }) {
+export function PublicLayout({ children }: { children: React.ReactNode }) {
   const { theme, toggleTheme } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
   return <div className="naghma-shell">
-    <header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-6">
+    <header className="reference-header mx-auto flex max-w-6xl items-center justify-between px-5 py-5 sm:px-8">
       <Link href="/" className="flex items-center gap-3 text-decoration-none" onClick={() => setMenuOpen(false)}>
-        <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#756590] text-white shadow-lg shadow-[#756590]/20"><Sparkles size={20} /></span>
-        <span className="wordmark"><span className="serif block text-[1.65rem] font-semibold leading-none tracking-tight text-[#433857]">نغمة</span><span className="mt-1 block text-[9px] font-bold uppercase tracking-[.42em] text-[#756590]">اكتشاف الصوت</span></span>
+        <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#756590] text-white shadow-lg shadow-[#756590]/20"><Sparkles size={18} /></span>
+        <span className="wordmark"><span className="serif block text-[1.5rem] font-semibold leading-none tracking-tight text-[#433857]">نغمة</span><span className="mt-1 block text-[9px] font-bold tracking-[.18em] text-[#756590]">اكتشاف الصوت</span></span>
       </Link>
-      <nav className={`${menuOpen ? "flex" : "hidden"} absolute right-5 top-20 z-20 flex-col gap-4 rounded-2xl bg-white p-5 shadow-xl md:static md:flex md:flex-row md:items-center md:bg-transparent md:p-0 md:shadow-none`}>
-        <Link href="/" className="text-sm font-semibold text-[#6f628f] hover:text-[#3d3556]">الرئيسية</Link>
-        <Link href="/trending" className="text-sm font-semibold text-[#6f628f] hover:text-[#3d3556]">الرائج الآن</Link><Link href="/artists" className="text-sm font-semibold text-[#6f628f] hover:text-[#3d3556]">الفنانون</Link>
-        <Link href="/terms" className="text-sm font-semibold text-[#6f628f] hover:text-[#3d3556]">المسؤولية</Link>
+      <nav aria-label="التنقل الرئيسي" className={`${menuOpen ? "flex" : "hidden"} absolute right-5 top-[4.5rem] z-30 flex-col gap-4 rounded-2xl border border-[#756590]/10 bg-white p-5 shadow-xl md:static md:flex md:flex-row md:items-center md:gap-7 md:border-0 md:bg-transparent md:p-0 md:shadow-none`}>
+        <Link href="/" className="text-sm font-semibold text-[#6f628f] transition-colors hover:text-[#3d3556]" onClick={() => setMenuOpen(false)}>الرئيسية</Link>
+        <Link href="/trending" className="text-sm font-semibold text-[#6f628f] transition-colors hover:text-[#3d3556]" onClick={() => setMenuOpen(false)}>جديد البحث</Link>
+        <Link href="/artists" className="text-sm font-semibold text-[#6f628f] transition-colors hover:text-[#3d3556]" onClick={() => setMenuOpen(false)}>الفنانون</Link>
+        <Link href="/terms" className="text-sm font-semibold text-[#6f628f] transition-colors hover:text-[#3d3556]" onClick={() => setMenuOpen(false)}>المسؤولية</Link>
       </nav>
-      <div className="flex items-center gap-2"><button className="rounded-full p-2 text-[#6f628f] hover:bg-white/70" aria-label="تبديل المظهر" onClick={toggleTheme}>{theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}</button><button className="rounded-full p-2 text-[#6f628f] md:hidden" aria-label="فتح القائمة" onClick={() => setMenuOpen(v => !v)}><Menu size={20} /></button></div>
+      <div className="flex items-center gap-1"><button className="rounded-full p-2 text-[#6f628f] transition-colors hover:bg-white/70" aria-label="تبديل المظهر" onClick={toggleTheme}>{theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}</button><button className="rounded-full p-2 text-[#6f628f] transition-colors hover:bg-white/70 md:hidden" aria-label={menuOpen ? "إغلاق القائمة" : "فتح القائمة"} aria-expanded={menuOpen} onClick={() => setMenuOpen(v => !v)}><Menu size={20} /></button></div>
     </header>
     <main>{children}</main>
-    <footer className="mx-auto mt-20 flex max-w-6xl flex-col gap-3 border-t border-[#6f628f]/10 px-5 py-8 text-sm text-[#8c819f] sm:flex-row sm:items-center sm:justify-between"><span>© 2026 نغمة — مساحة هادئة لاكتشاف الصوت.</span><div className="flex gap-4"><Link href="/privacy">الخصوصية</Link><Link href="/terms">الشروط</Link><Link href="/dmca">طلبات السحب</Link></div></footer>
+    <footer className="reference-footer mx-auto mt-20 flex max-w-6xl flex-col gap-5 border-t border-[#6f628f]/10 px-5 py-8 text-sm text-[#8c819f] sm:flex-row sm:items-center sm:justify-between sm:px-8"><span>© 2026 نغمة — مساحة عربية هادئة لاكتشاف الصوت.</span><div className="flex flex-wrap gap-x-5 gap-y-2"><Link href="/trending">جديد البحث</Link><Link href="/contact">اتصل بنا</Link><Link href="/privacy">الخصوصية</Link><Link href="/terms">الشروط</Link><Link href="/dmca">طلبات السحب</Link></div></footer>
   </div>;
 }
 

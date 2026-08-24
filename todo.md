@@ -107,3 +107,11 @@
 
 - [x] إضافة اختبار DOM فعلي لـSearchPage بنتيجة واحدة mocked والتحقق من redirect أثناء التشغيل.
 - [x] إضافة اختبار DOM فعلي لـSongPage وMediaPage ببيانات mocked والتحقق من روابط media وvideos_dl داخل الواجهة.
+
+- [x] مواءمة header مع المرجع: الشعار، روابط الرئيسية/جديد البحث، وأيقونة القائمة والمظهر.
+- [x] مواءمة footer مع المرجع: الروابط، الترتيب، والمسافات على desktop وmobile.
+- [x] اختبار menu والـshell بصرياً ووظيفياً على desktop وmobile ثم حفظ checkpoint.
+
+- [x] اختبار فتح وإغلاق mobile menu وتأكد إغلاقها عند النقر على رابط.
+- [x] التقاط walkthrough كامل يثبت header/footer وحالة menu المفتوحة على desktop/mobile.
+- [x] التقاط لقطات full-page للـheader والـfooter على desktop وmobile، مع توثيق حالة menu المفتوحة باختبار DOM قبل checkpoint.
