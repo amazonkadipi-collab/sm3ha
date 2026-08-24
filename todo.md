@@ -128,5 +128,6 @@
 - [ ] ربط alias `sm3haa.vercel.app` بمشروع Vercel المتصل بمستودع `amazonkadipi-collab/sm3ha` ثم إعادة التحقق.
 - [ ] إعادة تدقيق GitHub وVercel وتحديد سبب خلل النشر أو اختلاف النسخة ثم تطبيق الإصلاح الممكن.
 - [ ] تنفيذ audit جديد لـGitHub وVercel، إصلاح الخلل الممكن، والتحقق من النشر والـalias وAPI.
-- [ ] فصل server app الخاص بـVercel عن Vite/Rollup runtime لتفادي `@rollup/rollup-linux-x64-gnu` وFUNCTION_INVOCATION_FAILED.
+- [x] فصل server app الخاص بـVercel عن Vite/Rollup runtime لتفادي `@rollup/rollup-linux-x64-gnu` وFUNCTION_INVOCATION_FAILED.
+- [ ] إصلاح نشر static public على Vercel بعد نجاح API، لأن `/` و`/admin` يرجعان 404 رغم أن `/api/trpc/auth.me` يرجع 200.
 - [x] تحليل الملف المرفق ومقارنة bundle المنشور بالمستودع الحالي لتحديد سبب اختلاف نسخة Vercel؛ تبيّن أنه backend bundle وليس HTML الواجهة، مع اختلاف إعدادات Vercel/output عن الإصدار الحالي.
