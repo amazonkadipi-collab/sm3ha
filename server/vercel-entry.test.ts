@@ -31,7 +31,7 @@ describe("Vercel entrypoint", () => {
     expect(packageJson.scripts?.build).toContain("cp -R dist/public/. public/");
 
     const apiSource = fs.readFileSync(path.resolve(process.cwd(), "api/[...path].ts"), "utf8");
-    expect(apiSource).toContain('import { createApp } from "../server/_core/index"');
+    expect(apiSource).toContain('import { createApp } from "../dist/index.js"');
     expect(apiSource).toContain("const app = createApp()");
     expect(apiSource).toContain("export default function handler");
     expect(apiSource).toContain("return app(req, res)");
