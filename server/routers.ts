@@ -20,6 +20,11 @@ const paginationInput = z.object({ query: z.string().trim().max(120).optional(),
 const importRowInput = z.object({ title: z.string().min(1), artist: z.string().min(1), providerVideoId: z.string().min(1), provider: z.string().max(64).optional(), thumbnailUrl: z.string().url().optional(), durationSeconds: z.number().int().min(0).max(86400).optional() });
 
 const demoResult = (song: typeof demoSongs[number]) => ({ ...song, duration: formatDuration(song.durationSeconds), mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}` });
+const youtubeResult = (row: Awaited<ReturnType<typeof searchYouTubeVideos>>[number], index: number) => {
+  const slug = makeSlug(`${row.artist}-${row.title}`);
+  const opaqueToken = createOpaqueToken(`${row.providerVideoId}:${slug}`);
+  return { id: -(index + 1), title: row.title, artist: row.artist, artistSlug: makeSlug(row.artist), album: "", slug, providerVideoId: row.providerVideoId, opaqueToken, thumbnailUrl: row.thumbnailUrl, durationSeconds: row.durationSeconds, duration: formatDuration(row.durationSeconds), rightsStatus: "metadata_only" as const, availabilityStatus: "available" as const, mediaUrl: `/media?d=${encodeURIComponent(opaqueToken)}` };
+};
 
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
   if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
@@ -54,9 +59,9 @@ export const appRouter = router({
         try {
           const youtubeRows = await searchYouTubeVideos(query, input.limit);
           if (youtubeRows.length) {
-            await persistImportedRows(youtubeRows);
-            databaseSongs = await findSongs(query, input.limit);
-            results = databaseSongs.map(song => ({ ...song, artist: "", album: "", duration: formatDuration(song.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}` }));
+            void persistImportedRows(youtubeRows).catch(error => console.warn("[YouTube] metadata persistence failed:", error instanceof Error ? error.message : error));
+            // Return API rows immediately: persistence runs in the background so a slow database cannot leave the search page loading.
+            results = youtubeRows.map(youtubeResult);
           }
         } catch (error) {
           console.warn("[YouTube] public search failed:", error instanceof Error ? error.message : error);
