@@ -5,6 +5,7 @@ import { registerStorageProxy } from "./_core/storageProxy";
 import { appRouter } from "./routers";
 import { createContext } from "./_core/context";
 import { verifyDemoDownloadToken } from "./download";
+import { COOKIE_NAME } from "@shared/const";
 
 export function createApp() {
   const app = express();
@@ -24,13 +25,18 @@ export function createApp() {
   };
 
   app.use((req, res, next) => {
-    res.setHeader(
-      "Content-Security-Policy",
-      "default-src 'self'; script-src 'self' 'unsafe-inline'; img-src 'self' https: data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' ws: wss: https:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
-    );
+    res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; img-src 'self' https: data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' ws: wss: https:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
     res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()" );
+
+    const originalCookie = res.cookie.bind(res);
+    res.cookie = ((name: string, value: unknown, options: any = {}) => {
+      if (name === COOKIE_NAME) {
+        return originalCookie(name, value, { ...options, sameSite: "lax", secure: true });
+      }
+      return originalCookie(name, value, options);
+    }) as typeof res.cookie;
 
     if (req.path.startsWith("/api/")) {
       const key = req.ip || "anonymous";
@@ -65,10 +71,7 @@ export function createApp() {
       }
       next();
     },
-    createExpressMiddleware({
-      router: appRouter,
-      createContext,
-    }),
+    createExpressMiddleware({ router: appRouter, createContext }),
   );
   app.get("/api/demo-download/:token", (req, res) => {
     const verified = verifyDemoDownloadToken(req.params.token);
