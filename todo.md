@@ -123,5 +123,6 @@
 - [ ] إعادة نشر Vercel بعد إضافة `api/[...path].ts` والتحقق من زوال 404 في `/api/trpc/auth.me` و`/api/trpc/auth.adminLogin`.
 - [ ] إجراء فحص وظيفي بعد النشر على `/admin` والتأكد من نجاح دخول admin ومرور session.
 - [ ] إضافة Google Search Console verification meta إلى الصفحة الرئيسية والتحقق منه ثم دفعه إلى GitHub لتشغيل Vercel تلقائياً.
-- [ ] دفع commit إضافة Google verification إلى GitHub `main` ثم التحقق من SHA البعيد.
+- [x] دفع commit إضافة Google verification إلى GitHub `main` ثم التحقق من SHA البعيد: `de1377f284884a74db37d853b2fe7cb2b07662af`.
 - [ ] التحقق بعد النشر من ظهور Google verification meta في HTML الفعلي على Vercel.
+- [x] تحليل الملف المرفق ومقارنة bundle المنشور بالمستودع الحالي لتحديد سبب اختلاف نسخة Vercel؛ تبيّن أنه backend bundle وليس HTML الواجهة، مع اختلاف إعدادات Vercel/output عن الإصدار الحالي.

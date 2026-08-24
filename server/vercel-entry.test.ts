@@ -3,12 +3,12 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 describe("Vercel entrypoint", () => {
-  it("exports the Express app from the Vercel API catch-all without starting a listener", async () => {
+  it("exports the Express app from the root Vercel entrypoint without starting a listener", async () => {
     const previous = process.env.VERCEL;
     process.env.VERCEL = "1";
 
     try {
-      const { default: handler } = await import("../api/[...path]");
+      const { default: handler } = await import("../index");
       expect(typeof handler).toBe("function");
       expect(handler).toHaveProperty("listen");
 
@@ -21,11 +21,14 @@ describe("Vercel entrypoint", () => {
     }
   });
 
-  it("exposes the API catch-all entrypoint for Vercel", () => {
-    const source = fs.readFileSync(path.resolve(process.cwd(), "api/[...path].ts"), "utf8");
-    expect(source).toContain('import { createApp } from "../server/_core/index"');
+  it("uses the official root Express entrypoint and generated public output", () => {
+    const source = fs.readFileSync(path.resolve(process.cwd(), "index.ts"), "utf8");
+    expect(source).toContain('import { createApp } from "./server/_core/index"');
     expect(source).toContain("const app = createApp()");
     expect(source).toContain("export default app");
+
+    const packageJson = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), "package.json"), "utf8")) as { scripts?: { build?: string } };
+    expect(packageJson.scripts?.build).toContain("cp -R dist/public/. public/");
   });
 
   it("includes the Google Search Console verification meta tag", () => {
