@@ -129,5 +129,6 @@
 - [ ] إعادة تدقيق GitHub وVercel وتحديد سبب خلل النشر أو اختلاف النسخة ثم تطبيق الإصلاح الممكن.
 - [ ] تنفيذ audit جديد لـGitHub وVercel، إصلاح الخلل الممكن، والتحقق من النشر والـalias وAPI.
 - [x] فصل server app الخاص بـVercel عن Vite/Rollup runtime لتفادي `@rollup/rollup-linux-x64-gnu` وFUNCTION_INVOCATION_FAILED.
-- [ ] إصلاح نشر static public على Vercel بعد نجاح API، لأن `/` و`/admin` يرجعان 404 رغم أن `/api/trpc/auth.me` يرجع 200.
+- [ ] إصلاح نشر static public على Vercel بعد نجاح API؛ `/admin` وAPI صارا يعملان، وبقي root `/` يرجع 404 لأن rewrite العام لا يطابق المسار الفارغ.
+- [ ] إضافة rewrite صريح من `/` إلى Vercel Function والتحقق من homepage وGoogle meta.
 - [x] تحليل الملف المرفق ومقارنة bundle المنشور بالمستودع الحالي لتحديد سبب اختلاف نسخة Vercel؛ تبيّن أنه backend bundle وليس HTML الواجهة، مع اختلاف إعدادات Vercel/output عن الإصدار الحالي.

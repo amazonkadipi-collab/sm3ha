@@ -43,10 +43,13 @@ describe("Vercel entrypoint", () => {
       rewrites?: Array<{ source?: string; destination?: string }>;
       functions?: Record<string, { includeFiles?: string }>;
     };
-    const apiRewrite = config.rewrites?.[0];
-    const spaRewrite = config.rewrites?.[1];
+    const rootRewrite = config.rewrites?.[0];
+    const apiRewrite = config.rewrites?.[1];
+    const spaRewrite = config.rewrites?.[2];
     const functionConfig = config.functions?.["api/[...path].ts"];
     expect(functionConfig?.includeFiles).toBe("public/**");
+    expect(rootRewrite?.source).toBe("/");
+    expect(rootRewrite?.destination).toBe("/api/[...path]");
     expect(apiRewrite?.source).toBe("/api/:path*");
     expect(apiRewrite?.destination).toBe("/api/[...path]");
     expect(spaRewrite?.source).toBe("/:path*");
