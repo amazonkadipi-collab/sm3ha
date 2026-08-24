@@ -121,7 +121,7 @@
 - [x] تشخيص رفض بيانات دخول Admin والتحقق من Secrets في بيئة التشغيل والنشر.
 - [x] إصلاح 404 لمسارات `/api/trpc` وlogin في Vercel عبر إضافة serverless catch-all entrypoint؛ تم التحقق محلياً وخارجياً.
 - [x] إعادة نشر Vercel بعد إضافة `api/[...path].ts` والتحقق من زوال 404 في `/api/trpc/auth.me` و`/api/trpc/auth.adminLogin`.
-- [ ] إجراء فحص وظيفي بعد النشر على `/admin` والتأكد من نجاح دخول admin ومرور session.
+- [x] إجراء فحص وظيفي بعد النشر على `/admin` والتأكد من نجاح دخول admin ومرور session.
 - [x] إضافة Google Search Console verification meta إلى الصفحة الرئيسية والتحقق منه ثم دفعه إلى GitHub لتشغيل Vercel تلقائياً.
 - [x] دفع commit إضافة Google verification إلى GitHub `main` ثم التحقق من SHA البعيد: `de1377f284884a74db37d853b2fe7cb2b07662af`.
 - [x] التحقق بعد النشر من ظهور Google verification meta في HTML الفعلي على Vercel؛ ظهر الوسم فعلياً على alias `sm3haa.vercel.app`.
@@ -135,8 +135,8 @@
 
 - [x] توليد `NAGHMAHUB_JWT_SECRET` آمن، إضافته كـSecret، وربطه بـ`ENV.cookieSecret` مع اختبار أولوية المفتاح.
 
-- [ ] تشغيل deployment جديد على Vercel بعد تحديث `NAGHMAHUB_JWT_SECRET` وبيانات Admin، ثم إعادة اختبار login الحي.
+- [x] تشغيل deployment جديد على Vercel بعد تحديث `NAGHMAHUB_JWT_SECRET` وبيانات Admin، ثم إعادة اختبار login الحي.
 
-- [ ] تنفيذ full audit جديد لـGitHub وVercel والـdeployment الحي، مع توثيق الحالة والإصلاحات والمخاطر المتبقية.
+- [x] تنفيذ full audit جديد لـGitHub وVercel والـdeployment الحي، مع توثيق الحالة والإصلاحات والمخاطر المتبقية.
 
 - [x] إصلاح رفض session في Production عندما يكون `VITE_APP_ID` فارغاً: ضمان appId داخلي غير فارغ لجلسات Admin وإضافة اختبار HTTP end-to-end لـadminLogin ثم auth.me.
