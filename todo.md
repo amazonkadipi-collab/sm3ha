@@ -144,3 +144,5 @@
 - [x] إعادة audit بعد آخر push: GitHub، Vercel، deployment، routes، Admin session، وSEO.
 
 - [x] تشخيص وإصلاح الصفحة البيضاء على `https://sm3haa.vercel.app/` والتحقق من JavaScript والـruntime والصفحة الرئيسية بعد النشر.
+
+- [x] حذف جميع فروع GitHub غير `main` من `amazonkadipi-collab/sm3ha` والتحقق من بقاء `main` فقط.
