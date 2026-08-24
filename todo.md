@@ -124,5 +124,6 @@
 - [ ] إجراء فحص وظيفي بعد النشر على `/admin` والتأكد من نجاح دخول admin ومرور session.
 - [ ] إضافة Google Search Console verification meta إلى الصفحة الرئيسية والتحقق منه ثم دفعه إلى GitHub لتشغيل Vercel تلقائياً.
 - [x] دفع commit إضافة Google verification إلى GitHub `main` ثم التحقق من SHA البعيد: `de1377f284884a74db37d853b2fe7cb2b07662af`.
-- [ ] التحقق بعد النشر من ظهور Google verification meta في HTML الفعلي على Vercel.
+- [ ] التحقق بعد النشر من ظهور Google verification meta في HTML الفعلي على Vercel؛ alias `sm3haa.vercel.app` مازال يعرض deployment مختلفاً.
+- [ ] ربط alias `sm3haa.vercel.app` بمشروع Vercel المتصل بمستودع `amazonkadipi-collab/sm3ha` ثم إعادة التحقق.
 - [x] تحليل الملف المرفق ومقارنة bundle المنشور بالمستودع الحالي لتحديد سبب اختلاف نسخة Vercel؛ تبيّن أنه backend bundle وليس HTML الواجهة، مع اختلاف إعدادات Vercel/output عن الإصدار الحالي.
