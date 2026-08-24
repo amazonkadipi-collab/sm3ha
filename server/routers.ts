@@ -12,6 +12,7 @@ import { createOpaqueToken, demoSongs, formatDuration, makeSlug, normalizeArabic
 import { createDemoDownloadToken } from "./download";
 import { findSongBySlug, findSongByToken, findSongs, getDb, updateDrizzleSongStatus } from "./db";
 import { getSupabaseAdmin, persistImportedRows, updateSupabaseSongStatus } from "./supabase";
+import { getAnalyticsSummary, getSiteSettings, hashRequestValue, listSearchLogs, listTakedowns, recordAnalyticsEvent, recordSearchLog, submitTakedown, updateSiteSettings, updateTakedown } from "./admin-observability";
 import { searchYouTubeVideos } from "./youtube";
 import { artists, songs } from "../drizzle/schema";
 
@@ -45,10 +46,16 @@ export const appRouter = router({
     }),
   }),
   catalog: router({
-    search: publicProcedure.input(paginationInput).query(async ({ input }) => {
+    search: publicProcedure.input(paginationInput).query(async ({ ctx, input }) => {
       const databaseSongs = await findSongs(input.query, input.limit);
-      if (databaseSongs.length) return databaseSongs.map(song => ({ ...song, artist: "", album: "", duration: formatDuration(song.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}` }));
-      return searchDemoSongs(input.query ?? "").slice(0, input.limit).map(demoResult);
+      const results = databaseSongs.length ? databaseSongs.map(song => ({ ...song, artist: "", album: "", duration: formatDuration(song.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}` })) : searchDemoSongs(input.query ?? "").slice(0, input.limit).map(demoResult);
+      const query = input.query?.trim();
+      if (query) {
+        const forwarded = String(ctx.req.headers["x-forwarded-for"] ?? ctx.req.socket.remoteAddress ?? "").split(",")[0].trim();
+        void recordSearchLog({ query, path: "/search", resultCount: results.length, hashedIp: forwarded ? hashRequestValue(forwarded) : undefined, userAgent: String(ctx.req.headers["user-agent"] ?? "") });
+        void recordAnalyticsEvent({ eventName: "search", path: "/search", query, metadata: { resultCount: results.length } });
+      }
+      return results;
     }),
     trending: publicProcedure.input(z.object({ limit: z.number().int().min(1).max(20).default(6) })).query(async ({ input }) => demoSongs.slice(0, input.limit).map(demoResult)),
     artists: publicProcedure.input(z.object({ limit: z.number().int().min(1).max(20).default(12) })).query(({ input }) => Array.from(new Map(demoSongs.map(song => [song.artistSlug, { slug: song.artistSlug, name: song.artist, imageUrl: song.thumbnailUrl, songCount: demoSongs.filter(item => item.artistSlug === song.artistSlug).length }])).values()).slice(0, input.limit)),
@@ -81,6 +88,18 @@ export const appRouter = router({
         throw new TRPCError({ code: "BAD_GATEWAY", message: error instanceof Error ? error.message : "YouTube search failed" });
       }
     }),
+  }),
+  observability: router({
+    track: publicProcedure.input(z.object({ eventName: z.enum(["page_view", "song_view", "media_view", "conversion_start"]), path: z.string().min(1).max(500), query: z.string().max(255).optional(), metadata: z.record(z.string(), z.unknown()).optional() })).mutation(({ input, ctx }) => { const session = String(ctx.req.headers["x-forwarded-for"] ?? ctx.req.socket.remoteAddress ?? ""); void recordAnalyticsEvent({ ...input, sessionHash: session ? hashRequestValue(session) : undefined }); return { accepted: true } as const; }),
+    summary: adminProcedure.input(z.object({ days: z.number().int().min(1).max(90).default(30) })).query(({ input }) => getAnalyticsSummary(input.days)),
+    searchLogs: adminProcedure.input(z.object({ query: z.string().max(120).optional(), limit: z.number().int().min(1).max(100).default(25), offset: z.number().int().min(0).max(10000).default(0) })).query(({ input }) => listSearchLogs(input)),
+    takedowns: adminProcedure.input(z.object({ status: z.enum(["open", "reviewing", "resolved", "rejected"]).optional(), limit: z.number().int().min(1).max(100).default(25), offset: z.number().int().min(0).max(10000).default(0) })).query(({ input }) => listTakedowns(input)),
+    updateTakedown: adminProcedure.input(z.object({ id: z.string().uuid(), status: z.enum(["open", "reviewing", "resolved", "rejected"]), adminNotes: z.string().max(5000).optional() })).mutation(async ({ input, ctx }) => { const result = await updateTakedown({ ...input, updatedBy: ctx.user.openId }); void recordAnalyticsEvent({ eventName: "admin_action", path: "/admin/dmca", metadata: { action: "update_takedown", status: input.status } }); return result; }),
+    settings: adminProcedure.query(() => getSiteSettings()),
+    updateSettings: adminProcedure.input(z.object({ rows: z.array(z.object({ key: z.string().min(1).max(100), value: z.string().max(2000) })).max(50) })).mutation(async ({ input, ctx }) => { const result = await updateSiteSettings(input.rows, ctx.user.openId); void recordAnalyticsEvent({ eventName: "admin_action", path: "/admin/settings", metadata: { action: "update_settings", keys: input.rows.map(row => row.key).slice(0, 20) } }); return result; }),
+  }),
+  takedown: router({
+    submit: publicProcedure.input(z.object({ songId: z.string().uuid().optional(), claimantName: z.string().trim().min(2).max(255), claimantEmail: z.string().email().max(320), reason: z.string().trim().min(20).max(10000), evidenceUrl: z.string().url().max(1000).optional() })).mutation(({ input }) => submitTakedown(input)),
   }),
   admin: router({
     listCatalog: adminProcedure.input(z.object({ limit: z.number().int().min(1).max(50).default(25) })).query(async ({ input }) => {

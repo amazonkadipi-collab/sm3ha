@@ -12,15 +12,21 @@ import LegalPage from "@/pages/LegalPage";
 import AdminPage from "@/pages/AdminPage";
 import ArtistPage from "@/pages/ArtistPage";
 import ArtistsPage from "@/pages/ArtistsPage";
-import { Route, Switch, Link } from "wouter";
+import { Route, Switch, Link, useLocation } from "wouter";
 import { Moon, Sun, Menu, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
+import { trpc } from "@/lib/trpc";
 
 export function PublicLayout({ children }: { children: React.ReactNode }) {
   const { theme, toggleTheme } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [location] = useLocation();
+  const track = trpc.observability.track.useMutation();
+  useEffect(() => {
+    void track.mutate({ eventName: "page_view", path: window.location.pathname, metadata: { title: document.title } });
+  }, [location]);
   return <div className="naghma-shell">
     <header className="reference-header mx-auto flex max-w-6xl items-center justify-between px-5 py-5 sm:px-8">
       <Link href="/" className="flex items-center gap-3 text-decoration-none" onClick={() => setMenuOpen(false)}>

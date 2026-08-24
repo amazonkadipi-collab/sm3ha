@@ -9,7 +9,9 @@ vi.mock("./contexts/ThemeContext", () => ({
 }));
 vi.mock("wouter", () => ({
   Link: ({ href, children, ...props }: { href: string; children: React.ReactNode }) => <a href={href} {...props}>{children}</a>,
+  useLocation: () => ["/", vi.fn()] as const,
 }));
+vi.mock("@/lib/trpc", () => ({ trpc: { observability: { track: { useMutation: () => ({ mutate: vi.fn() }) } } } }));
 
 let PublicLayout: typeof import("./App").PublicLayout;
 beforeAll(async () => { PublicLayout = (await import("./App")).PublicLayout; });

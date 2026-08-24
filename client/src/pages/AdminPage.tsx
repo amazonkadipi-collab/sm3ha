@@ -4,6 +4,7 @@ import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout, { AdminLoginCard } from "@/components/DashboardLayout";
+import AdminOperations from "@/components/AdminOperations";
 
 type PreviewRow = { title: string; artist: string; slug: string; providerVideoId: string; duplicate: boolean };
 
@@ -72,6 +73,7 @@ export default function AdminPage() {
       </section>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_.9fr]"><section className="soft-card rounded-[28px] p-6"><div className="flex items-center gap-3"><FileUp className="text-[#756590]" size={20} /><h2 className="font-bold text-[#514568]">معاينة استيراد CSV/JSON</h2></div><p className="mt-2 text-sm leading-7 text-[#81768f]">أضف العناوين والفنانين والمعرّفات في صيغة جدول. تتم المعاينة والتحقق قبل الإدخال.</p><textarea value={text} onChange={event => setText(event.target.value)} className="mt-5 min-h-48 w-full rounded-2xl border border-[#756590]/10 bg-white/70 p-4 font-mono text-sm text-[#514568] outline-none focus:border-[#756590]/40" /><button onClick={runPreview} disabled={previewMutation.isPending} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#756590] px-5 py-3 text-sm font-bold text-white disabled:opacity-60"><UploadCloud size={16} />{previewMutation.isPending ? "جارٍ الفحص…" : "معاينة البيانات"}</button>{preview && <button onClick={() => commitMutation.mutate({ rows: preview.rows.map(row => ({ title: row.title, artist: row.artist, providerVideoId: row.providerVideoId })) })} disabled={commitMutation.isPending} className="mr-2 mt-4 rounded-xl border border-[#756590]/20 px-5 py-3 text-sm font-bold text-[#756590]">{commitMutation.isPending ? "جارٍ التأكيد…" : "تأكيد الاستيراد التجريبي"}</button>}{commitMutation.data && <p className="mt-3 text-xs text-[#477363]">{commitMutation.data.message}</p>}</section><section className="soft-card rounded-[28px] p-6"><h2 className="font-bold text-[#514568]">نتيجة المعاينة</h2>{!preview ? <div className="mt-8 rounded-2xl bg-[#f6f1fa] p-6 text-center text-sm leading-7 text-[#8c819f]">ستظهر هنا الإحصائيات والتكرارات.</div> : <><div className="mt-5 grid grid-cols-2 gap-3"><div className="rounded-2xl bg-[#effaf5] p-4"><p className="text-2xl font-bold text-[#477363]">{preview.total}</p><p className="text-xs text-[#6b8f82]">سطر صالح</p></div><div className="rounded-2xl bg-[#fbf0f4] p-4"><p className="text-2xl font-bold text-[#a86f87]">{preview.duplicates}</p><p className="text-xs text-[#a86f87]">تكرار</p></div></div><div className="mt-5 space-y-2">{preview.rows.map(row => <div key={`${row.slug}-${row.title}`} className="rounded-xl border border-[#756590]/10 p-3 text-sm"><p className="font-bold text-[#514568]">{row.title}</p><p className="text-xs text-[#8c819f]">/{row.slug} {row.duplicate && "· مكرر"}</p></div>)}</div></>}</section></div>
+      <AdminOperations />
     </div>
   </DashboardLayout>;
 }
