@@ -132,3 +132,5 @@
 - [ ] إصلاح نشر static public على Vercel بعد نجاح API؛ `/admin` وAPI صارا يعملان، وبقي root `/` يرجع 404 لأن rewrite العام لا يطابق المسار الفارغ.
 - [ ] إضافة rewrite صريح من `/` إلى Vercel Function والتحقق من homepage وGoogle meta.
 - [x] تحليل الملف المرفق ومقارنة bundle المنشور بالمستودع الحالي لتحديد سبب اختلاف نسخة Vercel؛ تبيّن أنه backend bundle وليس HTML الواجهة، مع اختلاف إعدادات Vercel/output عن الإصدار الحالي.
+
+- [x] توليد `NAGHMAHUB_JWT_SECRET` آمن، إضافته كـSecret، وربطه بـ`ENV.cookieSecret` مع اختبار أولوية المفتاح.
