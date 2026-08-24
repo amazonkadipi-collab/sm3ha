@@ -3,14 +3,19 @@
   "version": 2,
   "buildCommand": "pnpm build",
   "installCommand": "pnpm install --frozen-lockfile",
+  "functions": {
+    "api/[...path].ts": {
+      "includeFiles": ["public/**"]
+    }
+  },
   "rewrites": [
     {
       "source": "/api/:path*",
       "destination": "/api/[...path]"
     },
     {
-      "source": "/:path((?!api(?:/|$)|manus-storage(?:/|$)).*)",
-      "destination": "/index.html"
+      "source": "/:path*",
+      "destination": "/api/[...path]"
     }
   ]
 }

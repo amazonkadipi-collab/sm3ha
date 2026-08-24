@@ -26,7 +26,9 @@ describe("Vercel entrypoint", () => {
 
     const apiSource = fs.readFileSync(path.resolve(process.cwd(), "api/[...path].ts"), "utf8");
     expect(apiSource).toContain('import { createApp } from "../dist/app.js"');
+    expect(apiSource).toContain('import { serveStatic } from "../dist/static.js"');
     expect(apiSource).toContain("const app = createApp()");
+    expect(apiSource).toContain("serveStatic(app)");
     expect(apiSource).toContain("export default function handler");
     expect(apiSource).toContain("return app(req, res)");
   });
@@ -39,13 +41,15 @@ describe("Vercel entrypoint", () => {
   it("keeps server routes outside the SPA fallback", () => {
     const config = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), "vercel.json"), "utf8")) as {
       rewrites?: Array<{ source?: string; destination?: string }>;
+      functions?: Record<string, { includeFiles?: string[] }>;
     };
     const apiRewrite = config.rewrites?.[0];
     const spaRewrite = config.rewrites?.[1];
+    const functionConfig = config.functions?.["api/[...path].ts"];
+    expect(functionConfig?.includeFiles).toContain("public/**");
     expect(apiRewrite?.source).toBe("/api/:path*");
     expect(apiRewrite?.destination).toBe("/api/[...path]");
-    expect(spaRewrite?.source).toContain("api");
-    expect(spaRewrite?.source).toContain("manus-storage");
-    expect(spaRewrite?.destination).toBe("/index.html");
+    expect(spaRewrite?.source).toBe("/:path*");
+    expect(spaRewrite?.destination).toBe("/api/[...path]");
   });
 });
