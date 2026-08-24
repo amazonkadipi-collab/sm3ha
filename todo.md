@@ -65,3 +65,5 @@
 - [x] تحليل مشكلة Vercel الحالية من المستودع والسجلات وإعدادات functions/rewrites.
 - [x] إعادة اختبار الواجهة ومسارات `/api/trpc` و`/api/oauth/callback` و`/api/demo-download` وتحديد سبب المشكلة.
 - [x] تطبيق إصلاح root Express entrypoint واستثناء storage proxy من SPA fallback وتوثيق النتيجة وتشغيل الاختبارات والبناء.
+
+- [x] تحليل workflow الظاهر في https://v1.sm3ha.io/، من البحث حتى صفحة الأغنية ومسار التحويل/التنزيل، مع فصل الملاحظات المؤكدة عن الاستنتاجات.
