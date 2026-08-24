@@ -21,7 +21,7 @@ export default function Home() {
     : fallbackQueries.map((label) => ({ label, slug: label }));
 
   useEffect(() => {
-    applySeo({ title: "نغمة - تحميل وإستماع أغاني", description: "ابحث عن أغنية أو ألبوم أو فنان واكتشف نتائج موسيقية عربية.", path: "/" });
+    applySeo({ title: "نغمة — تحميل واستماع أغاني عربية", description: "ابحث عن أغنية أو ألبوم أو فنان واكتشف نتائج موسيقية عربية.", path: "/" });
     return resetSeo;
   }, []);
 
