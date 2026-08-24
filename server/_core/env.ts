@@ -13,13 +13,16 @@ export const ENV = {
   adminPassword: process.env.ADMIN_PASSWORD ?? "",
 };
 
+// Never crash the entire server during module initialization because an
+// optional/admin environment variable is missing. Public pages and health
+// endpoints must remain available; protected operations validate their own
+// required configuration when they are actually invoked.
 if (ENV.isProduction) {
-  const required = [
+  const checks = [
     ["NAGHMAHUB_JWT_SECRET or JWT_SECRET", ENV.cookieSecret, 32],
     ["ADMIN_USERNAME", ENV.adminUsername, 1],
     ["ADMIN_PASSWORD", ENV.adminPassword, 16],
   ] as const;
-  for (const [name, value, minLength] of required) {
-    if (!value || value.length < minLength) throw new Error(`${name} must be configured in production with at least ${minLength} characters`);
-  }
+  const missing = checks.filter(([, value, minLength]) => !value || value.length < minLength).map(([name]) => name);
+  if (missing.length) console.error(`[Config] Production configuration incomplete: ${missing.join(", ")}`);
 }
