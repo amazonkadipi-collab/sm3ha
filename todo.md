@@ -93,3 +93,17 @@
 
 - [x] مقارنة workflow الحالي مع v1.sm3ha.io وتحسين التسلسل المرئي: البحث، النتائج، التفاصيل، media، والتحويل demo.
 - [x] جعل زر التحويل في `/media` ينتقل فعلياً إلى `/videos_dl?v=...` مثل الرحلة المرجعية، مع إبقاء الصفحة demo الآمنة.
+
+- [x] توثيق route hierarchy والكلمات العامة القابلة لإعادة الصياغة من الموقع المرجعي بدون نسخ الهوية أو المحتوى المحمي.
+- [x] مواءمة routes وworkflow في NaghmaHub مع `/search` و`/s/{slug}` و`/media` و`/videos_dl` وظيفياً.
+- [x] تحسين title وdescription وcanonical وOpen Graph وJSON-LD وsitemap للكلمات العربية المستهدفة بدون keyword stuffing.
+- [x] تشغيل اختبارات SEO/routes والبناء وحفظ checkpoint للمطابقة.
+
+- [x] إضافة اختبار SEO metadata للصفحات الرئيسية والبحث والأغنية والتحويل، بما يشمل title وdescription وcanonical وrobots.
+- [x] إضافة اختبار route-level موثق يثبت تسلسل `/search` → `/s/:slug` → `/media` → `/videos_dl` بعد تغييرات SEO.
+
+- [x] إضافة اختبار runtime فعلي لـapplySeo في DOM يتحقق من title وdescription وrobots وcanonical وOG لكل نوع صفحة.
+- [x] إضافة اختبار route-flow فعلي ببيئة متصفح/DOM يثبت تنقل البحث والروابط بين الأغنية وmedia وvideos_dl.
+
+- [x] إضافة اختبار DOM فعلي لـSearchPage بنتيجة واحدة mocked والتحقق من redirect أثناء التشغيل.
+- [x] إضافة اختبار DOM فعلي لـSongPage وMediaPage ببيانات mocked والتحقق من روابط media وvideos_dl داخل الواجهة.

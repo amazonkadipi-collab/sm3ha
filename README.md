@@ -73,3 +73,7 @@ For Vercel, configure `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `YOUTUBE_
 ## Admin credential login
 
 يمكن فتح `/admin` باستعمال login المستقل عبر `ADMIN_USERNAME` و`ADMIN_PASSWORD`. القيم تُحقن كـenvironment secrets ولا توجد داخل GitHub. الجلسة تُوقّع بـJWT cookie قصيرة الصلاحية، وتُعامل هوية `local_admin` كـadmin بدون طلب OAuth. يجب استعمال قيمة قوية لـ`ADMIN_PASSWORD` قبل أي نشر عام.
+
+## SEO وعبارات البحث
+
+تمت مواءمة الرحلة مع بنية المرجع باستعمال عبارات عربية طبيعية مرتبطة بنية المستخدم: «تحميل واستماع أغاني عربية»، «بحث عن أغنية أو ألبوم أو فنان»، «موسيقى عربية»، و«اختيار الصيغة والجودة». تُستخدم هذه العبارات في العناوين والوصف والروابط الداخلية حسب سياق الصفحة فقط، وليس في نص مخفي أو تكرار مصطنع. صفحات الأغاني تستعمل عنواناً ووصفاً وcanonical وOpen Graph و`MusicRecording` JSON-LD ديناميكياً، بينما صفحات media والتحويل التجريبي تحمل `noindex` ولا تدخل sitemap.
