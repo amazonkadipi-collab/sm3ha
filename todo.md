@@ -122,3 +122,6 @@
 - [ ] إصلاح 404 لمسارات `/api/trpc` وlogin في Vercel عبر إضافة serverless catch-all entrypoint؛ تم التحقق محلياً، وتبقى إعادة النشر والفحص الخارجي.
 - [ ] إعادة نشر Vercel بعد إضافة `api/[...path].ts` والتحقق من زوال 404 في `/api/trpc/auth.me` و`/api/trpc/auth.adminLogin`.
 - [ ] إجراء فحص وظيفي بعد النشر على `/admin` والتأكد من نجاح دخول admin ومرور session.
+- [ ] إضافة Google Search Console verification meta إلى الصفحة الرئيسية والتحقق منه ثم دفعه إلى GitHub لتشغيل Vercel تلقائياً.
+- [ ] دفع commit إضافة Google verification إلى GitHub `main` ثم التحقق من SHA البعيد.
+- [ ] التحقق بعد النشر من ظهور Google verification meta في HTML الفعلي على Vercel.

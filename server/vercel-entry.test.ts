@@ -28,6 +28,11 @@ describe("Vercel entrypoint", () => {
     expect(source).toContain("export default app");
   });
 
+  it("includes the Google Search Console verification meta tag", () => {
+    const html = fs.readFileSync(path.resolve(process.cwd(), "client/index.html"), "utf8");
+    expect(html).toContain('<meta name="google-site-verification" content="WkXRsZNaG77qk0yXebhvc_3VAHqFVP7NsvdVhtFSO5A" />');
+  });
+
   it("keeps server routes outside the SPA fallback", () => {
     const config = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), "vercel.json"), "utf8")) as {
       rewrites?: Array<{ source?: string; destination?: string }>;
