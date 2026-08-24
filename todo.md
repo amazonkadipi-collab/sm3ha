@@ -119,18 +119,20 @@
 - [x] تبسيط روابط Header والـmobile menu إلى «الرئيسية» و«جديد البحث» فقط، مع إبقاء باقي الصفحات في Footer.
 - [x] تشخيص وإصلاح عدم دخول المستخدم إلى لوحة Admin والتحقق من login/session والصلاحيات.
 - [x] تشخيص رفض بيانات دخول Admin والتحقق من Secrets في بيئة التشغيل والنشر.
-- [ ] إصلاح 404 لمسارات `/api/trpc` وlogin في Vercel عبر إضافة serverless catch-all entrypoint؛ تم التحقق محلياً، وتبقى إعادة النشر والفحص الخارجي.
-- [ ] إعادة نشر Vercel بعد إضافة `api/[...path].ts` والتحقق من زوال 404 في `/api/trpc/auth.me` و`/api/trpc/auth.adminLogin`.
+- [x] إصلاح 404 لمسارات `/api/trpc` وlogin في Vercel عبر إضافة serverless catch-all entrypoint؛ تم التحقق محلياً وخارجياً.
+- [x] إعادة نشر Vercel بعد إضافة `api/[...path].ts` والتحقق من زوال 404 في `/api/trpc/auth.me` و`/api/trpc/auth.adminLogin`.
 - [ ] إجراء فحص وظيفي بعد النشر على `/admin` والتأكد من نجاح دخول admin ومرور session.
-- [ ] إضافة Google Search Console verification meta إلى الصفحة الرئيسية والتحقق منه ثم دفعه إلى GitHub لتشغيل Vercel تلقائياً.
+- [x] إضافة Google Search Console verification meta إلى الصفحة الرئيسية والتحقق منه ثم دفعه إلى GitHub لتشغيل Vercel تلقائياً.
 - [x] دفع commit إضافة Google verification إلى GitHub `main` ثم التحقق من SHA البعيد: `de1377f284884a74db37d853b2fe7cb2b07662af`.
 - [ ] التحقق بعد النشر من ظهور Google verification meta في HTML الفعلي على Vercel؛ alias `sm3haa.vercel.app` مازال يعرض deployment مختلفاً.
-- [ ] ربط alias `sm3haa.vercel.app` بمشروع Vercel المتصل بمستودع `amazonkadipi-collab/sm3ha` ثم إعادة التحقق.
-- [ ] إعادة تدقيق GitHub وVercel وتحديد سبب خلل النشر أو اختلاف النسخة ثم تطبيق الإصلاح الممكن.
-- [ ] تنفيذ audit جديد لـGitHub وVercel، إصلاح الخلل الممكن، والتحقق من النشر والـalias وAPI.
+- [x] ربط alias `sm3haa.vercel.app` بمشروع Vercel المتصل بمستودع `amazonkadipi-collab/sm3ha` ثم إعادة التحقق.
+- [x] إعادة تدقيق GitHub وVercel وتحديد سبب خلل النشر أو اختلاف النسخة ثم تطبيق الإصلاح الممكن.
+- [x] تنفيذ audit جديد لـGitHub وVercel، إصلاح الخلل الممكن، والتحقق من النشر والـalias وAPI.
 - [x] فصل server app الخاص بـVercel عن Vite/Rollup runtime لتفادي `@rollup/rollup-linux-x64-gnu` وFUNCTION_INVOCATION_FAILED.
-- [ ] إصلاح نشر static public على Vercel بعد نجاح API؛ `/admin` وAPI صارا يعملان، وبقي root `/` يرجع 404 لأن rewrite العام لا يطابق المسار الفارغ.
-- [ ] إضافة rewrite صريح من `/` إلى Vercel Function والتحقق من homepage وGoogle meta.
+- [x] إصلاح نشر static public على Vercel بعد نجاح API؛ `/admin` وAPI وroot `/` صارت تعمل.
+- [x] إضافة rewrite صريح من `/` إلى Vercel Function والتحقق من homepage وGoogle meta.
 - [x] تحليل الملف المرفق ومقارنة bundle المنشور بالمستودع الحالي لتحديد سبب اختلاف نسخة Vercel؛ تبيّن أنه backend bundle وليس HTML الواجهة، مع اختلاف إعدادات Vercel/output عن الإصدار الحالي.
 
 - [x] توليد `NAGHMAHUB_JWT_SECRET` آمن، إضافته كـSecret، وربطه بـ`ENV.cookieSecret` مع اختبار أولوية المفتاح.
+
+- [ ] تشغيل deployment جديد على Vercel بعد تحديث `NAGHMAHUB_JWT_SECRET` وبيانات Admin، ثم إعادة اختبار login الحي.
