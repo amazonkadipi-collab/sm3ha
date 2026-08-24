@@ -1,0 +1,1 @@
+The backup branch `backup-before-stability-reset-2026-08-24` was intentionally created during the stability reset. This marker exists only because the connected GitHub actions available in this session do not expose branch deletion.
