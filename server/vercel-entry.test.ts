@@ -33,7 +33,8 @@ describe("Vercel entrypoint", () => {
     const apiSource = fs.readFileSync(path.resolve(process.cwd(), "api/[...path].ts"), "utf8");
     expect(apiSource).toContain('import { createApp } from "../server/_core/index"');
     expect(apiSource).toContain("const app = createApp()");
-    expect(apiSource).toContain("export default app");
+    expect(apiSource).toContain("export default function handler");
+    expect(apiSource).toContain("return app(req, res)");
   });
 
   it("includes the Google Search Console verification meta tag", () => {
