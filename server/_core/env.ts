@@ -15,12 +15,12 @@ export const ENV = {
 
 if (ENV.isProduction) {
   const required = [
-    ["NAGHMAHUB_JWT_SECRET", ENV.cookieSecret],
-    ["NAGHMAHUB_DOWNLOAD_SECRET", ENV.downloadSecret],
-    ["ADMIN_USERNAME", ENV.adminUsername],
-    ["ADMIN_PASSWORD", ENV.adminPassword],
+    ["NAGHMAHUB_JWT_SECRET", ENV.cookieSecret, 32],
+    ["NAGHMAHUB_DOWNLOAD_SECRET", ENV.downloadSecret, 32],
+    ["ADMIN_USERNAME", ENV.adminUsername, 1],
+    ["ADMIN_PASSWORD", ENV.adminPassword, 16],
   ] as const;
-  for (const [name, value] of required) {
-    if (!value || value.length < 16) throw new Error(`${name} must be configured in production`);
+  for (const [name, value, minLength] of required) {
+    if (!value || value.length < minLength) throw new Error(`${name} must be configured in production with at least ${minLength} characters`);
   }
 }
