@@ -48,13 +48,13 @@ export function createApp() {
   app.use(express.json({ limit: "2mb" }));
   app.use(express.urlencoded({ limit: "1mb", extended: true }));
 
-  app.get("/robots.txt", (_req, res) => {
-    const origin = process.env.PUBLIC_SITE_URL || "https://naghmahub.com";
+  app.get("/robots.txt", (req, res) => {
+    const origin = process.env.PUBLIC_SITE_URL || `${req.protocol}://${req.get("host")}`;
     res.type("text/plain").send(`User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/\nDisallow: /media\nSitemap: ${origin}/sitemap.xml\n`);
   });
 
-  app.get("/sitemap.xml", (_req, res) => {
-    const origin = process.env.PUBLIC_SITE_URL || "https://naghmahub.com";
+  app.get("/sitemap.xml", (req, res) => {
+    const origin = process.env.PUBLIC_SITE_URL || `${req.protocol}://${req.get("host")}`;
     const urls = ["/", "/artists", "/albums", "/search"];
     const body = urls.map(path => `<url><loc>${origin}${path}</loc></url>`).join("");
     res.type("application/xml").send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>`);
