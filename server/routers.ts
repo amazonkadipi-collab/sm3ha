@@ -47,25 +47,54 @@ export const appRouter = router({
   }),
   catalog: router({
     search: publicProcedure.input(paginationInput).query(async ({ ctx, input }) => {
-      const databaseSongs = await findSongs(input.query, input.limit);
-      const results = databaseSongs.length ? databaseSongs.map(song => ({ ...song, artist: "", album: "", duration: formatDuration(song.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}` })) : searchDemoSongs(input.query ?? "").slice(0, input.limit).map(demoResult);
       const query = input.query?.trim();
+      let databaseSongs = await findSongs(query, input.limit);
+      let results = databaseSongs.map(song => ({ ...song, artist: "", album: "", duration: formatDuration(song.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}` }));
+      if (query && results.length === 0 && ENV.youtubeApiKey) {
+        try {
+          const youtubeRows = await searchYouTubeVideos(query, input.limit);
+          if (youtubeRows.length) {
+            await persistImportedRows(youtubeRows);
+            databaseSongs = await findSongs(query, input.limit);
+            results = databaseSongs.map(song => ({ ...song, artist: "", album: "", duration: formatDuration(song.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}` }));
+          }
+        } catch (error) {
+          console.warn("[YouTube] public search failed:", error instanceof Error ? error.message : error);
+        }
+      }
+      if (results.length === 0) results = searchDemoSongs(query ?? "").slice(0, input.limit).map(demoResult);
       if (query) {
         const forwarded = String(ctx.req.headers["x-forwarded-for"] ?? ctx.req.socket.remoteAddress ?? "").split(",")[0].trim();
         void recordSearchLog({ query, path: "/search", resultCount: results.length, hashedIp: forwarded ? hashRequestValue(forwarded) : undefined, userAgent: String(ctx.req.headers["user-agent"] ?? "") });
-        void recordAnalyticsEvent({ eventName: "search", path: "/search", query, metadata: { resultCount: results.length } });
+        void recordAnalyticsEvent({ eventName: "search", path: "/search", query, metadata: { resultCount: results.length, source: databaseSongs.length ? "catalog" : "fallback" } });
       }
       return results;
     }),
-    trending: publicProcedure.input(z.object({ limit: z.number().int().min(1).max(20).default(6) })).query(async ({ input }) => demoSongs.slice(0, input.limit).map(demoResult)),
+    trending: publicProcedure.input(z.object({ limit: z.number().int().min(1).max(20).default(6) })).query(async ({ input }) => {
+      const stored = await findSongs(undefined, input.limit);
+      return stored.length ? stored.map(song => ({ ...song, artist: "", album: "", duration: formatDuration(song.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}` })) : demoSongs.slice(0, input.limit).map(demoResult);
+    }),
     artists: publicProcedure.input(z.object({ limit: z.number().int().min(1).max(20).default(12) })).query(({ input }) => Array.from(new Map(demoSongs.map(song => [song.artistSlug, { slug: song.artistSlug, name: song.artist, imageUrl: song.thumbnailUrl, songCount: demoSongs.filter(item => item.artistSlug === song.artistSlug).length }])).values()).slice(0, input.limit)),
     artistBySlug: publicProcedure.input(z.object({ slug: z.string().min(1).max(255) })).query(({ input }) => { const songs = demoSongs.filter(song => song.artistSlug === input.slug); if (!songs.length) throw new TRPCError({ code: "NOT_FOUND", message: "Artist not found" }); return { slug: input.slug, name: songs[0].artist, imageUrl: songs[0].thumbnailUrl, songs: songs.map(demoResult) }; }),
     songBySlug: publicProcedure.input(z.object({ slug: z.string().min(1).max(255) })).query(async ({ input }) => {
       const dbSong = await findSongBySlug(input.slug);
       if (dbSong) return { ...dbSong, artist: "", album: "", duration: formatDuration(dbSong.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(dbSong.opaqueToken)}` };
       const song = demoSongs.find(item => item.slug === input.slug);
-      if (!song) throw new TRPCError({ code: "NOT_FOUND", message: "Song not found" });
-      return demoResult(song);
+      if (song) return demoResult(song);
+      if (ENV.youtubeApiKey) {
+        try {
+          const youtubeRows = await searchYouTubeVideos(input.slug.replace(/-/g, " "), 10);
+          const match = youtubeRows.find(row => makeSlug(`${row.artist}-${row.title}`) === input.slug) ?? youtubeRows[0];
+          if (match) {
+            await persistImportedRows([match]);
+            const persisted = await findSongBySlug(makeSlug(`${match.artist}-${match.title}`));
+            if (persisted) return { ...persisted, artist: "", album: "", duration: formatDuration(persisted.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(persisted.opaqueToken)}` };
+          }
+        } catch (error) {
+          console.warn("[YouTube] slug materialization failed:", error instanceof Error ? error.message : error);
+        }
+      }
+      throw new TRPCError({ code: "NOT_FOUND", message: "Song not found" });
     }),
     mediaByToken: publicProcedure.input(z.object({ token: z.string().min(8).max(128) })).query(async ({ input }) => {
       const dbSong = await findSongByToken(input.token);
