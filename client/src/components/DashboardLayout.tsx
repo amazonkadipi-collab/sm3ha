@@ -38,6 +38,31 @@ const DEFAULT_WIDTH = 280;
 const MIN_WIDTH = 200;
 const MAX_WIDTH = 480;
 
+export function AdminLoginCard() {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const adminLogin = trpc.auth.adminLogin.useMutation({ onSuccess: () => window.location.reload() });
+
+  return (
+    <div className="flex min-h-screen items-center justify-center px-5 py-12">
+      <div className="soft-card flex w-full max-w-md flex-col items-center gap-8 rounded-[28px] p-8">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <h1 className="text-2xl font-semibold tracking-tight text-[#514568]">سجّل الدخول للمتابعة</h1>
+          <p className="max-w-sm text-sm leading-7 text-[#81768f]">دخل بحساب admin أو تابع عبر Manus OAuth للوصول إلى لوحة الإدارة.</p>
+        </div>
+        <form onSubmit={event => { event.preventDefault(); adminLogin.mutate({ username, password }); }} className="w-full space-y-3">
+          <input value={username} onChange={event => setUsername(event.target.value)} placeholder="اسم المستخدم" autoComplete="username" className="w-full rounded-xl border border-[#756590]/15 bg-white/70 px-4 py-3 text-sm text-[#514568] outline-none focus:border-[#756590]/50" />
+          <input value={password} onChange={event => setPassword(event.target.value)} placeholder="كلمة المرور" type="password" autoComplete="current-password" className="w-full rounded-xl border border-[#756590]/15 bg-white/70 px-4 py-3 text-sm text-[#514568] outline-none focus:border-[#756590]/50" />
+          {adminLogin.error && <p className="text-center text-sm text-[#a86f87]">بيانات الدخول غير صحيحة أو الدخول غير مفعّل.</p>}
+          <Button type="submit" disabled={adminLogin.isPending || !username || !password} size="lg" className="w-full shadow-lg transition-all hover:shadow-xl">{adminLogin.isPending ? "جارٍ التحقق…" : "دخول admin"}</Button>
+        </form>
+        <div className="flex w-full items-center gap-3"><span className="h-px flex-1 bg-[#756590]/10" /><span className="text-xs text-[#81768f]">أو</span><span className="h-px flex-1 bg-[#756590]/10" /></div>
+        <Button onClick={() => startLogin()} variant="outline" size="lg" className="w-full">الدخول عبر Manus OAuth</Button>
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardLayout({
   children,
 }: {
@@ -48,9 +73,6 @@ export default function DashboardLayout({
     return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
   });
   const { loading, user } = useAuth();
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const adminLogin = trpc.auth.adminLogin.useMutation({ onSuccess: () => window.location.reload() });
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());
@@ -61,28 +83,7 @@ export default function DashboardLayout({
   }
 
   if (!user) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="flex flex-col items-center gap-8 p-8 max-w-md w-full">
-          <div className="flex flex-col items-center gap-6">
-            <h1 className="text-2xl font-semibold tracking-tight text-center">
-              سجّل الدخول للمتابعة
-            </h1>
-            <p className="text-sm text-muted-foreground text-center max-w-sm">
-              دخل بحساب admin أو تابع عبر Manus OAuth للوصول إلى لوحة الإدارة.
-            </p>
-          </div>
-          <form onSubmit={event => { event.preventDefault(); adminLogin.mutate({ username, password }); }} className="w-full space-y-3">
-            <input value={username} onChange={event => setUsername(event.target.value)} placeholder="اسم المستخدم" autoComplete="username" className="w-full rounded-xl border bg-background px-4 py-3 text-sm" />
-            <input value={password} onChange={event => setPassword(event.target.value)} placeholder="كلمة المرور" type="password" autoComplete="current-password" className="w-full rounded-xl border bg-background px-4 py-3 text-sm" />
-            {adminLogin.error && <p className="text-center text-sm text-destructive">بيانات الدخول غير صحيحة أو الدخول غير مفعّل.</p>}
-            <Button type="submit" disabled={adminLogin.isPending || !username || !password} size="lg" className="w-full shadow-lg hover:shadow-xl transition-all">{adminLogin.isPending ? "جارٍ التحقق…" : "دخول admin"}</Button>
-          </form>
-          <div className="flex w-full items-center gap-3"><span className="h-px flex-1 bg-border" /><span className="text-xs text-muted-foreground">أو</span><span className="h-px flex-1 bg-border" /></div>
-          <Button onClick={() => startLogin()} variant="outline" size="lg" className="w-full">الدخول عبر Manus OAuth</Button>
-        </div>
-      </div>
-    );
+    return <AdminLoginCard />;
   }
 
   return (

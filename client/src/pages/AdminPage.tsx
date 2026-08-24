@@ -1,9 +1,9 @@
 import { FileUp, Loader2, Plus, Search, ShieldCheck, UploadCloud, Youtube } from "lucide-react";
-import { FormEvent, useState } from "react";
+import React, { FormEvent, useState } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import DashboardLayout from "@/components/DashboardLayout";
+import DashboardLayout, { AdminLoginCard } from "@/components/DashboardLayout";
 
 type PreviewRow = { title: string; artist: string; slug: string; providerVideoId: string; duplicate: boolean };
 
@@ -53,7 +53,7 @@ export default function AdminPage() {
   };
 
   if (!loading && user && !isAdmin) {
-    return <div className="mx-auto max-w-xl px-5 py-24 text-center"><div className="soft-card rounded-[28px] p-10"><ShieldCheck className="mx-auto text-[#a86f87]" size={36} /><h1 className="serif mt-4 text-4xl text-[#514568]">الوصول غير مسموح</h1><p className="mt-3 text-sm leading-7 text-[#81768f]">هذه المساحة متاحة للمشرفين فقط.</p><Link href="/" className="mt-6 inline-block font-bold text-[#756590]">العودة للموقع</Link></div></div>;
+    return <AdminLoginCard />;
   }
 
   return <DashboardLayout>
