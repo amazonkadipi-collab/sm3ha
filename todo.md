@@ -83,3 +83,10 @@
 
 - [x] عزل persistImportedRows في اختبار والتحقق من تمرير provider وthumbnailUrl وdurationSeconds من commitImport إلى طبقة التخزين.
 - [x] توثيق تحقق التدفق الكامل YouTube search → commit → catalog، مع التنبيه أنه اختبار معزول بلا بيانات دائمة.
+
+- [x] إضافة login مستقل للـAdmin باسم `admin` مع كلمة مرور server-side secret وعدم تخزينها في الكود.
+- [x] ربط جلسة login الجديدة بصلاحية admin وحماية `/admin` وprocedures الإدارية.
+- [x] إضافة اختبارات login/logout والفشل وكلمة المرور والتحقق ثم توثيق تحذير production.
+
+- [x] إزالة قيمة كلمة المرور الصريحة من README وfallback الاختبار، والاكتفاء بأسماء متغيرات البيئة.
+- [x] إضافة اختبار login ثم logout للتحقق من إنهاء جلسة admin ومسح cookie فعلياً.

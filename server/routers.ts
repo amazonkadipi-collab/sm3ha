@@ -1,8 +1,11 @@
 import { TRPCError } from "@trpc/server";
+import { timingSafeEqual } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
+import { ENV } from "./_core/env";
+import { LOCAL_ADMIN_OPEN_ID, sdk } from "./_core/sdk";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { createOpaqueToken, demoSongs, formatDuration, makeSlug, normalizeArabic, searchDemoSongs } from "./catalog";
@@ -26,6 +29,15 @@ export const appRouter = router({
   system: systemRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
+    adminLogin: publicProcedure.input(z.object({ username: z.string().min(1).max(64), password: z.string().min(1).max(256) })).mutation(async ({ ctx, input }) => {
+      if (!ENV.adminUsername || !ENV.adminPassword) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Admin login is not configured" });
+      const safeEqual = (left: string, right: string) => { const a = Buffer.from(left); const b = Buffer.from(right); return a.length === b.length && timingSafeEqual(a, b); };
+      if (!safeEqual(input.username, ENV.adminUsername) || !safeEqual(input.password, ENV.adminPassword)) throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid admin credentials" });
+      const token = await sdk.signSession({ openId: LOCAL_ADMIN_OPEN_ID, appId: ENV.appId, name: "admin" }, { expiresInMs: 8 * 60 * 60 * 1000 });
+      const cookieOptions = getSessionCookieOptions(ctx.req);
+      ctx.res.cookie(COOKIE_NAME, token, { ...cookieOptions, sameSite: cookieOptions.secure ? "none" : "lax", maxAge: 8 * 60 * 60 * 1000 });
+      return { success: true, username: ENV.adminUsername } as const;
+    }),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });

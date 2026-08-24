@@ -25,6 +25,7 @@ import { LayoutDashboard, LogOut, PanelLeft, Users } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
+import { trpc } from "@/lib/trpc";
 import { Button } from "./ui/button";
 
 const menuItems = [
@@ -47,6 +48,9 @@ export default function DashboardLayout({
     return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
   });
   const { loading, user } = useAuth();
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const adminLogin = trpc.auth.adminLogin.useMutation({ onSuccess: () => window.location.reload() });
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());
@@ -65,16 +69,17 @@ export default function DashboardLayout({
               سجّل الدخول للمتابعة
             </h1>
             <p className="text-sm text-muted-foreground text-center max-w-sm">
-              الوصول إلى لوحة الإدارة يتطلب تسجيل الدخول. تابع لبدء جلسة الدخول.
+              دخل بحساب admin أو تابع عبر Manus OAuth للوصول إلى لوحة الإدارة.
             </p>
           </div>
-          <Button
-            onClick={() => startLogin()}
-            size="lg"
-            className="w-full shadow-lg hover:shadow-xl transition-all"
-          >
-            تسجيل الدخول
-          </Button>
+          <form onSubmit={event => { event.preventDefault(); adminLogin.mutate({ username, password }); }} className="w-full space-y-3">
+            <input value={username} onChange={event => setUsername(event.target.value)} placeholder="اسم المستخدم" autoComplete="username" className="w-full rounded-xl border bg-background px-4 py-3 text-sm" />
+            <input value={password} onChange={event => setPassword(event.target.value)} placeholder="كلمة المرور" type="password" autoComplete="current-password" className="w-full rounded-xl border bg-background px-4 py-3 text-sm" />
+            {adminLogin.error && <p className="text-center text-sm text-destructive">بيانات الدخول غير صحيحة أو الدخول غير مفعّل.</p>}
+            <Button type="submit" disabled={adminLogin.isPending || !username || !password} size="lg" className="w-full shadow-lg hover:shadow-xl transition-all">{adminLogin.isPending ? "جارٍ التحقق…" : "دخول admin"}</Button>
+          </form>
+          <div className="flex w-full items-center gap-3"><span className="h-px flex-1 bg-border" /><span className="text-xs text-muted-foreground">أو</span><span className="h-px flex-1 bg-border" /></div>
+          <Button onClick={() => startLogin()} variant="outline" size="lg" className="w-full">الدخول عبر Manus OAuth</Button>
         </div>
       </div>
     );

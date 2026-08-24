@@ -69,3 +69,7 @@ For Vercel, configure `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `YOUTUBE_
 من لوحة `/admin` يرسل المشرف عبارة البحث إلى الإجراء المحمي `youtube.search`. السيرفر ينادي `search.list` ثم `videos.list` للحصول على العنوان والقناة والصورة والمدة فقط؛ الضغط على «إضافة تجريبية» يرسل هذه metadata إلى `admin.commitImport`، الذي يحفظها في Supabase إن كانت البيئة متصلة، أو في Drizzle عند توفره، مع `rightsStatus=metadata_only` لسجلات YouTube. بعد نجاح الحفظ يعاد تحميل `admin.listCatalog` فتظهر النتيجة في جدول الكتالوج ويمكن إخفاؤها أو استعادتها.
 
 التحقق الآلي يغطي طلب YouTube حقيقياً بمفتاح البيئة، ويموك البحث داخل tRPC، ويعزل طبقة Supabase ليثبت مرور `provider` و`thumbnailUrl` و`durationSeconds` دون إنشاء بيانات دائمة. التحقق الإنتاجي النهائي يتطلب تسجيل الدخول كمشرف، البحث، إضافة نتيجة واحدة، ثم التأكد من ظهورها في جدول الكتالوج وصفحتها العامة.
+
+## Admin credential login
+
+يمكن فتح `/admin` باستعمال login المستقل عبر `ADMIN_USERNAME` و`ADMIN_PASSWORD`. القيم تُحقن كـenvironment secrets ولا توجد داخل GitHub. الجلسة تُوقّع بـJWT cookie قصيرة الصلاحية، وتُعامل هوية `local_admin` كـadmin بدون طلب OAuth. يجب استعمال قيمة قوية لـ`ADMIN_PASSWORD` قبل أي نشر عام.

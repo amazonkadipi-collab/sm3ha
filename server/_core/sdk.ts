@@ -18,6 +18,8 @@ import type {
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.length > 0;
 
+export const LOCAL_ADMIN_OPEN_ID = "local_admin";
+
 export type SessionPayload = {
   openId: string;
   appId: string;
@@ -283,6 +285,11 @@ class SDKServer {
         throw ForbiddenError("Cron session missing task_uid");
       }
       return buildCronUser(userInfo);
+    }
+
+    if (session.openId === LOCAL_ADMIN_OPEN_ID) {
+      const now = new Date();
+      return { id: -2, openId: LOCAL_ADMIN_OPEN_ID, name: "admin", email: null, loginMethod: "password", role: "admin", createdAt: now, updatedAt: now, lastSignedIn: now };
     }
 
     const sessionUserId = session.openId;
