@@ -19,7 +19,7 @@ export function createApp() {
     entry.count += 1;
     window.set(key, entry);
     if (window.size > 10_000) {
-      for (const [storedKey, storedEntry] of window) if (storedEntry.resetAt <= now) window.delete(storedKey);
+      window.forEach((storedEntry, storedKey) => { if (storedEntry.resetAt <= now) window.delete(storedKey); });
     }
     return entry.count <= limit;
   };

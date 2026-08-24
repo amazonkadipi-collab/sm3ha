@@ -140,3 +140,7 @@
 - [x] تنفيذ full audit جديد لـGitHub وVercel والـdeployment الحي، مع توثيق الحالة والإصلاحات والمخاطر المتبقية.
 
 - [x] إصلاح رفض session في Production عندما يكون `VITE_APP_ID` فارغاً: ضمان appId داخلي غير فارغ لجلسات Admin وإضافة اختبار HTTP end-to-end لـadminLogin ثم auth.me.
+
+- [x] إعادة audit بعد آخر push: GitHub، Vercel، deployment، routes، Admin session، وSEO.
+
+- [ ] تشخيص وإصلاح الصفحة البيضاء على `https://sm3haa.vercel.app/` والتحقق من JavaScript والـruntime والصفحة الرئيسية بعد النشر.
