@@ -175,3 +175,7 @@
 - [x] رفع المطابقة القصوى مع المرجع في layout والنتائج والعناوين والـSEO والروابط، مع الحفاظ على branding مستقل وعدم نسخ أصول أو كود محمي.
 
 - [x] تدقيق `sm3haa.vercel.app` بنفس workflow ديال «راي»: front/index، search، نتيجة فعلية، media، وvideos_dl، مع إصلاح أي فرق منشور؛ front/index والمسار خدامان، ونتائج YouTube متوقفة بسبب quota يومية منتهية.
+
+- [x] إعادة فحص الموقع المنشور بدون API: التأكد من نتائج catalog المحفوظة، تجربة «راي»، واختبار الانتقال إلى media وvideos_dl.
+
+- [x] إصلاح انتقال أول نتيجة YouTube من `/s/{slug}` إلى `/media?d={token}` في production عبر ضمان تطابق token المحفوظ مع token المعروض قبل فتح media.

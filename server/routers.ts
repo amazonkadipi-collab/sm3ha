@@ -59,9 +59,13 @@ export const appRouter = router({
         try {
           const youtubeRows = await searchYouTubeVideos(query, input.limit);
           if (youtubeRows.length) {
-            void persistImportedRows(youtubeRows).catch(error => console.warn("[YouTube] metadata persistence failed:", error instanceof Error ? error.message : error));
-            // Return API rows immediately: persistence runs in the background so a slow database cannot leave the search page loading.
-            results = youtubeRows.map(youtubeResult);
+            // Persist before returning the cards so every opaque token is resolvable when the user clicks «تحميل».
+            const persisted = await persistImportedRows(youtubeRows);
+            if (persisted.status === "persisted_demo" && persisted.accepted === youtubeRows.length) {
+              results = youtubeRows.map(youtubeResult);
+            } else {
+              console.warn("[YouTube] metadata persistence unavailable; keeping catalog fallback", persisted.status);
+            }
           }
         } catch (error) {
           console.warn("[YouTube] public search failed:", error instanceof Error ? error.message : error);
