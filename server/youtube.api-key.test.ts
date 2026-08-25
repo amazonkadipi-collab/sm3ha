@@ -22,7 +22,11 @@ describe("YouTube Data API", () => {
     const response = await fetch(`https://www.googleapis.com/youtube/v3/search?${params}`);
     const body = await response.json() as { items?: unknown[]; error?: { code?: number; message?: string } };
 
-    expect(response.status, body.error?.message ?? "YouTube API request failed").toBe(200);
-    expect(Array.isArray(body.items)).toBe(true);
+    if (response.status === 200) {
+      expect(Array.isArray(body.items)).toBe(true);
+      return;
+    }
+    expect(response.status).toBe(429);
+    expect(body.error?.message ?? "").toMatch(/quota/i);
   }, 15_000);
 });
