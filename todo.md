@@ -181,3 +181,5 @@
 - [x] إصلاح انتقال أول نتيجة YouTube من `/s/{slug}` إلى `/media?d={token}` في production عبر ضمان تطابق token المحفوظ مع token المعروض قبل فتح media.
 
 - [x] مقارنة `v1.sm3ha.io` و`sm3haa.vercel.app` في homepage وsearch و`/s/راي` وmedia وvideos_dl، ثم تطبيق الفروقات العملية والآمنة؛ routing والlayout متقاربان، والفرق الأساسي catalog/quota.
+
+- [x] Verification معمق لـ`v1.sm3ha.io`: تحليل HTML والروابط، تجربة searches متعددة، وتوثيق ما هو مؤكد عن catalog والـworkflow.
