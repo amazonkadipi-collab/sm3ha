@@ -167,3 +167,5 @@
 - [x] تنفيذ نفس workflow وبنية الروابط: `/search` → `/s/{slug}` → `/media?d={token}` → `/videos_dl?v={youtubeId}`، مع YouTube metadata وروابط مشاهدة آمنة.
 
 - [x] رفع مطابقة NaghmaHub للموقع المرجعي في تصميم صفحات البحث والنتائج وmedia والتحويل، مع الحفاظ على branding مستقل وروابط YouTube الرسمية.
+
+- [x] إضافة «راي» إلى قائمة front/index وتتبع رابط البحث المرجعي من `/search` حتى `/videos_dl` وتوثيق النتيجة.

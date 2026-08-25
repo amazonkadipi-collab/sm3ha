@@ -8,7 +8,7 @@ const fallbackQueries = [
   "اغاني حسين الامير", "ويلو ياسواد ليلو", "كشوق الليالي لضوء القمر", "غنيه ايباه",
   "اغنية الحروف العربية", "رضا البحراوي كوكتيل", "رمضان كريم الجزء الاول", "من كنه نسهر",
   "فيديو افلون اسود", "نواف جديد", "العب العب", "كل حياتى", "اغاني رامي صبري الجديدة",
-  "اديني حب حبه", "اغنية انديلا", "سارية", "ضيعنا", "عالالا نواف عزيز", "قلبي كي ديرله", "نواف عزيز",
+  "اديني حب حبه", "اغنية انديلا", "راي", "سارية", "ضيعنا", "عالالا نواف عزيز", "قلبي كي ديرله", "نواف عزيز",
 ];
 
 export default function Home() {
@@ -16,9 +16,8 @@ export default function Home() {
   const [query, setQuery] = useState("");
   const { data, isLoading } = trpc.catalog.trending.useQuery({ limit: 20 });
   const trending = Array.isArray(data) ? data : [];
-  const links = trending.length
-    ? trending.map((song) => ({ label: String(song?.title ?? ""), slug: String(song?.slug ?? "") })).filter((item) => item.label && item.slug)
-    : fallbackQueries.map((label) => ({ label, slug: label }));
+  const trendingLinks = trending.map((song) => ({ label: String(song?.title ?? ""), slug: String(song?.slug ?? "") })).filter((item) => item.label && item.slug);
+  const links = [{ label: "راي", slug: "راي" }, ...(trendingLinks.length ? trendingLinks : fallbackQueries.filter(label => label !== "راي").map((label) => ({ label, slug: label })))];
 
   useEffect(() => {
     applySeo({ title: "نغمة — تحميل واستماع أغاني عربية", description: "ابحث عن أغنية أو ألبوم أو فنان واكتشف نتائج موسيقية عربية.", path: "/" });
