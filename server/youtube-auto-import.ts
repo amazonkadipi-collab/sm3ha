@@ -62,7 +62,7 @@ async function recentSearchQueries(limit: number) {
     current.resultCount += Number(row.result_count ?? 0);
     scores.set(query, current);
   }
-  return [...scores.entries()]
+  return Array.from(scores.entries())
     .sort((a, b) => b[1].count - a[1].count || b[1].resultCount - a[1].resultCount)
     .slice(0, limit)
     .map(([query]) => query);
@@ -71,7 +71,7 @@ async function recentSearchQueries(limit: number) {
 async function filterNewRows(rows: YouTubeCatalogItem[]) {
   const supabase = getSupabaseAdmin();
   if (!supabase || !rows.length) return rows;
-  const ids = [...new Set(rows.map(row => row.providerVideoId))];
+  const ids = Array.from(new Set(rows.map(row => row.providerVideoId)));
   const existing = new Set<string>();
   for (let offset = 0; offset < ids.length; offset += 100) {
     const chunk = ids.slice(offset, offset + 100);
@@ -87,7 +87,7 @@ export async function runYouTubeAutoImport() {
   if (!process.env.YOUTUBE_API_KEY) return { status: "not_configured" as const, queries: 0, scanned: 0, newRows: 0, accepted: 0, duplicates: 0 };
 
   const recent = await recentSearchQueries(settings.maxQueries);
-  const queries = [...new Set([...recent, ...settings.queries])].slice(0, settings.maxQueries);
+  const queries = Array.from(new Set([...recent, ...settings.queries])).slice(0, settings.maxQueries);
   let scanned = 0;
   let newRows: YouTubeCatalogItem[] = [];
   const failures: string[] = [];
@@ -103,7 +103,7 @@ export async function runYouTubeAutoImport() {
   }
 
   newRows = await filterNewRows(newRows);
-  const uniqueRows = [...new Map(newRows.map(row => [row.providerVideoId, row])).values()];
+  const uniqueRows = Array.from(new Map(newRows.map(row => [row.providerVideoId, row])).values());
   const persisted = uniqueRows.length && getSupabaseAdmin() ? await persistImportedRows(uniqueRows) : { accepted: 0, status: "database_unavailable" as const };
   const result = {
     status: failures.length && !scanned ? "failed" as const : "completed" as const,
