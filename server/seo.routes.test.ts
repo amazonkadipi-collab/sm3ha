@@ -16,7 +16,8 @@ describe("SEO and reference workflow contracts", () => {
     expect(seo).toContain('"og:title"');
     expect(seo).toContain('"robots"');
     expect(home).toContain("تحميل واستماع أغاني عربية");
-    expect(home).toContain('label: "راي", slug: "راي"');
+    expect(home).toContain('"راي"');
+    expect(home).toContain("catalog.keywords");
     expect(search).toContain("نتائج البحث عن");
     expect(song).toContain("MusicRecording");
     expect(song).toContain("تحميل واستماع");

@@ -10,14 +10,15 @@ import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { createOpaqueToken, demoSongs, formatDuration, makeSlug, normalizeArabic, searchDemoSongs } from "./catalog";
 import { createDemoDownloadToken } from "./download";
-import { findSongBySlug, findSongByToken, findSongs, getDb, updateDrizzleSongStatus } from "./db";
-import { getSupabaseAdmin, persistImportedRows, updateSupabaseSongStatus } from "./supabase";
+import { findSongBySlug, findSongByToken, findSongs, findSongsBySlugs, getDb, updateDrizzleSongStatus } from "./db";
+import { findCatalogKeyword, getSupabaseAdmin, listCatalogKeywords, persistImportedRows, updateSupabaseSongStatus, upsertCatalogKeyword } from "./supabase";
 import { getAnalyticsSummary, getSiteSettings, hashRequestValue, listSearchLogs, listTakedowns, recordAnalyticsEvent, recordSearchLog, submitTakedown, updateSiteSettings, updateTakedown } from "./admin-observability";
 import { searchYouTubeVideos } from "./youtube";
 import { artists, songs } from "../drizzle/schema";
 
 const paginationInput = z.object({ query: z.string().trim().max(120).optional(), limit: z.number().int().min(1).max(50).default(12) });
 const importRowInput = z.object({ title: z.string().min(1), artist: z.string().min(1), providerVideoId: z.string().min(1), provider: z.string().max(64).optional(), thumbnailUrl: z.string().url().optional(), durationSeconds: z.number().int().min(0).max(86400).optional() });
+const fallbackKeywords = ["راي", "اغاني", "أغاني عربية", "جديد الأغاني", "موسيقى هادئة", "أناشيد", "مهرجانات", "رابح صقر", "فيروز", "عمرو دياب"];
 
 const demoResult = (song: typeof demoSongs[number]) => ({ ...song, duration: formatDuration(song.durationSeconds), mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}` });
 const youtubeResult = (row: Awaited<ReturnType<typeof searchYouTubeVideos>>[number], index: number) => {
@@ -51,9 +52,23 @@ export const appRouter = router({
     }),
   }),
   catalog: router({
+    keywords: publicProcedure.input(z.object({ limit: z.number().int().min(1).max(50).default(20) })).query(async ({ input }) => {
+      const stored = await listCatalogKeywords(input.limit);
+      if (stored?.length) return stored.map(row => ({ label: row.query, slug: row.slug, resultCount: row.result_count }));
+      return fallbackKeywords.slice(0, input.limit).map(label => ({ label, slug: makeSlug(label), resultCount: 0 }));
+    }),
     search: publicProcedure.input(paginationInput).query(async ({ ctx, input }) => {
       const query = input.query?.trim();
+      let source = "none";
       let databaseSongs = await findSongs(query, input.limit);
+      if (query && databaseSongs.length === 0) {
+        const keyword = await findCatalogKeyword(makeSlug(query));
+        if (keyword?.result_slugs?.length) {
+          databaseSongs = await findSongsBySlugs(keyword.result_slugs, input.limit);
+          if (databaseSongs.length) source = "keyword";
+        }
+      }
+      if (databaseSongs.length) source = source === "keyword" ? source : "catalog";
       let results = databaseSongs.map(song => ({ ...song, artist: "", album: "", duration: formatDuration(song.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}` }));
       if (query && results.length === 0 && ENV.youtubeApiKey) {
         try {
@@ -63,6 +78,8 @@ export const appRouter = router({
             const persisted = await persistImportedRows(youtubeRows);
             if (persisted.status === "persisted_demo" && persisted.accepted === youtubeRows.length) {
               results = youtubeRows.map(youtubeResult);
+              source = "youtube";
+              void upsertCatalogKeyword(query, persisted.acceptedSlugs ?? youtubeRows.map(row => makeSlug(`${row.artist}-${row.title}`)));
             } else {
               console.warn("[YouTube] metadata persistence unavailable; keeping catalog fallback", persisted.status);
             }
@@ -71,11 +88,12 @@ export const appRouter = router({
           console.warn("[YouTube] public search failed:", error instanceof Error ? error.message : error);
         }
       }
-      if (results.length === 0) results = searchDemoSongs(query ?? "").slice(0, input.limit).map(demoResult);
+      if (results.length === 0) { results = searchDemoSongs(query ?? "").slice(0, input.limit).map(demoResult); if (results.length) source = "fallback"; }
+      if (query && source !== "fallback" && results.length) void upsertCatalogKeyword(query, results.map(result => result.slug).filter(Boolean));
       if (query) {
         const forwarded = String(ctx.req.headers["x-forwarded-for"] ?? ctx.req.socket.remoteAddress ?? "").split(",")[0].trim();
         void recordSearchLog({ query, path: "/search", resultCount: results.length, hashedIp: forwarded ? hashRequestValue(forwarded) : undefined, userAgent: String(ctx.req.headers["user-agent"] ?? "") });
-        void recordAnalyticsEvent({ eventName: "search", path: "/search", query, metadata: { resultCount: results.length, source: databaseSongs.length ? "catalog" : "fallback" } });
+        void recordAnalyticsEvent({ eventName: "search", path: "/search", query, metadata: { resultCount: results.length, source } });
       }
       return results;
     }),

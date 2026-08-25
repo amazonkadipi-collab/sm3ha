@@ -1,4 +1,4 @@
-import { and, desc, eq, like, or } from "drizzle-orm";
+import { and, desc, eq, inArray, like, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { albums, artists, InsertUser, songs, users } from "../drizzle/schema";
 import { ENV } from "./_core/env";
@@ -47,6 +47,26 @@ async function supabaseSongs(query?: string, limit = 12, includeRemoved = false)
   const { data, error } = await request;
   if (error) { console.warn("[Supabase] songs query failed:", error.message); return []; }
   return (data ?? []).map(mapSupabaseSong);
+}
+
+export async function findSongsBySlugs(slugs: string[], limit = 20, includeRemoved = false) {
+  const ordered = Array.from(new Set(slugs)).slice(0, Math.min(Math.max(limit, 1), 50));
+  if (!ordered.length) return [];
+  const supabase = getSupabaseAdmin();
+  if (supabase) {
+    let request = supabase.from("songs").select(songSelect).in("slug", ordered).limit(ordered.length);
+    if (!includeRemoved) request = request.eq("status", "active");
+    const { data, error } = await request;
+    if (!error && data) {
+      const rows = data.map(mapSupabaseSong);
+      return ordered.flatMap(slug => rows.filter(row => row.slug === slug));
+    }
+    if (error) console.warn("[Supabase] keyword songs query failed:", error.message);
+  }
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db.select().from(songs).where(includeRemoved ? inArray(songs.slug, ordered) : and(inArray(songs.slug, ordered), eq(songs.availabilityStatus, "available")));
+  return ordered.flatMap(slug => rows.filter(row => row.slug === slug));
 }
 
 export async function findSongs(query?: string, limit = 12, includeRemoved = false) {

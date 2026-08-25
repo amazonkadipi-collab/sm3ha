@@ -183,3 +183,5 @@
 - [x] مقارنة `v1.sm3ha.io` و`sm3haa.vercel.app` في homepage وsearch و`/s/راي` وmedia وvideos_dl، ثم تطبيق الفروقات العملية والآمنة؛ routing والlayout متقاربان، والفرق الأساسي catalog/quota.
 
 - [x] Verification معمق لـ`v1.sm3ha.io`: تحليل HTML والروابط، تجربة searches متعددة، وتوثيق ما هو مؤكد عن catalog والـworkflow.
+
+- [x] تطبيق pattern ديال المرجع على Naghma: keywords ونتائج محفوظة في Supabase، front/index ديناميكي، cache، وروابط workflow مستقرة بدون الاعتماد على YouTube في كل بحث.
