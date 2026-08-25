@@ -8,6 +8,12 @@
       "includeFiles": "public/**"
     }
   },
+  "crons": [
+    {
+      "path": "/api/cron/youtube-auto",
+      "schedule": "*/30 * * * *"
+    }
+  ],
   "rewrites": [
     {
       "source": "/",
