@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 
 const mocks = vi.hoisted(() => ({
@@ -34,11 +34,13 @@ vi.mock("@/components/MusicCard", () => ({
 let SearchPage: typeof import("./SearchPage").default;
 let SongPage: typeof import("./SongPage").default;
 let MediaPage: typeof import("./MediaPage").default;
+let KeywordPage: typeof import("./KeywordPage").default;
 
 beforeAll(async () => {
   SearchPage = (await import("./SearchPage")).default;
   SongPage = (await import("./SongPage")).default;
   MediaPage = (await import("./MediaPage")).default;
+  KeywordPage = (await import("./KeywordPage")).default;
 });
 
 beforeEach(() => {
@@ -68,6 +70,25 @@ describe("reference workflow runtime", () => {
     searchValue = "d=opaque-demo";
     mocks.media.mockReturnValue({ data: { title: "ليلة هادئة", artist: "نغمة", duration: "03:00", opaqueToken: "opaque-demo", providerVideoId: "video-demo" }, isLoading: false, error: null });
     render(<MediaPage />);
-    expect(screen.getByRole("link", { name: /متابعة التحويل التجريبي/ }).getAttribute("href")).toBe("/videos_dl?v=video-demo");
+    expect(screen.getByRole("link", { name: /DOWNLOAD NOW/ }).getAttribute("href")).toBe("/videos_dl?v=video-demo");
+  });
+
+  it("shows Arabic title text only and toggles one inline YouTube player", () => {
+    mocks.search.mockReturnValue({ data: [
+      { providerVideoId: "video-ar", slug: "song-ar", title: "Official أغنية عربية Mix", duration: "03:00", thumbnailUrl: "https://i.ytimg.com/vi/video-ar/mqdefault.jpg" },
+      { providerVideoId: "video-en", slug: "song-en", title: "English only title", duration: "02:00", thumbnailUrl: "https://i.ytimg.com/vi/video-en/mqdefault.jpg" },
+    ], isLoading: false, isError: false });
+    render(<KeywordPage />);
+
+    expect(screen.getByRole("heading", { name: "أغنية عربية" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "English only title" })).toBeNull();
+
+    const watchButtons = screen.getAllByRole("button", { name: /مشاهدة/ });
+    fireEvent.click(watchButtons[0]);
+    expect(document.querySelector('iframe[title="أغنية عربية"]')?.getAttribute("src")).toContain("youtube-nocookie.com/embed/video-ar");
+    expect(screen.getByRole("button", { name: /إيقاف/ })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /إيقاف/ }));
+    expect(document.querySelector('iframe[title="أغنية عربية"]')).toBeNull();
   });
 });

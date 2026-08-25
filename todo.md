@@ -187,3 +187,8 @@
 - [x] تطبيق pattern ديال المرجع على Naghma: keywords ونتائج محفوظة في Supabase، front/index ديناميكي، cache، وروابط workflow مستقرة بدون الاعتماد على YouTube في كل بحث.
 
 - [x] إضافة failover مرتب لثلاثة مشاريع YouTube API مستقلة ومصرّح بها عند quota exhaustion، مع cache/catalog واختبارات بدون تدوير مفاتيح من نفس المشروع.
+
+- [x] مطابقة صفحة نتائج `/s/:slug` مع المرجع: cards، thumbnail، أيقونة YouTube، المدة، زرا تحميل/مشاهدة، وعنوان عربي فقط.
+- [x] إضافة inline YouTube player آمن بتبديل مشاهدة/إيقاف مع player واحد في كل مرة.
+- [x] مطابقة صفحة `/media` في الحقول والترتيب والانتقال الداخلي إلى `/videos_dl` بدون رابط تنزيل خارجي.
+- [x] إضافة اختبارات DOM وworkflow وresponsive للمطابقة الجديدة.
