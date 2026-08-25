@@ -1,5 +1,5 @@
 import { FileUp, Loader2, Plus, Search, ShieldCheck, UploadCloud, Youtube } from "lucide-react";
-import React, { FormEvent, useState } from "react";
+import React, { FormEvent, useEffect, useState } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -7,6 +7,7 @@ import DashboardLayout, { AdminLoginCard } from "@/components/DashboardLayout";
 import AdminOperations from "@/components/AdminOperations";
 
 type PreviewRow = { title: string; artist: string; slug: string; providerVideoId: string; duplicate: boolean };
+type AutoConfig = { enabled: boolean; queries: string[]; maxQueries: number; videosPerQuery: number };
 
 function formatDuration(seconds: number) {
   const minutes = Math.floor(seconds / 60);
@@ -21,6 +22,9 @@ export default function AdminPage() {
   const [preview, setPreview] = useState<{ total: number; duplicates: number; rows: PreviewRow[] } | null>(null);
   const [youtubeText, setYoutubeText] = useState("");
   const [youtubeQuery, setYoutubeQuery] = useState("");
+  const [autoConfig, setAutoConfig] = useState<AutoConfig>({ enabled: false, queries: ["اغاني مغربية", "اغاني عربية", "اغاني راي", "اغاني جديدة", "اغاني ترند"], maxQueries: 5, videosPerQuery: 10 });
+  const [autoBusy, setAutoBusy] = useState(false);
+  const [autoMessage, setAutoMessage] = useState("");
   const utils = trpc.useUtils();
   const catalogQuery = trpc.admin.listCatalog.useQuery({ limit: 25 }, { enabled: isAdmin });
   const previewMutation = trpc.admin.previewImport.useMutation({ onSuccess: setPreview });
@@ -30,6 +34,31 @@ export default function AdminPage() {
     { query: youtubeQuery, limit: 8 },
     { enabled: isAdmin && youtubeQuery.trim().length >= 2 },
   );
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    fetch("/api/admin/youtube-auto")
+      .then(response => response.ok ? response.json() : Promise.reject(new Error("settings unavailable")))
+      .then(data => setAutoConfig({ enabled: Boolean(data.enabled), queries: Array.isArray(data.queries) && data.queries.length ? data.queries : autoConfig.queries, maxQueries: Number(data.maxQueries) || 5, videosPerQuery: Number(data.videosPerQuery) || 10 }))
+      .catch(() => setAutoMessage("تعذر تحميل إعدادات الاستيراد التلقائي."));
+  }, [isAdmin]);
+
+  const saveAutoConfig = async (runNow = false) => {
+    setAutoBusy(true);
+    setAutoMessage("");
+    try {
+      const response = await fetch("/api/admin/youtube-auto", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...autoConfig, runNow }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "request failed");
+      if (data.result) setAutoMessage(`اكتمل التشغيل: فحص ${data.result.scanned}، جديد ${data.result.newRows}، أضيف ${data.result.accepted}، مكرر ${data.result.duplicates}.`);
+      else setAutoMessage("تم حفظ إعدادات الاستيراد التلقائي.");
+      await utils.admin.listCatalog.invalidate();
+    } catch (error) {
+      setAutoMessage(error instanceof Error ? error.message : "تعذر تنفيذ العملية.");
+    } finally {
+      setAutoBusy(false);
+    }
+  };
 
   const runPreview = () => {
     try {
@@ -75,6 +104,17 @@ export default function AdminPage() {
       </section>
 
       <section className="soft-card mt-10 rounded-[28px] p-6"><div className="flex items-center justify-between gap-3"><div><h2 className="font-bold text-[#514568]">الكتالوج الحالي</h2><p className="mt-1 text-sm text-[#81768f]">عرض وإخفاء السجلات من الواجهة العامة. تغيير الدور يبقى محصوراً في إعدادات الحساب والصلاحيات.</p></div><span className="rounded-full bg-[#effaf5] px-3 py-1 text-xs font-bold text-[#477363]">{catalog.length} سجل</span></div>{catalogQuery.isLoading && <p className="mt-5 text-sm text-[#81768f]">جارٍ تحميل الكتالوج…</p>}{catalogQuery.isError && <div className="mt-5 rounded-2xl border border-[#a86f87]/15 bg-[#fff7f9] p-4 text-sm text-[#a86f87]">تعذر تحميل الكتالوج حالياً. تحقق من جلسة المدير أو اتصال API ثم أعد المحاولة.</div>}{!catalogQuery.isLoading && !catalogQuery.isError && catalog.length === 0 && <div className="mt-5 rounded-2xl bg-[#f6f1fa] p-6 text-center text-sm leading-7 text-[#8c819f]">لا توجد سجلات في الكتالوج بعد.</div>}{!catalogQuery.isLoading && !catalogQuery.isError && catalog.length > 0 && <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[640px] text-right text-sm"><thead className="border-b border-[#756590]/10 text-xs text-[#9d8aae]"><tr><th className="px-3 py-3">العنوان</th><th className="px-3 py-3">المصدر</th><th className="px-3 py-3">الحالة</th><th className="px-3 py-3">إجراء</th></tr></thead><tbody>{catalog.map(song => <tr key={song.slug} className="border-b border-[#756590]/5"><td className="px-3 py-3 font-bold text-[#514568]">{song.title}<span className="block text-xs font-normal text-[#8c819f]">{song.artist}</span></td><td className="px-3 py-3 text-xs text-[#81768f]">{song.provider}</td><td className={`px-3 py-3 text-xs ${song.status === "removed" ? "text-[#a86f87]" : "text-[#477363]"}`}>{song.status === "removed" ? "مخفي" : "متاح"}</td><td className="px-3 py-3"><button type="button" onClick={() => statusMutation.mutate({ slug: song.slug, status: song.status === "removed" ? "available" : "removed" })} disabled={statusMutation.isPending} className="rounded-lg border border-[#a86f87]/20 px-3 py-1.5 text-xs font-bold text-[#a86f87]">{song.status === "removed" ? "استعادة" : "إخفاء"}</button></td></tr>)}</tbody></table></div>}</section>
+
+      <section className="soft-card mt-6 rounded-[28px] p-6">
+        <div className="flex items-center gap-3"><Youtube className="text-[#c75670]" size={21} /><div><h2 className="font-bold text-[#514568]">YouTube Auto Catalog</h2><p className="mt-1 text-sm text-[#81768f]">يجلب metadata من YouTube API ويضيف الفيديوهات الجديدة فقط إلى Supabase. لا يتم تنزيل أو استضافة وسائط YouTube.</p></div></div>
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
+          <label className="flex items-center gap-3 rounded-xl border border-[#756590]/10 bg-white/60 p-4 text-sm font-bold text-[#514568]"><input type="checkbox" checked={autoConfig.enabled} onChange={event => setAutoConfig(current => ({ ...current, enabled: event.target.checked }))} />تفعيل الاستيراد التلقائي</label>
+          <div className="grid grid-cols-2 gap-3"><label className="text-xs font-bold text-[#81768f]">Queries/run<input type="number" min={1} max={10} value={autoConfig.maxQueries} onChange={event => setAutoConfig(current => ({ ...current, maxQueries: Number(event.target.value) }))} className="mt-1 w-full rounded-xl border border-[#756590]/10 px-3 py-2 text-sm" /></label><label className="text-xs font-bold text-[#81768f]">Videos/query<input type="number" min={1} max={25} value={autoConfig.videosPerQuery} onChange={event => setAutoConfig(current => ({ ...current, videosPerQuery: Number(event.target.value) }))} className="mt-1 w-full rounded-xl border border-[#756590]/10 px-3 py-2 text-sm" /></label></div>
+        </div>
+        <label className="mt-4 block text-xs font-bold text-[#81768f]">Queries ثابتة — ويمكن كذلك استعمال أكثر عمليات البحث الأخيرة من المستخدمين<textarea value={autoConfig.queries.join("\n")} onChange={event => setAutoConfig(current => ({ ...current, queries: event.target.value.split(/\n+/).map(q => q.trim()).filter(Boolean) }))} className="mt-1 min-h-28 w-full rounded-xl border border-[#756590]/10 bg-white/70 p-3 text-sm text-[#514568]" /></label>
+        <div className="mt-4 flex flex-wrap gap-2"><button type="button" onClick={() => saveAutoConfig(false)} disabled={autoBusy} className="rounded-xl bg-[#756590] px-5 py-3 text-sm font-bold text-white disabled:opacity-50">حفظ الإعدادات</button><button type="button" onClick={() => saveAutoConfig(true)} disabled={autoBusy || !autoConfig.enabled} className="rounded-xl border border-[#756590]/20 px-5 py-3 text-sm font-bold text-[#756590] disabled:opacity-50">{autoBusy ? "جارٍ التشغيل…" : "تشغيل الآن"}</button></div>
+        {autoMessage && <p className="mt-3 rounded-xl bg-[#effaf5] p-3 text-sm text-[#477363]">{autoMessage}</p>}
+      </section>
 
       <section className="soft-card mt-6 rounded-[28px] p-6">
         <div className="flex items-center gap-3"><Youtube className="text-[#c75670]" size={21} /><div><h2 className="font-bold text-[#514568]">بحث YouTube وإضافة metadata</h2><p className="mt-1 text-sm text-[#81768f]">البحث يتم من السيرفر بالمفتاح السري، والنتائج لا تعني تنزيل أو استضافة الوسائط.</p></div></div>
