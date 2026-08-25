@@ -32,7 +32,7 @@ describe("SEO and reference workflow contracts", () => {
     expect(app).toContain('path="/s/:slug"');
     expect(app).toContain('path="/media"');
     expect(app).toContain('path="/videos_dl"');
-    expect(search).toContain("navigate(workflowLinks.song(data[0].slug))");
+    expect(search).toContain("navigate(workflowLinks.keyword(initial))");
     expect(song).toContain("workflowLinks.media(song.opaqueToken)");
     expect(media).toContain("workflowLinks.conversion(media.providerVideoId)");
     expect(conversion).toContain("اختيار الصيغة والجودة");

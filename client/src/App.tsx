@@ -5,6 +5,7 @@ import NotFound from "@/pages/NotFound";
 import Home from "@/pages/Home";
 import SearchPage from "@/pages/SearchPage";
 import SongPage from "@/pages/SongPage";
+import KeywordPage from "@/pages/KeywordPage";
 import MediaPage from "@/pages/MediaPage";
 import ConversionPage from "@/pages/ConversionPage";
 import TrendingPage from "@/pages/TrendingPage";
@@ -44,6 +45,6 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
   </div>;
 }
 
-function Router() { return <PublicLayout><Switch><Route path="/" component={Home} /><Route path="/search" component={SearchPage} /><Route path="/s/:slug" component={SongPage} /><Route path="/artists" component={ArtistsPage} /><Route path="/artists/:slug" component={ArtistPage} /><Route path="/media" component={MediaPage} /><Route path="/videos_dl" component={ConversionPage} /><Route path="/trending" component={TrendingPage} /><Route path="/privacy" component={() => <LegalPage kind="privacy" />} /><Route path="/terms" component={() => <LegalPage kind="terms" />} /><Route path="/dmca" component={() => <LegalPage kind="dmca" />} /><Route path="/contact" component={() => <LegalPage kind="contact" />} /><Route path="/admin" component={AdminPage} /><Route component={NotFound} /></Switch></PublicLayout>; }
+function Router() { return <PublicLayout><Switch><Route path="/" component={Home} /><Route path="/search" component={SearchPage} /><Route path="/s/:slug" component={KeywordPage} /><Route path="/artists" component={ArtistsPage} /><Route path="/artists/:slug" component={ArtistPage} /><Route path="/media" component={MediaPage} /><Route path="/videos_dl" component={ConversionPage} /><Route path="/trending" component={TrendingPage} /><Route path="/privacy" component={() => <LegalPage kind="privacy" />} /><Route path="/terms" component={() => <LegalPage kind="terms" />} /><Route path="/dmca" component={() => <LegalPage kind="dmca" />} /><Route path="/contact" component={() => <LegalPage kind="contact" />} /><Route path="/admin" component={AdminPage} /><Route component={NotFound} /></Switch></PublicLayout>; }
 
 export default function App() { return <ErrorBoundary><ThemeProvider defaultTheme="light" switchable><TooltipProvider><Toaster /><Router /></TooltipProvider></ThemeProvider></ErrorBoundary>; }

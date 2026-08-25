@@ -55,7 +55,7 @@ describe("reference workflow runtime", () => {
     searchValue = "q=ليلة%20هادئة";
     mocks.search.mockReturnValue({ data: [{ id: 1, slug: "layla-hadia", title: "ليلة هادئة", artist: "نغمة", duration: "03:00" }], isLoading: false, isError: false });
     render(<SearchPage />);
-    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith("/s/layla-hadia"));
+    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith("/s/%D9%84%D9%8A%D9%84%D8%A9-%D9%87%D8%A7%D8%AF%D8%A6%D8%A9"));
   });
 
   it("renders the song-to-media link with the opaque token", () => {
