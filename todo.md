@@ -161,3 +161,7 @@
 - [x] توسيع workflow باستعمال YouTube Data API: بحث، حفظ metadata، deduplication، slug pages، وربط `/search` → `/s/{slug}` → `/media` بدون تنزيل محتوى محمي.
 
 - [x] إصلاح مشكلة البحث التي تعرض «لا توجد نتائج مطابقة» عند استعمال YouTube API، مع اختبار الاستجابة والواجهة ودفع الإصلاح.
+
+- [x] تحليل workflow الحقيقي في v1.sm3ha.io عبر البحث عن «فناير»، اختيار نتيجة، وتوثيق الروابط والطلبات والانتقالات.
+
+- [x] تنفيذ نفس workflow وبنية الروابط: `/search` → `/s/{slug}` → `/media?d={token}` → `/videos_dl?v={youtubeId}`، مع YouTube metadata وروابط مشاهدة آمنة.
