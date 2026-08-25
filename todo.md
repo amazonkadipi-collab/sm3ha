@@ -192,3 +192,7 @@
 - [x] إضافة inline YouTube player آمن بتبديل مشاهدة/إيقاف مع player واحد في كل مرة.
 - [x] مطابقة صفحة `/media` في الحقول والترتيب والانتقال الداخلي إلى `/videos_dl` بدون رابط تنزيل خارجي.
 - [x] إضافة اختبارات DOM وworkflow وresponsive للمطابقة الجديدة.
+
+- [ ] إصلاح عطل البحث الذي يعرض «لا توجد نتائج مطابقة» والتحقق من catalog وYouTube failover والـworkflow.
+
+- [x] تصحيح search workflow ليتبع المرجع: submit إلى `/s/{slug}` وعرض 10 نتائج catalog محفوظة لـrai عند انتهاء quota.

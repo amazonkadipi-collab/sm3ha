@@ -11,7 +11,7 @@ export default function SearchPage() {
   const initial = params.get("q") ?? "";
   const [query, setQuery] = useState(initial);
   const [, navigate] = useLocation();
-  const { data = [], isLoading, isError } = trpc.catalog.search.useQuery({ query: initial, limit: 20 }, { enabled: !initial });
+  const { data = [], isLoading, isError } = trpc.catalog.search.useQuery({ query: initial, limit: 10 }, { enabled: !initial });
   useEffect(() => { applySeo({ title: initial ? `نتائج البحث عن ${initial} — نغمة` : "بحث الأغاني والموسيقى العربية — نغمة", description: initial ? `نتائج البحث عن ${initial} من الأغاني والموسيقى العربية في نغمة.` : "ابحث عن أغنية أو ألبوم أو فنان واكتشف موسيقى عربية في نغمة.", path: initial ? `/search?q=${encodeURIComponent(initial)}` : "/search" }); return resetSeo; }, [initial]);
   useEffect(() => { if (initial) navigate(workflowLinks.keyword(initial)); }, [initial, navigate]);
   const submit = (event: FormEvent) => { event.preventDefault(); if (query.trim()) navigate(workflowLinks.search(query)); };

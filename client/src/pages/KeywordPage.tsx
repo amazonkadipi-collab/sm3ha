@@ -19,7 +19,7 @@ export default function KeywordPage() {
   const [, params] = useRoute("/s/:slug");
   const slug = params?.slug ?? "";
   const keyword = useMemo(() => decodeURIComponent(slug).replace(/-/g, " ").trim(), [slug]);
-  const { data = [], isLoading, isError } = trpc.catalog.search.useQuery({ query: keyword, limit: 20 }, { enabled: Boolean(keyword) });
+  const { data = [], isLoading, isError } = trpc.catalog.search.useQuery({ query: keyword, limit: 10 }, { enabled: Boolean(keyword) });
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
 
   useEffect(() => {

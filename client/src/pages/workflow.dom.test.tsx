@@ -80,6 +80,7 @@ describe("reference workflow runtime", () => {
     ], isLoading: false, isError: false });
     render(<KeywordPage />);
 
+    expect(mocks.search.mock.calls[0]?.[0]).toEqual({ query: "layla hadia", limit: 10 });
     expect(screen.getByRole("heading", { name: "أغنية عربية" })).toBeTruthy();
     expect(screen.queryByRole("heading", { name: "English only title" })).toBeNull();
 
