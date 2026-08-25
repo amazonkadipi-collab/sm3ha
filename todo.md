@@ -185,3 +185,5 @@
 - [x] Verification معمق لـ`v1.sm3ha.io`: تحليل HTML والروابط، تجربة searches متعددة، وتوثيق ما هو مؤكد عن catalog والـworkflow.
 
 - [x] تطبيق pattern ديال المرجع على Naghma: keywords ونتائج محفوظة في Supabase، front/index ديناميكي، cache، وروابط workflow مستقرة بدون الاعتماد على YouTube في كل بحث.
+
+- [x] إضافة failover مرتب لثلاثة مشاريع YouTube API مستقلة ومصرّح بها عند quota exhaustion، مع cache/catalog واختبارات بدون تدوير مفاتيح من نفس المشروع.
