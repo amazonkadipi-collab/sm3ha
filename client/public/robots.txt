@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /admin
 Disallow: /api/
-Sitemap: https://naghmahub.vercel.app/sitemap.xml
+Disallow: /media
