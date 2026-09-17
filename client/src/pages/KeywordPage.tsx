@@ -10,7 +10,7 @@ const ARABIC_RUN = /[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff0-9٠-٩][\u0600-\u0
 
 function arabicTitle(value: string) {
   const title = value.trim();
-  if (!ARABIC.test(title)) return "";
+  if (!ARABIC.test(title)) return title;
   const runs = title.match(ARABIC_RUN)?.map(run => run.trim()).filter(Boolean) ?? [];
   return runs.join(" ") || title;
 }
@@ -22,18 +22,15 @@ export default function KeywordPage() {
   const { data = [], isLoading, isError } = trpc.catalog.search.useQuery({ query: keyword, limit: 10 }, { enabled: Boolean(keyword) });
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
 
+  useEffect(() => setActiveVideoId(null), [slug]);
   useEffect(() => {
-    setActiveVideoId(null);
-  }, [slug]);
-
-  useEffect(() => {
-    applySeo({ title: `تحميل ${keyword} Mp3 Mp4 — نغمة`, description: `نتائج ${keyword} من الأغاني والفيديوهات المتاحة للمشاهدة الرسمية عبر نغمة.`, path: `/s/${encodeURIComponent(slug)}` });
+    applySeo({ title: `تحميل ${keyword} Mp3 Mp4 سمعها`, description: `نتائج ${keyword} في سمعها.`, path: `/s/${encodeURIComponent(slug)}` });
     return resetSeo;
   }, [keyword, slug]);
 
-  return <main className="reference-page mx-auto max-w-[1080px] px-4 pb-12 pt-8 sm:px-8">
-    <Link href="/" className="reference-back"><ArrowRight size={15} /> العودة للرئيسية</Link>
-    <section className="reference-page-head"><div><span>نتائج البحث</span><h1>تحميل {keyword} Mp3 Mp4</h1></div><Link href={`/search?q=${encodeURIComponent(keyword)}`} className="reference-action"><ExternalLink size={16} /> بحث جديد</Link></section>
+  return <main dir="rtl" className="reference-page mx-auto max-w-[1080px] px-4 pb-12 pt-4 sm:px-8">
+    <Link href="/" className="reference-back"><ArrowRight size={15} /> الرئيسية</Link>
+    <section className="reference-page-head"><div><span>سمعها</span><h1>تحميل {keyword} Mp3 Mp4</h1></div><Link href={`/search?q=${encodeURIComponent(keyword)}`} className="reference-action"><ExternalLink size={16} /> بحث جديد</Link></section>
     <section className="reference-results" aria-label={`نتائج ${keyword}`}>
       <div className="reference-results-title">نتائج «{keyword}»</div>
       {isLoading && <div className="reference-empty">جارٍ تجهيز النتائج…</div>}
@@ -45,7 +42,7 @@ export default function KeywordPage() {
         return <article key={`${song.providerVideoId}-${song.slug}`} className="reference-media-row">
           <div className="reference-media-thumb reference-media-thumb-area">{song.thumbnailUrl ? <img src={song.thumbnailUrl} alt={visibleTitle} title={visibleTitle} loading="lazy" /> : <span><Youtube size={20} /></span>}</div>
           <div className="min-w-0 reference-media-copy">
-            {visibleTitle && <h2>{visibleTitle}</h2>}
+            <h2>{visibleTitle}</h2>
             <p><Youtube size={14} /> <Clock3 size={14} /> مدة الفيديو: {song.duration}</p>
           </div>
           <div className="reference-media-actions reference-media-actions-area">
