@@ -20,7 +20,9 @@ export default function KeywordPage() {
   const slug = params?.slug ?? "";
   const keyword = useMemo(() => decodeURIComponent(slug).replace(/-/g, " ").trim(), [slug]);
   const { data = [], isLoading, isError } = trpc.catalog.search.useQuery({ query: keyword, limit: 10 }, { enabled: Boolean(keyword) });
+  const { data: keywordLinks = [] } = trpc.catalog.keywords.useQuery({ limit: 24 });
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
+  const relatedKeywords = useMemo(() => keywordLinks.filter(item => item.slug !== slug && item.resultCount > 0).slice(0, 12), [keywordLinks, slug]);
 
   useEffect(() => setActiveVideoId(null), [slug]);
   useEffect(() => {
@@ -53,5 +55,6 @@ export default function KeywordPage() {
         </article>;
       })}
     </section>
+    {relatedKeywords.length > 0 && <section className="mt-8 border-t border-black/10 pt-5" aria-label="كلمات مرتبطة"><div className="mb-3 text-sm font-semibold text-black/70">مواضيع مرتبطة</div><div className="flex flex-wrap gap-2">{relatedKeywords.map(item => <Link key={item.slug} href={`/s/${encodeURIComponent(item.slug)}`} className="rounded-full border border-black/10 bg-white px-3 py-1.5 text-sm text-black/70 transition hover:bg-black/[0.03]">تحميل {item.label}</Link>)}</div></section>}
   </main>;
 }
