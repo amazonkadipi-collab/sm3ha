@@ -9,7 +9,7 @@ type AnalyticsEventInput = {
   eventName: AnalyticsEventName;
   path: string;
   query?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   sessionHash?: string;
 };
 
@@ -65,16 +65,14 @@ export async function getAnalyticsSummary(days: number) {
   ]);
   if (eventsError || searchesError) console.warn("[Analytics] summary query failed:", eventsError?.message ?? searchesError?.message);
 
-  const eventRows: Array<Record<string, any>> = (events ?? []) as Array<Record<string, any>>;
-  const searchRows: Array<Record<string, any>> = (searches ?? []) as Array<Record<string, any>>;
-  const countBy = (rows: Array<Record<string, any>>, key: string) =>
-    Object.entries(
-      rows.reduce<Record<string, number>>((acc, row) => {
-        const value = String(row[key] ?? "غير محدد");
-        acc[value] = (acc[value] ?? 0) + 1;
-        return acc;
-      }, {}),
-    )
+  const eventRows: Array<Record<string, unknown>> = (events ?? []) as Array<Record<string, unknown>>;
+  const searchRows: Array<Record<string, unknown>> = (searches ?? []) as Array<Record<string, unknown>>;
+  const countBy = (rows: Array<Record<string, unknown>>, key: string) =>
+    Object.entries(rows.reduce<Record<string, number>>((acc, row) => {
+      const value = String(row[key] ?? "غير محدد");
+      acc[value] = (acc[value] ?? 0) + 1;
+      return acc;
+    }, {}))
       .map(([label, count]) => ({ label, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
@@ -94,11 +92,7 @@ export async function getAnalyticsSummary(days: number) {
 export async function listSearchLogs(input: { query?: string; limit: number; offset: number }) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return { available: false, rows: [], total: 0 };
-  let request = supabase
-    .from("search_logs")
-    .select("id,query,path,result_count,hashed_ip,user_agent,created_at", { count: "exact" })
-    .order("created_at", { ascending: false })
-    .range(input.offset, input.offset + clampLimit(input.limit) - 1);
+  let request = supabase.from("search_logs").select("id,query,path,result_count,hashed_ip,user_agent,created_at", { count: "exact" }).order("created_at", { ascending: false }).range(input.offset, input.offset + clampLimit(input.limit) - 1);
   if (input.query?.trim()) request = request.ilike("query", `%${input.query.trim().replace(/[%(),]/g, " ")}%`);
   const { data, count, error } = await request;
   if (error) console.warn("[SearchLogs] list failed:", error.message);
@@ -108,11 +102,7 @@ export async function listSearchLogs(input: { query?: string; limit: number; off
 export async function listTakedowns(input: { status?: string; limit: number; offset: number }) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return { available: false, rows: [], total: 0 };
-  let request = supabase
-    .from("takedown_requests")
-    .select("id,song_id,claimant_name,claimant_email,reason,status,evidence_url,admin_notes,created_at,resolved_at,updated_at,updated_by", { count: "exact" })
-    .order("created_at", { ascending: false })
-    .range(input.offset, input.offset + clampLimit(input.limit) - 1);
+  let request = supabase.from("takedown_requests").select("id,song_id,claimant_name,claimant_email,reason,status,evidence_url,admin_notes,created_at,resolved_at,updated_at,updated_by", { count: "exact" }).order("created_at", { ascending: false }).range(input.offset, input.offset + clampLimit(input.limit) - 1);
   if (input.status) request = request.eq("status", input.status);
   const { data, count, error } = await request;
   if (error) console.warn("[Takedown] list failed:", error.message);
@@ -122,11 +112,7 @@ export async function listTakedowns(input: { status?: string; limit: number; off
 export async function submitTakedown(input: { songId?: string; claimantName: string; claimantEmail: string; reason: string; evidenceUrl?: string }) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return { available: false, id: null };
-  const { data, error } = await supabase
-    .from("takedown_requests")
-    .insert({ song_id: input.songId ?? null, claimant_name: input.claimantName, claimant_email: input.claimantEmail, reason: input.reason, evidence_url: input.evidenceUrl ?? null })
-    .select("id")
-    .single();
+  const { data, error } = await supabase.from("takedown_requests").insert({ song_id: input.songId ?? null, claimant_name: input.claimantName, claimant_email: input.claimantEmail, reason: input.reason, evidence_url: input.evidenceUrl ?? null }).select("id").single();
   if (error) throw new Error(error.message);
   return { available: true, id: data?.id ?? null };
 }
@@ -135,10 +121,7 @@ export async function updateTakedown(input: { id: string; status: "open" | "revi
   const supabase = getSupabaseAdmin();
   if (!supabase) return { available: false };
   const resolvedAt = input.status === "resolved" ? new Date().toISOString() : null;
-  const { error } = await supabase
-    .from("takedown_requests")
-    .update({ status: input.status, admin_notes: input.adminNotes ?? null, updated_by: input.updatedBy ?? null, resolved_at: resolvedAt, updated_at: new Date().toISOString() })
-    .eq("id", input.id);
+  const { error } = await supabase.from("takedown_requests").update({ status: input.status, admin_notes: input.adminNotes ?? null, updated_by: input.updatedBy ?? null, resolved_at: resolvedAt, updated_at: new Date().toISOString() }).eq("id", input.id);
   if (error) throw new Error(error.message);
   return { available: true, id: input.id, status: input.status };
 }
