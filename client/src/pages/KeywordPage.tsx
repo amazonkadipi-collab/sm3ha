@@ -15,15 +15,32 @@ function arabicTitle(value: string) {
   return runs.join(" ") || title;
 }
 
+function keywordFamily(value: string) {
+  const words = value.toLocaleLowerCase("ar").normalize("NFKD").replace(/[\u064B-\u065F\u0670]/g, "").replace(/[إأآا]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي").replace(/[^a-z0-9\u0600-\u06FF\s]+/gi, " ").replace(/\s+/g, " ").trim().split(" ").filter(word => word.length >= 2);
+  const candidates = new Set<string>();
+  if (words.length > 1) {
+    for (let size = 2; size <= Math.min(words.length, 4); size += 1) {
+      for (let i = 0; i + size <= words.length; i += 1) candidates.add(words.slice(i, i + size).join(" "));
+    }
+  }
+  words.forEach(word => candidates.add(word));
+  return candidates;
+}
+
 export default function KeywordPage() {
   const [, params] = useRoute("/s/:slug");
   const slug = params?.slug ?? "";
   const keyword = useMemo(() => decodeURIComponent(slug).replace(/-/g, " ").trim(), [slug]);
   const { data = [], isLoading, isError } = trpc.catalog.search.useQuery({ query: keyword, limit: 10 }, { enabled: Boolean(keyword) });
-  const { data: keywordLinks = [] } = trpc.catalog.keywords.useQuery({ limit: 24 });
+  const { data: keywordLinks = [] } = trpc.catalog.keywords.useQuery({ limit: 50 });
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
   const hasResults = !isLoading && !isError && data.length > 0;
-  const relatedKeywords = useMemo(() => keywordLinks.filter(item => item.slug !== slug && item.resultCount > 0).slice(0, 12), [keywordLinks, slug]);
+  const relatedKeywords = useMemo(() => {
+    const family = keywordFamily(keyword);
+    return keywordLinks
+      .filter(item => item.slug !== slug && item.resultCount > 0 && family.has(item.label.toLocaleLowerCase("ar")))
+      .slice(0, 12);
+  }, [keywordLinks, keyword, slug]);
 
   useEffect(() => setActiveVideoId(null), [slug]);
   useEffect(() => {
