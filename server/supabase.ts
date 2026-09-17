@@ -44,12 +44,40 @@ function keywordCandidates(query: string) {
 }
 
 async function saveKeyword(supabase: SupabaseClient, query: string, resultSlugs: string[], source: string, countSearch: boolean) {
-  const normalizedQuery = normalizeArabic(query).replace(/\s+/g, " ").trim(); const uniqueSlugs = Array.from(new Set(resultSlugs)).filter(Boolean).slice(0, 50);
-  if (!normalizedQuery || uniqueSlugs.length === 0) return false; const slug = makeSlug(normalizedQuery); if (!slug) return false;
-  const { data: existing } = await supabase.from("catalog_keywords").select("search_count").eq("slug", slug).maybeSingle();
-  const searchCount = Number(existing?.search_count ?? 0) + (countSearch ? 1 : 0); const now = new Date().toISOString();
-  const { error } = await supabase.from("catalog_keywords").upsert({ query: normalizedQuery, slug, title: `تحميل ${normalizedQuery} Mp3 Mp4`, language: "ar", source, result_count: uniqueSlugs.length, result_slugs: uniqueSlugs, indexable: true, search_count: searchCount, last_searched_at: countSearch ? now : undefined, updated_at: now, status: "active" }, { onConflict: "slug" });
-  if (error) { console.warn("[Supabase] keyword upsert failed:", error.message); return false; } return true;
+  const normalizedQuery = normalizeArabic(query).replace(/\s+/g, " ").trim();
+  const incomingSlugs = Array.from(new Set(resultSlugs)).filter(Boolean).slice(0, 50);
+  if (!normalizedQuery || incomingSlugs.length === 0) return false;
+  const slug = makeSlug(normalizedQuery);
+  if (!slug) return false;
+
+  // Keep the accumulated result set instead of replacing it with the latest batch.
+  // This makes /s/{keyword} grow naturally as new catalog items arrive.
+  const { data: existing } = await supabase
+    .from("catalog_keywords")
+    .select("search_count,result_slugs,result_count,source")
+    .eq("slug", slug)
+    .maybeSingle();
+  const previousSlugs = Array.isArray(existing?.result_slugs) ? existing.result_slugs.map(String) : [];
+  const mergedSlugs = Array.from(new Set([...previousSlugs, ...incomingSlugs])).filter(Boolean).slice(0, 500);
+  const searchCount = Number(existing?.search_count ?? 0) + (countSearch ? 1 : 0);
+  const now = new Date().toISOString();
+
+  const { error } = await supabase.from("catalog_keywords").upsert({
+    query: normalizedQuery,
+    slug,
+    title: `تحميل ${normalizedQuery} Mp3 Mp4`,
+    language: "ar",
+    source: existing?.source ?? source,
+    result_count: mergedSlugs.length,
+    result_slugs: mergedSlugs,
+    indexable: mergedSlugs.length > 0,
+    search_count: searchCount,
+    last_searched_at: countSearch ? now : undefined,
+    updated_at: now,
+    status: "active",
+  }, { onConflict: "slug" });
+  if (error) { console.warn("[Supabase] keyword upsert failed:", error.message); return false; }
+  return true;
 }
 
 // Search-derived keywords are intentionally generated only from a query that returned real results.
