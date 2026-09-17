@@ -4,6 +4,23 @@ import { recordAnalyticsEvent } from "./admin-observability";
 
 const DEFAULT_QUERIES = ["اغاني مغربية", "اغاني عربية", "اغاني راي", "اغاني جديدة", "اغاني ترند"];
 
+type AutoImportSettings = {
+  enabled: boolean;
+  queries: string[];
+  maxQueries: number;
+  videosPerQuery: number;
+};
+
+type AutoImportResult = {
+  status: "disabled" | "not_configured" | "failed" | "completed";
+  queries: number;
+  scanned: number;
+  newRows: number;
+  accepted: number;
+  duplicates: number;
+  failures?: string[];
+};
+
 function asBoolean(value: string | undefined, fallback = false) {
   if (value === undefined) return fallback;
   return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
@@ -14,14 +31,14 @@ function asPositiveInt(value: string | undefined, fallback: number, max: number)
   return Number.isFinite(parsed) ? Math.min(Math.max(Math.floor(parsed), 1), max) : fallback;
 }
 
-function splitQueries(value: string | undefined) {
+function splitQueries(value: string | undefined): string[] {
   return (value ?? "")
     .split(/[\n,،]+/)
     .map(item => item.trim())
     .filter(item => item.length >= 2 && item.length <= 120);
 }
 
-async function loadSettings() {
+async function loadSettings(): Promise<AutoImportSettings> {
   const supabase = getSupabaseAdmin();
   const envQueries = splitQueries(process.env.YOUTUBE_AUTO_QUERIES);
   if (!supabase) {
@@ -39,7 +56,12 @@ async function loadSettings() {
     "youtube_auto_max_queries",
     "youtube_auto_videos_per_query",
   ]);
-  const settings = new Map((data ?? []).map(row => [row.key, String(row.value ?? "")]));
+  const settings = new Map<string, string>(
+    (data ?? []).map((row: { key?: unknown; value?: unknown }) => [
+      String(row.key ?? ""),
+      String(row.value ?? ""),
+    ]),
+  );
   const configuredQueries = splitQueries(settings.get("youtube_auto_queries"));
   return {
     enabled: asBoolean(settings.get("youtube_auto_enabled"), asBoolean(process.env.YOUTUBE_AUTO_ENABLED, false)),
@@ -49,7 +71,7 @@ async function loadSettings() {
   };
 }
 
-async function recentSearchQueries(limit: number) {
+async function recentSearchQueries(limit: number): Promise<string[]> {
   const supabase = getSupabaseAdmin();
   if (!supabase) return [];
   const { data } = await supabase.from("search_logs").select("query,result_count,created_at").order("created_at", { ascending: false }).limit(500);
@@ -68,7 +90,7 @@ async function recentSearchQueries(limit: number) {
     .map(([query]) => query);
 }
 
-async function filterNewRows(rows: YouTubeCatalogItem[]) {
+async function filterNewRows(rows: YouTubeCatalogItem[]): Promise<YouTubeCatalogItem[]> {
   const supabase = getSupabaseAdmin();
   if (!supabase || !rows.length) return rows;
   const ids = Array.from(new Set(rows.map(row => row.providerVideoId)));
@@ -81,10 +103,10 @@ async function filterNewRows(rows: YouTubeCatalogItem[]) {
   return rows.filter(row => !existing.has(row.providerVideoId));
 }
 
-export async function runYouTubeAutoImport() {
+export async function runYouTubeAutoImport(): Promise<AutoImportResult> {
   const settings = await loadSettings();
-  if (!settings.enabled) return { status: "disabled" as const, queries: 0, scanned: 0, newRows: 0, accepted: 0, duplicates: 0 };
-  if (!process.env.YOUTUBE_API_KEY) return { status: "not_configured" as const, queries: 0, scanned: 0, newRows: 0, accepted: 0, duplicates: 0 };
+  if (!settings.enabled) return { status: "disabled", queries: 0, scanned: 0, newRows: 0, accepted: 0, duplicates: 0 };
+  if (!process.env.YOUTUBE_API_KEY) return { status: "not_configured", queries: 0, scanned: 0, newRows: 0, accepted: 0, duplicates: 0 };
 
   const recent = await recentSearchQueries(settings.maxQueries);
   const queries = Array.from(new Set([...recent, ...settings.queries])).slice(0, settings.maxQueries);
@@ -104,9 +126,13 @@ export async function runYouTubeAutoImport() {
 
   newRows = await filterNewRows(newRows);
   const uniqueRows = Array.from(new Map(newRows.map(row => [row.providerVideoId, row])).values());
-  const persisted = uniqueRows.length && getSupabaseAdmin() ? await persistImportedRows(uniqueRows) : { accepted: 0, status: "database_unavailable" as const };
-  const result = {
-    status: failures.length && !scanned ? "failed" as const : "completed" as const,
+  const supabase = getSupabaseAdmin();
+  const persisted = uniqueRows.length > 0 && supabase
+    ? await persistImportedRows(uniqueRows)
+    : { accepted: 0 };
+
+  const result: AutoImportResult = {
+    status: failures.length > 0 && scanned === 0 ? "failed" : "completed",
     queries: queries.length,
     scanned,
     newRows: uniqueRows.length,
@@ -114,6 +140,11 @@ export async function runYouTubeAutoImport() {
     duplicates: Math.max(0, scanned - uniqueRows.length),
     failures,
   };
-  void recordAnalyticsEvent({ eventName: "admin_action", path: "/admin/youtube-auto", metadata: result });
+
+  void recordAnalyticsEvent({
+    eventName: "admin_action",
+    path: "/admin/youtube-auto",
+    metadata: result,
+  });
   return result;
 }
