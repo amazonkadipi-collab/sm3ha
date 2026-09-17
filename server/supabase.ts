@@ -48,26 +48,19 @@ function keywordCandidates(query: string) {
   const words = normalized.split(" ").filter(word => word.length >= 2 && word.length <= 80);
   const candidates = new Set<string>();
   candidates.add(normalized);
-
-  // SM3HA-style keyword space: the full phrase, every useful token, and
-  // contiguous 2-4 word phrases. This lets one real catalog item discover
-  // many real /s/{keyword} pages instead of manufacturing empty pages.
   for (const word of words) candidates.add(word);
   for (let size = 2; size <= Math.min(words.length, 4); size += 1) {
     for (let i = 0; i + size <= words.length; i += 1) candidates.add(words.slice(i, i + size).join(" "));
   }
-
   return Array.from(candidates).filter(value => value.length >= 2 && value.length <= 120);
 }
 
-export async function upsertCatalogKeyword(query: string, resultSlugs: string[], source = "search", countSearch = false) {
-  const supabase = getSupabaseAdmin();
+async function saveKeyword(supabase: SupabaseClient, query: string, resultSlugs: string[], source: string, countSearch: boolean) {
   const normalizedQuery = normalizeArabic(query).replace(/\s+/g, " ").trim();
   const uniqueSlugs = Array.from(new Set(resultSlugs)).filter(Boolean).slice(0, 50);
-  if (!supabase || !normalizedQuery || uniqueSlugs.length === 0) return false;
+  if (!normalizedQuery || uniqueSlugs.length === 0) return false;
   const slug = makeSlug(normalizedQuery);
   if (!slug) return false;
-
   const { data: existing } = await supabase.from("catalog_keywords").select("search_count").eq("slug", slug).maybeSingle();
   const searchCount = Number(existing?.search_count ?? 0) + (countSearch ? 1 : 0);
   const { error } = await supabase.from("catalog_keywords").upsert({
@@ -88,6 +81,23 @@ export async function upsertCatalogKeyword(query: string, resultSlugs: string[],
   return true;
 }
 
+export async function upsertCatalogKeyword(query: string, resultSlugs: string[], source = "search", countSearch = false) {
+  const supabase = getSupabaseAdmin();
+  const normalizedQuery = normalizeArabic(query).replace(/\s+/g, " ").trim();
+  const uniqueSlugs = Array.from(new Set(resultSlugs)).filter(Boolean).slice(0, 50);
+  if (!supabase || !normalizedQuery || uniqueSlugs.length === 0) return false;
+  if (!(await saveKeyword(supabase, normalizedQuery, uniqueSlugs, source, countSearch))) return false;
+
+  // A real search creates a small family of real-result keyword URLs: the
+  // full query, individual terms, and contiguous 2-4 term phrases. This is
+  // the scalable /s/{keyword} mechanism, but only when the same results exist.
+  if (countSearch) {
+    const family = keywordCandidates(normalizedQuery).filter(candidate => candidate !== normalizedQuery);
+    for (const candidate of family) await saveKeyword(supabase, candidate, uniqueSlugs, "search-derived", false);
+  }
+  return true;
+}
+
 export async function indexCatalogText(rows: Array<{ title: string; artist: string; providerVideoId: string; provider?: string; thumbnailUrl?: string; durationSeconds?: number; album?: string }>) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return 0;
@@ -105,7 +115,7 @@ export async function indexCatalogText(rows: Array<{ title: string; artist: stri
   }
   let indexed = 0;
   for (const [candidate, slugs] of candidates) {
-    if (slugs.length > 0 && await upsertCatalogKeyword(candidate, slugs, "catalog", false)) indexed += 1;
+    if (slugs.length > 0 && await saveKeyword(supabase, candidate, slugs, "catalog", false)) indexed += 1;
   }
   return indexed;
 }
