@@ -43,37 +43,58 @@ export async function persistImportedRows(rows: Array<{ title: string; artist: s
 }
 
 function keywordCandidates(query: string) {
-  const normalized = normalizeArabic(query).replace(/\s+/g, " ").trim();
+  const normalized = normalizeArabic(query).replace(/[\u0000-\u001F]/g, " ").replace(/[^a-z0-9\u0600-\u06FF\s]+/gi, " ").replace(/\s+/g, " ").trim();
   if (!normalized) return [];
-  const words = normalized.split(" ").filter(word => word.length >= 2);
+  const words = normalized.split(" ").filter(word => word.length >= 2 && word.length <= 80);
   const candidates = new Set<string>();
   candidates.add(normalized);
+
+  // SM3HA-style keyword space: the full phrase, every useful token, and
+  // contiguous 2-4 word phrases. This lets one real catalog item discover
+  // many real /s/{keyword} pages instead of manufacturing empty pages.
   for (const word of words) candidates.add(word);
   for (let size = 2; size <= Math.min(words.length, 4); size += 1) {
     for (let i = 0; i + size <= words.length; i += 1) candidates.add(words.slice(i, i + size).join(" "));
   }
+
   return Array.from(candidates).filter(value => value.length >= 2 && value.length <= 120);
 }
 
-export async function upsertCatalogKeyword(query: string, resultSlugs: string[], source = "search") {
+export async function upsertCatalogKeyword(query: string, resultSlugs: string[], source = "search", countSearch = false) {
   const supabase = getSupabaseAdmin();
-  const normalizedQuery = query.trim();
+  const normalizedQuery = normalizeArabic(query).replace(/\s+/g, " ").trim();
   const uniqueSlugs = Array.from(new Set(resultSlugs)).filter(Boolean).slice(0, 50);
   if (!supabase || !normalizedQuery || uniqueSlugs.length === 0) return false;
   const slug = makeSlug(normalizedQuery);
   if (!slug) return false;
-  const { error } = await supabase.from("catalog_keywords").upsert({ query: normalizedQuery, slug, title: `تحميل ${normalizedQuery} Mp3 Mp4`, language: "ar", source, result_count: uniqueSlugs.length, result_slugs: uniqueSlugs, indexable: true, last_searched_at: new Date().toISOString(), updated_at: new Date().toISOString(), status: "active" }, { onConflict: "slug" });
+
+  const { data: existing } = await supabase.from("catalog_keywords").select("search_count").eq("slug", slug).maybeSingle();
+  const searchCount = Number(existing?.search_count ?? 0) + (countSearch ? 1 : 0);
+  const { error } = await supabase.from("catalog_keywords").upsert({
+    query: normalizedQuery,
+    slug,
+    title: `تحميل ${normalizedQuery} Mp3 Mp4`,
+    language: "ar",
+    source,
+    result_count: uniqueSlugs.length,
+    result_slugs: uniqueSlugs,
+    indexable: true,
+    search_count: searchCount,
+    last_searched_at: countSearch ? new Date().toISOString() : undefined,
+    updated_at: new Date().toISOString(),
+    status: "active",
+  }, { onConflict: "slug" });
   if (error) { console.warn("[Supabase] keyword upsert failed:", error.message); return false; }
   return true;
 }
 
-export async function indexCatalogText(rows: Array<{ title: string; artist: string; providerVideoId: string; provider?: string; thumbnailUrl?: string; durationSeconds?: number }>) {
+export async function indexCatalogText(rows: Array<{ title: string; artist: string; providerVideoId: string; provider?: string; thumbnailUrl?: string; durationSeconds?: number; album?: string }>) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return 0;
   const candidates = new Map<string, string[]>();
   for (const row of rows) {
     const songSlug = makeSlug(`${row.artist}-${row.title}`);
-    const texts = [row.title, row.artist, `${row.artist} ${row.title}`];
+    const texts = [row.title, row.artist, row.album ?? "", `${row.artist} ${row.title}`, `${row.title} ${row.artist}`];
     for (const text of texts) {
       for (const candidate of keywordCandidates(text)) {
         const list = candidates.get(candidate) ?? [];
@@ -84,7 +105,7 @@ export async function indexCatalogText(rows: Array<{ title: string; artist: stri
   }
   let indexed = 0;
   for (const [candidate, slugs] of candidates) {
-    if (slugs.length > 0 && await upsertCatalogKeyword(candidate, slugs, "catalog")) indexed += 1;
+    if (slugs.length > 0 && await upsertCatalogKeyword(candidate, slugs, "catalog", false)) indexed += 1;
   }
   return indexed;
 }
@@ -92,7 +113,15 @@ export async function indexCatalogText(rows: Array<{ title: string; artist: stri
 export async function listCatalogKeywords(limit = 20) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return null;
-  const { data, error } = await supabase.from("catalog_keywords").select("query,slug,title,result_count,result_slugs,status,last_searched_at,updated_at").eq("status", "active").eq("indexable", true).gt("result_count", 0).order("result_count", { ascending: false }).order("updated_at", { ascending: false }).limit(Math.min(Math.max(limit, 1), 50));
+  const safeLimit = Math.min(Math.max(limit, 1), 50);
+  const { data, error } = await supabase.from("catalog_keywords")
+    .select("query,slug,title,result_count,result_slugs,status,last_searched_at,updated_at,search_count")
+    .eq("status", "active")
+    .eq("indexable", true)
+    .gt("result_count", 0)
+    .order("search_count", { ascending: false })
+    .order("updated_at", { ascending: false })
+    .limit(safeLimit);
   if (error) { console.warn("[Supabase] keyword list failed:", error.message); return []; }
   return data ?? [];
 }
