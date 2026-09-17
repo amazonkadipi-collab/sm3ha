@@ -1,5 +1,5 @@
-const defaultTitle = "نغمة | اكتشاف الصوت";
-const defaultDescription = "اكتشف أغاني وموسيقى عربية عبر مساحة نغمة الهادئة، مع صفحات فنانين وإصدارات وروابط تجريبية آمنة.";
+const defaultTitle = "سمعها | اكتشاف الأغاني والفيديوهات";
+const defaultDescription = "إبحث عن اغنية او البوم او فنان واكتشف نتائج الوسائط المتاحة عبر سمعها.";
 
 function upsertMeta(attribute: "name" | "property", key: string, content: string) {
   let node = document.head.querySelector(`meta[${attribute}="${key}"]`);
@@ -34,7 +34,7 @@ export function applySeo(input: { title: string; description: string; path: stri
   upsertMeta("property", "og:url", canonical);
   upsertMeta("property", "og:type", input.type ?? "website");
   upsertMeta("property", "og:locale", "ar_MA");
-  upsertMeta("property", "og:site_name", "نغمة");
+  upsertMeta("property", "og:site_name", "سمعها");
   if (input.image) upsertMeta("property", "og:image", input.image);
   upsertMeta("name", "twitter:card", input.image ? "summary_large_image" : "summary");
   upsertMeta("name", "twitter:title", input.title);
