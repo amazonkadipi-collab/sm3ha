@@ -19,13 +19,14 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 
 export function PublicLayout({ children }: { children: React.ReactNode }) {
   return <div className="naghma-shell">
-    <header className="reference-header reference-simple-header mx-auto flex max-w-[1080px] items-center justify-center px-4 py-3 sm:px-8">
-      <Link href="/" className="reference-header-brand" aria-label="سمعها الرئيسية">سمعها</Link>
-    </header>
     <main>{children}</main>
-    <footer className="reference-footer mx-auto mt-12 flex max-w-[1080px] flex-col gap-3 border-t border-[#d9dfdc] px-4 py-6 text-xs text-[#82918c] sm:flex-row sm:items-center sm:justify-between sm:px-8">
+    <footer className="reference-footer mx-auto mt-10 flex max-w-[1080px] flex-col gap-3 border-t border-[#d9dfdc] px-4 py-5 text-xs text-[#82918c] sm:flex-row sm:items-center sm:justify-between sm:px-8">
       <span>Powered By Sm3ha © 2026</span>
-      <div className="flex flex-wrap gap-x-5 gap-y-2"><Link href="/">سمعها</Link><Link href="/contact">اتصل بنا</Link><Link href="/dmca">DMCA</Link></div>
+      <div className="flex flex-wrap gap-x-5 gap-y-2">
+        <Link href="/">سمعها</Link>
+        <Link href="/contact">اتصل بنا</Link>
+        <Link href="/dmca">DMCA</Link>
+      </div>
     </footer>
   </div>;
 }
@@ -47,4 +48,6 @@ function Router() { return <PublicLayout><Switch>
   <Route component={NotFound} />
 </Switch></PublicLayout>; }
 
-export default function App() { return <ErrorBoundary><ThemeProvider defaultTheme="light" switchable><TooltipProvider><Toaster /><Router /></TooltipProvider></ThemeProvider></ErrorBoundary>; }
+export default function App() {
+  return <ErrorBoundary><ThemeProvider defaultTheme="light" switchable><TooltipProvider><Toaster /><Router /></TooltipProvider></ThemeProvider></ErrorBoundary>;
+}
