@@ -1,0 +1,25 @@
+# SM3HA
+
+> Arabic-first music discovery and media catalog website.
+
+## Public pages
+- / — Homepage and search entry point
+- /s/{keyword} — Dynamic keyword/result landing pages backed by the public catalog
+- /artists — Artist discovery
+- /albums — Album discovery
+- /search — Search interface
+- /trending — Trending catalog content
+
+## URL rules
+- Public keyword pages use readable Arabic slugs under `/s/`.
+- Only keywords backed by real catalog results should be promoted for indexing.
+- Temporary media/download endpoints are not public content pages and should not be indexed.
+
+## SEO
+- Canonical public URLs use the production site origin.
+- XML sitemap is generated from indexable catalog/keyword data.
+- robots.txt allows public catalog pages and blocks admin/API/media surfaces.
+
+## Content
+- Catalog pages should expose real metadata such as title, artist, duration and artwork.
+- Do not represent empty or unavailable results as substantive content.
