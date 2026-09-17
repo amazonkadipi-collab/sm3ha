@@ -38,23 +38,61 @@ export async function persistImportedRows(rows: Array<{ title: string; artist: s
     if (!songError) { accepted += 1; acceptedSlugs.push(songSlug); }
   }
   await supabase.from("import_batches").update({ accepted_rows: accepted, duplicate_rows: rows.length - accepted }).eq("id", batch.id);
+  if (acceptedSlugs.length) await indexCatalogText(rows.filter(row => acceptedSlugs.includes(makeSlug(`${row.artist}-${row.title}`))));
   return { accepted, acceptedSlugs, status: "persisted_demo" as const };
 }
 
-export async function upsertCatalogKeyword(query: string, resultSlugs: string[]) {
+function keywordCandidates(query: string) {
+  const normalized = normalizeArabic(query).replace(/\s+/g, " ").trim();
+  if (!normalized) return [];
+  const words = normalized.split(" ").filter(word => word.length >= 2);
+  const candidates = new Set<string>();
+  candidates.add(normalized);
+  for (const word of words) candidates.add(word);
+  for (let size = 2; size <= Math.min(words.length, 4); size += 1) {
+    for (let i = 0; i + size <= words.length; i += 1) candidates.add(words.slice(i, i + size).join(" "));
+  }
+  return Array.from(candidates).filter(value => value.length >= 2 && value.length <= 120);
+}
+
+export async function upsertCatalogKeyword(query: string, resultSlugs: string[], source = "search") {
   const supabase = getSupabaseAdmin();
   const normalizedQuery = query.trim();
-  if (!supabase || !normalizedQuery || resultSlugs.length === 0) return false;
+  const uniqueSlugs = Array.from(new Set(resultSlugs)).filter(Boolean).slice(0, 50);
+  if (!supabase || !normalizedQuery || uniqueSlugs.length === 0) return false;
   const slug = makeSlug(normalizedQuery);
-  const { error } = await supabase.from("catalog_keywords").upsert({ query: normalizedQuery, slug, title: `تحميل ${normalizedQuery} Mp3 Mp4`, result_count: resultSlugs.length, result_slugs: Array.from(new Set(resultSlugs)).slice(0, 50), last_searched_at: new Date().toISOString(), updated_at: new Date().toISOString(), status: "active" }, { onConflict: "slug" });
+  if (!slug) return false;
+  const { error } = await supabase.from("catalog_keywords").upsert({ query: normalizedQuery, slug, title: `تحميل ${normalizedQuery} Mp3 Mp4`, language: "ar", source, result_count: uniqueSlugs.length, result_slugs: uniqueSlugs, indexable: true, last_searched_at: new Date().toISOString(), updated_at: new Date().toISOString(), status: "active" }, { onConflict: "slug" });
   if (error) { console.warn("[Supabase] keyword upsert failed:", error.message); return false; }
   return true;
+}
+
+export async function indexCatalogText(rows: Array<{ title: string; artist: string; providerVideoId: string; provider?: string; thumbnailUrl?: string; durationSeconds?: number }>) {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return 0;
+  const candidates = new Map<string, string[]>();
+  for (const row of rows) {
+    const songSlug = makeSlug(`${row.artist}-${row.title}`);
+    const texts = [row.title, row.artist, `${row.artist} ${row.title}`];
+    for (const text of texts) {
+      for (const candidate of keywordCandidates(text)) {
+        const list = candidates.get(candidate) ?? [];
+        if (!list.includes(songSlug)) list.push(songSlug);
+        candidates.set(candidate, list);
+      }
+    }
+  }
+  let indexed = 0;
+  for (const [candidate, slugs] of candidates) {
+    if (slugs.length > 0 && await upsertCatalogKeyword(candidate, slugs, "catalog")) indexed += 1;
+  }
+  return indexed;
 }
 
 export async function listCatalogKeywords(limit = 20) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return null;
-  const { data, error } = await supabase.from("catalog_keywords").select("query,slug,title,result_count,result_slugs,status,last_searched_at,updated_at").eq("status", "active").order("updated_at", { ascending: false }).limit(Math.min(Math.max(limit, 1), 50));
+  const { data, error } = await supabase.from("catalog_keywords").select("query,slug,title,result_count,result_slugs,status,last_searched_at,updated_at").eq("status", "active").eq("indexable", true).gt("result_count", 0).order("result_count", { ascending: false }).order("updated_at", { ascending: false }).limit(Math.min(Math.max(limit, 1), 50));
   if (error) { console.warn("[Supabase] keyword list failed:", error.message); return []; }
   return data ?? [];
 }
@@ -62,9 +100,25 @@ export async function listCatalogKeywords(limit = 20) {
 export async function findCatalogKeyword(slug: string) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return null;
-  const { data, error } = await supabase.from("catalog_keywords").select("query,slug,title,result_count,result_slugs,status").eq("slug", slug).eq("status", "active").maybeSingle();
+  const { data, error } = await supabase.from("catalog_keywords").select("query,slug,title,result_count,result_slugs,status,indexable").eq("slug", slug).eq("status", "active").eq("indexable", true).gt("result_count", 0).maybeSingle();
   if (error) { console.warn("[Supabase] keyword lookup failed:", error.message); return null; }
   return data;
+}
+
+export async function listSitemapKeywords(offset = 0, limit = 45000) {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return [];
+  const { data, error } = await supabase.from("catalog_keywords").select("slug,updated_at").eq("status", "active").eq("indexable", true).gt("result_count", 0).order("updated_at", { ascending: false }).range(offset, offset + limit - 1);
+  if (error) { console.warn("[Supabase] sitemap keyword query failed:", error.message); return []; }
+  return data ?? [];
+}
+
+export async function countIndexableKeywords() {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return 0;
+  const { count, error } = await supabase.from("catalog_keywords").select("id", { count: "exact", head: true }).eq("status", "active").eq("indexable", true).gt("result_count", 0);
+  if (error) { console.warn("[Supabase] keyword count failed:", error.message); return 0; }
+  return count ?? 0;
 }
 
 export async function updateSupabaseSongStatus(slug: string, status: "available" | "removed") {
