@@ -22,13 +22,19 @@ export default function KeywordPage() {
   const { data = [], isLoading, isError } = trpc.catalog.search.useQuery({ query: keyword, limit: 10 }, { enabled: Boolean(keyword) });
   const { data: keywordLinks = [] } = trpc.catalog.keywords.useQuery({ limit: 24 });
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
+  const hasResults = !isLoading && !isError && data.length > 0;
   const relatedKeywords = useMemo(() => keywordLinks.filter(item => item.slug !== slug && item.resultCount > 0).slice(0, 12), [keywordLinks, slug]);
 
   useEffect(() => setActiveVideoId(null), [slug]);
   useEffect(() => {
-    applySeo({ title: `تحميل ${keyword} Mp3 Mp4 سمعها`, description: `نتائج ${keyword} في سمعها.`, path: `/s/${encodeURIComponent(slug)}` });
+    applySeo({
+      title: `تحميل ${keyword} Mp3 Mp4 سمعها`,
+      description: hasResults ? `نتائج ${keyword} في سمعها. إبحث واستكشف الأغاني والفيديوهات المتاحة.` : `نتائج ${keyword} في سمعها.`,
+      path: `/s/${encodeURIComponent(slug)}`,
+      noindex: !isLoading && !isError && !hasResults,
+    });
     return resetSeo;
-  }, [keyword, slug]);
+  }, [keyword, slug, hasResults, isLoading, isError]);
 
   return <main dir="rtl" className="reference-page mx-auto max-w-[1080px] px-4 pb-12 pt-4 sm:px-8">
     <Link href="/" className="reference-back"><ArrowRight size={15} /> الرئيسية</Link>
@@ -37,7 +43,7 @@ export default function KeywordPage() {
       <div className="reference-results-title">نتائج «{keyword}»</div>
       {isLoading && <div className="reference-empty">جارٍ تجهيز النتائج…</div>}
       {isError && <div className="reference-empty">تعذر تحميل النتائج حالياً.</div>}
-      {!isLoading && !isError && data.length === 0 && <div className="reference-empty">لا توجد نتائج مطابقة.</div>}
+      {!isLoading && !isError && data.length === 0 && <div className="reference-empty">عذراً، لم يتم العثور على بيانات.</div>}
       {!isLoading && !isError && data.map(song => {
         const visibleTitle = arabicTitle(song.title);
         const isPlaying = activeVideoId === song.providerVideoId;
