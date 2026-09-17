@@ -15,6 +15,22 @@ create table if not exists public.catalog_keywords (
   updated_at timestamptz not null default now()
 );
 
+alter table public.catalog_keywords add column if not exists language text not null default 'ar';
+alter table public.catalog_keywords add column if not exists source text not null default 'search';
+alter table public.catalog_keywords add column if not exists result_count integer not null default 0;
+alter table public.catalog_keywords add column if not exists result_slugs text[] not null default '{}';
+alter table public.catalog_keywords add column if not exists indexable boolean not null default true;
+alter table public.catalog_keywords add column if not exists search_count integer not null default 0;
+alter table public.catalog_keywords add column if not exists last_searched_at timestamptz;
+alter table public.catalog_keywords add column if not exists created_at timestamptz not null default now();
+alter table public.catalog_keywords add column if not exists updated_at timestamptz not null default now();
+
+update public.catalog_keywords
+set result_count = coalesce(array_length(result_slugs, 1), 0),
+    indexable = true,
+    updated_at = coalesce(updated_at, now())
+where result_count = 0 and coalesce(array_length(result_slugs, 1), 0) > 0;
+
 create index if not exists catalog_keywords_indexable_idx
   on public.catalog_keywords(indexable, status, updated_at desc);
 create index if not exists catalog_keywords_language_idx
