@@ -9,7 +9,7 @@ type AnalyticsEventInput = {
   eventName: AnalyticsEventName;
   path: string;
   query?: string;
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, any>;
   sessionHash?: string;
 };
 
@@ -65,9 +65,9 @@ export async function getAnalyticsSummary(days: number) {
   ]);
   if (eventsError || searchesError) console.warn("[Analytics] summary query failed:", eventsError?.message ?? searchesError?.message);
 
-  const eventRows: Array<Record<string, unknown>> = (events ?? []) as Array<Record<string, unknown>>;
-  const searchRows: Array<Record<string, unknown>> = (searches ?? []) as Array<Record<string, unknown>>;
-  const countBy = (rows: Array<Record<string, unknown>>, key: string) =>
+  const eventRows: Array<Record<string, any>> = (events ?? []) as Array<Record<string, any>>;
+  const searchRows: Array<Record<string, any>> = (searches ?? []) as Array<Record<string, any>>;
+  const countBy = (rows: Array<Record<string, any>>, key: string) =>
     Object.entries(
       rows.reduce<Record<string, number>>((acc, row) => {
         const value = String(row[key] ?? "غير محدد");
