@@ -18,14 +18,21 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 
 export function PublicLayout({ children }: { children: React.ReactNode }) {
-  return <div className="naghma-shell">
-    <main>{children}</main>
-    <footer className="reference-footer mx-auto mt-10 flex max-w-[1080px] flex-col gap-3 border-t border-[#d9dfdc] px-4 py-5 text-xs text-[#82918c] sm:flex-row sm:items-center sm:justify-between sm:px-8">
-      <span>Powered By Sm3ha © 2026</span>
-      <div className="flex flex-wrap gap-x-5 gap-y-2">
-        <Link href="/">سمعها</Link>
-        <Link href="/contact">اتصل بنا</Link>
-        <Link href="/dmca">DMCA</Link>
+  return <div className="legacy-shell">
+    <header className="legacy-navbar">
+      <div className="legacy-navbar-inner">
+        <Link href="/" className="legacy-brand">سمعها</Link>
+        <nav aria-label="التنقل الرئيسي">
+          <Link href="/">الرئيسية</Link>
+          <Link href="/trending">جديد البحث</Link>
+        </nav>
+      </div>
+    </header>
+    <main className="legacy-container">{children}</main>
+    <footer className="legacy-footer">
+      <div className="legacy-container legacy-footer-inner">
+        <span>سمعها © 2026</span>
+        <div><Link href="/">سمعها</Link><Link href="/contact">اتصل بنا</Link><Link href="/dmca">DMCA</Link></div>
       </div>
     </footer>
   </div>;
