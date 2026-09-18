@@ -62,7 +62,7 @@ export function createApp() {
       return res.type("application/xml").send(`<?xml version="1.0" encoding="UTF-8"?><sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><sitemap><loc>${xmlEscape(`${origin}/sitemap-static.xml`)}</loc></sitemap>${sitemaps}</sitemapindex>`);
     }
     const keywords = await listSitemapKeywords(0, pageSize);
-    const urls = ["/", "/artists", "/albums", "/search"];
+    const urls = ["/", "/artists", "/search"];
     const staticUrls = urls.map(path => `<url><loc>${xmlEscape(`${origin}${path}`)}</loc></url>`).join("");
     const keywordUrls = keywords.map(row => `<url><loc>${xmlEscape(`${origin}/s/${encodeURIComponent(row.slug)}`)}</loc><lastmod>${new Date(row.updated_at).toISOString()}</lastmod></url>`).join("");
     return res.type("application/xml").send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${staticUrls}${keywordUrls}</urlset>`);
@@ -70,7 +70,7 @@ export function createApp() {
 
   app.get("/sitemap-static.xml", (req, res) => {
     const origin = process.env.PUBLIC_SITE_URL || `${req.protocol}://${req.get("host")}`;
-    const urls = ["/", "/artists", "/albums", "/search"];
+    const urls = ["/", "/artists", "/search"];
     const body = urls.map(path => `<url><loc>${xmlEscape(`${origin}${path}`)}</loc></url>`).join("");
     return res.type("application/xml").send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>`);
   });
