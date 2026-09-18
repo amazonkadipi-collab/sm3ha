@@ -49,39 +49,16 @@ async function saveKeyword(supabase: SupabaseClient, query: string, resultSlugs:
   if (!normalizedQuery || incomingSlugs.length === 0) return false;
   const slug = makeSlug(normalizedQuery);
   if (!slug) return false;
-
-  // Keep the accumulated result set instead of replacing it with the latest batch.
-  // This makes /s/{keyword} grow naturally as new catalog items arrive.
-  const { data: existing } = await supabase
-    .from("catalog_keywords")
-    .select("search_count,result_slugs,result_count,source")
-    .eq("slug", slug)
-    .maybeSingle();
+  const { data: existing } = await supabase.from("catalog_keywords").select("search_count,result_slugs,result_count,source").eq("slug", slug).maybeSingle();
   const previousSlugs = Array.isArray(existing?.result_slugs) ? existing.result_slugs.map(String) : [];
   const mergedSlugs = Array.from(new Set([...previousSlugs, ...incomingSlugs])).filter(Boolean).slice(0, 500);
   const searchCount = Number(existing?.search_count ?? 0) + (countSearch ? 1 : 0);
   const now = new Date().toISOString();
-
-  const { error } = await supabase.from("catalog_keywords").upsert({
-    query: normalizedQuery,
-    slug,
-    title: `تحميل ${normalizedQuery} Mp3 Mp4`,
-    language: "ar",
-    source: existing?.source ?? source,
-    result_count: mergedSlugs.length,
-    result_slugs: mergedSlugs,
-    indexable: mergedSlugs.length > 0,
-    search_count: searchCount,
-    last_searched_at: countSearch ? now : undefined,
-    updated_at: now,
-    status: "active",
-  }, { onConflict: "slug" });
+  const { error } = await supabase.from("catalog_keywords").upsert({ query: normalizedQuery, slug, title: `تحميل ${normalizedQuery} Mp3 Mp4`, language: "ar", source: existing?.source ?? source, result_count: mergedSlugs.length, result_slugs: mergedSlugs, indexable: mergedSlugs.length > 0, search_count: searchCount, last_searched_at: countSearch ? now : undefined, updated_at: now, status: "active" }, { onConflict: "slug" });
   if (error) { console.warn("[Supabase] keyword upsert failed:", error.message); return false; }
   return true;
 }
 
-// Search-derived keywords are intentionally generated only from a query that returned real results.
-// This produces the scalable /s/{keyword} family without creating empty/fake indexable pages.
 export async function upsertCatalogKeyword(query: string, resultSlugs: string[], source = "search", countSearch = true) {
   const supabase = getSupabaseAdmin(); const normalizedQuery = normalizeArabic(query).replace(/\s+/g, " ").trim(); const uniqueSlugs = Array.from(new Set(resultSlugs)).filter(Boolean).slice(0, 50);
   if (!supabase || !normalizedQuery || uniqueSlugs.length === 0) return false;
