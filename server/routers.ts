@@ -10,7 +10,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { createOpaqueToken, demoSongs, formatDuration, makeSlug, normalizeArabic, searchDemoSongs } from "./catalog";
 import { createDemoDownloadToken } from "./download";
-import { findSongBySlug, findSongByToken, findSongs, findSongsBySlugs, getDb, updateDrizzleSongStatus } from "./db";
+import { findAlbumBySlug, findArtistBySlug, findSongBySlug, findSongByToken, findSongs, findSongsBySlugs, getDb, listAlbums, listArtists, updateDrizzleSongStatus } from "./db";
 import { findCatalogKeyword, getSupabaseAdmin, listCatalogKeywords, persistImportedRows, updateSupabaseSongStatus, upsertCatalogKeyword } from "./supabase";
 import { getAnalyticsSummary, getSiteSettings, hashRequestValue, listSearchLogs, listTakedowns, recordAnalyticsEvent, recordSearchLog, submitTakedown, updateSiteSettings, updateTakedown } from "./admin-observability";
 import { searchYouTubeVideos } from "./youtube";
@@ -101,8 +101,34 @@ export const appRouter = router({
       const stored = await findSongs(undefined, input.limit);
       return stored.length ? stored.map(song => ({ ...song, artist: "", album: "", duration: formatDuration(song.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}` })) : demoSongs.slice(0, input.limit).map(demoResult);
     }),
-    artists: publicProcedure.input(z.object({ limit: z.number().int().min(1).max(20).default(12) })).query(({ input }) => Array.from(new Map(demoSongs.map(song => [song.artistSlug, { slug: song.artistSlug, name: song.artist, imageUrl: song.thumbnailUrl, songCount: demoSongs.filter(item => item.artistSlug === song.artistSlug).length }])).values()).slice(0, input.limit)),
-    artistBySlug: publicProcedure.input(z.object({ slug: z.string().min(1).max(255) })).query(({ input }) => { const songs = demoSongs.filter(song => song.artistSlug === input.slug); if (!songs.length) throw new TRPCError({ code: "NOT_FOUND", message: "Artist not found" }); return { slug: input.slug, name: songs[0].artist, imageUrl: songs[0].thumbnailUrl, songs: songs.map(demoResult) }; }),
+    artists: publicProcedure.input(z.object({ limit: z.number().int().min(1).max(20).default(12) })).query(async ({ input }) => {
+      const stored = await listArtists(input.limit);
+      if (stored.length) {
+        return Promise.all(stored.map(async artist => {
+          const profile = await findArtistBySlug(artist.slug);
+          return { slug: artist.slug, name: artist.name, imageUrl: artist.imageUrl, songCount: profile?.songs?.length ?? 0 };
+        }));
+      }
+      return Array.from(new Map(demoSongs.map(song => [song.artistSlug, { slug: song.artistSlug, name: song.artist, imageUrl: song.thumbnailUrl, songCount: demoSongs.filter(item => item.artistSlug === song.artistSlug).length }])).values()).slice(0, input.limit);
+    }),
+    artistBySlug: publicProcedure.input(z.object({ slug: z.string().min(1).max(255) })).query(async ({ input }) => {
+      const profile = await findArtistBySlug(input.slug);
+      if (profile?.songs?.length) {
+        return { slug: profile.slug, name: profile.name, imageUrl: profile.imageUrl, songs: profile.songs.map(song => ({ ...song, duration: formatDuration(song.durationSeconds ?? 0), mediaUrl: "/media?d=" + encodeURIComponent(song.opaqueToken) })) };
+      }
+      const fallback = demoSongs.filter(song => song.artistSlug === input.slug);
+      if (!fallback.length) throw new TRPCError({ code: "NOT_FOUND", message: "Artist not found" });
+      return { slug: input.slug, name: fallback[0].artist, imageUrl: fallback[0].thumbnailUrl, songs: fallback.map(demoResult) };
+    }),
+    albums: publicProcedure.input(z.object({ limit: z.number().int().min(1).max(20).default(12) })).query(async ({ input }) => {
+      const stored = await listAlbums(input.limit);
+      return stored.length ? stored.map(album => ({ id: album.id, title: album.title, slug: album.slug, imageUrl: album.imageUrl ?? null })) : [];
+    }),
+    albumBySlug: publicProcedure.input(z.object({ slug: z.string().min(1).max(255) })).query(async ({ input }) => {
+      const album = await findAlbumBySlug(input.slug);
+      if (!album?.songs?.length) throw new TRPCError({ code: "NOT_FOUND", message: "Album not found" });
+      return { id: album.id, title: album.title, slug: album.slug, imageUrl: album.imageUrl ?? null, songs: album.songs.map(song => ({ ...song, duration: formatDuration(song.durationSeconds ?? 0), mediaUrl: "/media?d=" + encodeURIComponent(song.opaqueToken) })) };
+    }),
     songBySlug: publicProcedure.input(z.object({ slug: z.string().min(1).max(255) })).query(async ({ input }) => {
       const dbSong = await findSongBySlug(input.slug);
       if (dbSong) return { ...dbSong, artist: "", album: "", duration: formatDuration(dbSong.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(dbSong.opaqueToken)}` };
