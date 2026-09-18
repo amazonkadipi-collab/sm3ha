@@ -35,6 +35,7 @@ function Router() { return <PublicLayout><Switch>
   <Route path="/" component={Home} />
   <Route path="/search" component={SearchPage} />
   <Route path="/s/:slug" component={KeywordPage} />
+  <Route path="/song/:slug" component={SongPage} />
   <Route path="/artists" component={ArtistsPage} />
   <Route path="/artists/:slug" component={ArtistPage} />
   <Route path="/media" component={MediaPage} />
