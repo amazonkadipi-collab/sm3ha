@@ -80,6 +80,55 @@ export async function findSongs(query?: string, limit = 12, includeRemoved = fal
   return db.select().from(songs).where(or(like(songs.title, pattern), like(songs.normalizedTitle, pattern), like(songs.slug, pattern))).orderBy(desc(songs.isFeatured), desc(songs.createdAt)).limit(safeLimit);
 }
 
+export async function findArtistBySlug(slug: string) {
+  const supabase = getSupabaseAdmin();
+  if (supabase) {
+    const { data: artist, error } = await supabase.from("artists").select("id,name,slug,image_url,created_at").eq("slug", slug).maybeSingle();
+    if (!error && artist) {
+      const { data: rows, error: songsError } = await supabase.from("songs").select(songSelect).eq("artist_id", artist.id).eq("status", "active").order("created_at", { ascending: false }).limit(100);
+      if (!songsError) return {
+        slug: artist.slug,
+        name: artist.name,
+        imageUrl: artist.image_url ?? null,
+        songs: (rows ?? []).map(mapSupabaseSong),
+      };
+    }
+    if (error) console.warn("[Supabase] artist lookup failed:", error.message);
+  }
+  const db = await getDb();
+  if (!db) return undefined;
+  const artistRows = await db.select().from(artists).where(eq(artists.slug, slug)).limit(1);
+  const artist = artistRows[0];
+  if (!artist) return undefined;
+  const songRows = await db.select().from(songs).where(and(eq(songs.artistId, artist.id), eq(songs.availabilityStatus, "available"))).orderBy(desc(songs.createdAt)).limit(100);
+  return { ...artist, songs: songRows };
+}
+
+export async function findAlbumBySlug(slug: string) {
+  const supabase = getSupabaseAdmin();
+  if (supabase) {
+    const { data: album, error } = await supabase.from("albums").select("id,title,slug,image_url,created_at").eq("slug", slug).maybeSingle();
+    if (!error && album) {
+      const { data: rows, error: songsError } = await supabase.from("songs").select(songSelect).eq("album_id", album.id).eq("status", "active").order("created_at", { ascending: false }).limit(100);
+      if (!songsError) return {
+        id: album.id,
+        title: album.title,
+        slug: album.slug,
+        imageUrl: album.image_url ?? null,
+        songs: (rows ?? []).map(mapSupabaseSong),
+      };
+    }
+    if (error) console.warn("[Supabase] album lookup failed:", error.message);
+  }
+  const db = await getDb();
+  if (!db) return undefined;
+  const albumRows = await db.select().from(albums).where(eq(albums.slug, slug)).limit(1);
+  const album = albumRows[0];
+  if (!album) return undefined;
+  const songRows = await db.select().from(songs).where(and(eq(songs.albumId, album.id), eq(songs.availabilityStatus, "available"))).orderBy(desc(songs.createdAt)).limit(100);
+  return { ...album, songs: songRows };
+}
+
 export async function updateDrizzleSongStatus(slug: string, status: "available" | "removed") {
   const db = await getDb();
   if (!db) return null;
