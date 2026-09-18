@@ -13,6 +13,8 @@ import LegalPage from "@/pages/LegalPage";
 import AdminPage from "@/pages/AdminPage";
 import ArtistPage from "@/pages/ArtistPage";
 import ArtistsPage from "@/pages/ArtistsPage";
+import AlbumsPage from "@/pages/AlbumsPage";
+import AlbumPage from "@/pages/AlbumPage";
 import { Route, Switch, Link } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -38,6 +40,8 @@ function Router() { return <PublicLayout><Switch>
   <Route path="/song/:slug" component={SongPage} />
   <Route path="/artists" component={ArtistsPage} />
   <Route path="/artists/:slug" component={ArtistPage} />
+  <Route path="/albums" component={AlbumsPage} />
+  <Route path="/album/:slug" component={AlbumPage} />
   <Route path="/media" component={MediaPage} />
   <Route path="/videos_dl" component={ConversionPage} />
   <Route path="/trending" component={TrendingPage} />
