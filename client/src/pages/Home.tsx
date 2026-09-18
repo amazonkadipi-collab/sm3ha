@@ -20,32 +20,28 @@ export default function Home() {
     .filter(item => item.label && item.slug);
 
   useEffect(() => {
-    applySeo({ title: "سمعها — تحميل واستماع الأغاني والفيديوهات", description: "إبحث عن اغنية او البوم او فنان واكتشف نتائج الوسائط المتاحة عبر سمعها.", path: "/" });
+    applySeo({ title: "سمعها - تحميل اغاني mp3", description: "إبحث عن اغنية او البوم او فنان واكتشف نتائج الوسائط المتاحة عبر سمعها.", path: "/" });
     return resetSeo;
   }, []);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
     const value = query.trim();
-    if (value) navigate(workflowLinks.keyword(value));
+    if (value) navigate(workflowLinks.search(value));
   };
 
-  return <main dir="rtl" className="reference-home mx-auto max-w-[1080px] px-4 pb-10 pt-3 sm:px-8">
-    <section className="reference-hero">
-      <div className="reference-mark"><span className="mark-orbit">♫</span><strong>سمعها</strong><small>إكتشف وإبحث</small></div>
-      <form onSubmit={submit} className="reference-search" role="search">
-        <input value={query} onChange={event => setQuery(event.target.value)} placeholder="إبحث عن اغنية او البوم او فنان" aria-label="إبحث عن اغنية او البوم او فنان" />
+  return <div dir="rtl" className="legacy-home">
+    <section className="legacy-search-card">
+      <h1>سمعها</h1>
+      <form onSubmit={submit} className="legacy-search-form" role="search">
+        <input value={query} onChange={event => setQuery(event.target.value)} placeholder="إبحث عن اغنية او البوم او فنان" aria-label="إبحث عن اغنية او البوم او فنان" required />
         <button type="submit">بحث</button>
       </form>
     </section>
-    <section className="reference-list" aria-label="عمليات البحث">
-      <div className="reference-list-heading">سمعها</div>
-      {keywordsLoading && <div className="reference-loading">جارٍ تحميل عمليات البحث…</div>}
-      {!keywordsLoading && links.map(item => <Link key={`${item.slug}-${item.index}`} href={workflowLinks.keyword(item.label)} className="reference-list-item"><span>♫</span>{item.label}</Link>)}
+    <section className="legacy-keyword-list" aria-label="عمليات البحث">
+      <div className="legacy-section-title">جديد البحث</div>
+      {keywordsLoading && <div className="legacy-loading">جارٍ تحميل عمليات البحث…</div>}
+      {!keywordsLoading && links.map(item => <Link key={`${item.slug}-${item.index}`} href={workflowLinks.keyword(item.label)} className="legacy-keyword-item"><span aria-hidden="true">♪</span>{item.label}</Link>)}
     </section>
-    <footer className="reference-footer-card">
-      <p>سمعها © 2026</p>
-      <div><Link href="/">سمعها</Link><Link href="/contact">اتصل بنا</Link><Link href="/dmca">DMCA</Link></div>
-    </footer>
-  </main>;
+  </div>;
 }
