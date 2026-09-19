@@ -75,7 +75,7 @@ export const appRouter = router({
               source = "youtube";
               void upsertCatalogKeyword(
                 query,
-                persisted.acceptedSlugs ?? youtubeRows.map(row => makeSlug(`${row.artist}-${row.title}`)),
+                persisted.status === "persisted_demo" ? persisted.acceptedSlugs : youtubeRows.map(row => makeSlug(`${row.artist}-${row.title}`)),
                 "youtube-search",
                 true
               );
