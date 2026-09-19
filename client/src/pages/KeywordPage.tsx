@@ -74,13 +74,13 @@ export default function KeywordPage() {
             <Link href={workflowLinks.media(song.opaqueToken)} className="reference-action"><Download size={15} /> تحميل</Link>
             <button type="button" className="reference-watch" aria-pressed={isPlaying} onClick={() => setActiveVideoId(isPlaying ? null : song.providerVideoId)}>{isPlaying ? <><Square size={14} /> إيقاف</> : <><Play size={14} /> مشاهدة</>}</button>
           </div>
-          {isPlaying && <div className="reference-inline-player" aria-label={`مشاهدة ${visibleTitle} داخل سمعها`}>
+          {isPlaying && song.providerVideoId && <div className="reference-inline-player" aria-label={`مشاهدة ${visibleTitle} داخل سمعها`}>
             <iframe
-              src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(song.providerVideoId)}?autoplay=1&controls=1&rel=0&modestbranding=1&playsinline=1&fs=1`}
+              src={`https://www.youtube.com/embed/${encodeURIComponent(song.providerVideoId)}?autoplay=1&controls=1&rel=0&modestbranding=1&playsinline=1&fs=1&enablejsapi=1`}
               title={visibleTitle || "مشاهدة الفيديو"}
-              loading="lazy"
+              loading="eager"
               referrerPolicy="strict-origin-when-cross-origin"
-              allow="autoplay; encrypted-media; picture-in-picture"
+              allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
               allowFullScreen
             />
           </div>}
