@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Clock3, Download, Play, Square, Youtube } from "lucide-react";
 import { Link, useRoute } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -33,7 +33,7 @@ export default function KeywordPage() {
   const keyword = useMemo(() => decodeURIComponent(slug).replace(/-/g, " ").trim(), [slug]);
   const { data = [], isLoading, isError } = trpc.catalog.search.useQuery({ query: keyword, limit: 10 }, { enabled: Boolean(keyword) });
   const { data: keywordLinks = [] } = trpc.catalog.keywords.useQuery({ limit: 50 });
-  const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
+  const [activeVideoId, setActiveVideoId] = useState<string | null>(null);\n  const playerRef = useRef<HTMLDivElement | null>(null);
   const hasResults = !isLoading && !isError && data.length > 0;
   const relatedKeywords = useMemo(() => {
     const family = keywordFamily(keyword);
@@ -42,7 +42,7 @@ export default function KeywordPage() {
       .slice(0, 12);
   }, [keywordLinks, keyword, slug]);
 
-  useEffect(() => setActiveVideoId(null), [slug]);
+  useEffect(() => setActiveVideoId(null), [slug]);\n  useEffect(() => {\n    if (activeVideoId) {\n      requestAnimationFrame(() => playerRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));\n    }\n  }, [activeVideoId]);
   useEffect(() => {
     applySeo({
       title: `تحميل ${keyword} Mp3 Mp4 سمعها`,
@@ -74,9 +74,9 @@ export default function KeywordPage() {
             <Link href={workflowLinks.media(song.opaqueToken)} className="reference-action"><Download size={15} /> تحميل</Link>
             <button type="button" className="reference-watch" aria-pressed={isPlaying} onClick={() => setActiveVideoId(isPlaying ? null : song.providerVideoId)}>{isPlaying ? <><Square size={14} /> إيقاف</> : <><Play size={14} /> مشاهدة</>}</button>
           </div>
-          {isPlaying && song.providerVideoId && <div className="reference-inline-player" aria-label={`مشاهدة ${visibleTitle} داخل سمعها`}>
+          {isPlaying && song.providerVideoId && <div ref={playerRef} className="reference-inline-player" aria-label={`مشاهدة ${visibleTitle} داخل سمعها`}>
             <iframe
-              src={`https://www.youtube.com/embed/${encodeURIComponent(song.providerVideoId)}?autoplay=1&controls=1&rel=0&modestbranding=1&playsinline=1&fs=1&enablejsapi=1`}
+              src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(song.providerVideoId)}?autoplay=1&controls=1&rel=0&modestbranding=1&playsinline=1&fs=1`}
               title={visibleTitle || "مشاهدة الفيديو"}
               loading="eager"
               referrerPolicy="strict-origin-when-cross-origin"
