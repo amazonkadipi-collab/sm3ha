@@ -11,7 +11,7 @@ import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { createOpaqueToken, demoSongs, formatDuration, makeSlug, normalizeArabic, searchDemoSongs } from "./catalog";
 import { createDemoDownloadToken } from "./download";
 import { findAlbumBySlug, findArtistBySlug, findSongBySlug, findSongByToken, findSongs, findSongsBySlugs, getDb, listAlbums, listArtists, updateDrizzleSongStatus } from "./db";
-import { findCatalogKeyword, getSupabaseAdmin, listCatalogKeywords, persistImportedRows, updateSupabaseSongStatus, upsertCatalogKeyword } from "./supabase";
+import { findCatalogKeyword, getSupabaseAdmin, indexYouTubeTitleQueries, listCatalogKeywords, persistImportedRows, updateSupabaseSongStatus, upsertCatalogKeyword } from "./supabase";
 import { getAnalyticsSummary, getSiteSettings, hashRequestValue, listSearchLogs, listTakedowns, recordAnalyticsEvent, recordSearchLog, submitTakedown, updateSiteSettings, updateTakedown } from "./admin-observability";
 import { searchYouTubeVideos } from "./youtube";
 import { artists, songs } from "../drizzle/schema";
@@ -79,6 +79,9 @@ export const appRouter = router({
                 "youtube-search",
                 true
               );
+              // Second query source: mine useful phrase candidates from the
+              // returned YouTube titles, without counting them as user searches.
+              void indexYouTubeTitleQueries(youtubeRows);
             } else {
               console.warn("[YouTube] metadata persistence unavailable; trying cached catalog", persisted.status);
             }
