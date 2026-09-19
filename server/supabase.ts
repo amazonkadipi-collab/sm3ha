@@ -102,7 +102,10 @@ export async function upsertCatalogKeyword(query: string, resultSlugs: string[],
   const supabase = getSupabaseAdmin();
   const normalizedQuery = normalizeArabic(query).replace(/\s+/g, " ").trim();
   const uniqueSlugs = Array.from(new Set(resultSlugs)).filter(Boolean).slice(0, 50);
-  if (!supabase || !isMeaningfulKeyword(normalizedQuery) || uniqueSlugs.length === 0) return false;
+  // Explicit searches are intentionally open-ended: one-word queries,
+  // typos and unusual phrases are valid SEO candidates when they return results.
+  // Catalog-derived keyword generation remains filtered separately.
+  if (!supabase || !normalizedQuery || uniqueSlugs.length === 0) return false;
   if (!(await saveKeyword(supabase, normalizedQuery, uniqueSlugs, source, countSearch))) return false;
   if (countSearch) {
     const family = keywordCandidates(normalizedQuery)
