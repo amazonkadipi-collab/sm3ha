@@ -1,10 +1,11 @@
-import { getSupabaseAdmin, persistImportedRows } from "./supabase";
+import { extractYouTubeTitleQueries, getSupabaseAdmin, indexYouTubeTitleQueries, persistImportedRows, upsertCatalogKeyword } from "./supabase";
 import { searchYouTubeVideos, type YouTubeCatalogItem } from "./youtube";
 import { recordAnalyticsEvent } from "./admin-observability";
+import { makeSlug } from "./catalog";
 
 const DEFAULT_QUERIES = ["اغاني مغربية", "اغاني عربية", "اغاني راي", "اغاني جديدة", "اغاني ترند"];
 
-type AutoImportSettings = { enabled: boolean; queries: string[]; maxQueries: number; videosPerQuery: number };
+type AutoImportSettings = { enabled: boolean; queries: string[]; maxQueries: number; videosPerQuery: number; titleQueriesPerRun: number };
 type AutoImportResult = { status: "disabled" | "not_configured" | "failed" | "completed"; queries: number; scanned: number; newRows: number; accepted: number; duplicates: number; failures?: string[] };
 
 function asBoolean(value: string | undefined, fallback = false) { if (value === undefined) return fallback; return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase()); }
@@ -14,11 +15,11 @@ function splitQueries(value: string | undefined): string[] { return (value ?? ""
 async function loadSettings(): Promise<AutoImportSettings> {
   const supabase = getSupabaseAdmin();
   const envQueries = splitQueries(process.env.YOUTUBE_AUTO_QUERIES);
-  if (!supabase) return { enabled: asBoolean(process.env.YOUTUBE_AUTO_ENABLED, false), queries: envQueries.length ? envQueries : DEFAULT_QUERIES, maxQueries: asPositiveInt(process.env.YOUTUBE_AUTO_MAX_QUERIES, 5, 10), videosPerQuery: asPositiveInt(process.env.YOUTUBE_AUTO_VIDEOS_PER_QUERY, 10, 25) };
-  const { data } = await supabase.from("site_settings").select("key,value").in("key", ["youtube_auto_enabled", "youtube_auto_queries", "youtube_auto_max_queries", "youtube_auto_videos_per_query"]);
+  if (!supabase) return { enabled: asBoolean(process.env.YOUTUBE_AUTO_ENABLED, false), queries: envQueries.length ? envQueries : DEFAULT_QUERIES, maxQueries: asPositiveInt(process.env.YOUTUBE_AUTO_MAX_QUERIES, 5, 10), videosPerQuery: asPositiveInt(process.env.YOUTUBE_AUTO_VIDEOS_PER_QUERY, 10, 25), titleQueriesPerRun: asPositiveInt(process.env.YOUTUBE_AUTO_TITLE_QUERIES, 10, 20) };
+  const { data } = await supabase.from("site_settings").select("key,value").in("key", ["youtube_auto_enabled", "youtube_auto_queries", "youtube_auto_max_queries", "youtube_auto_videos_per_query", "youtube_auto_title_queries"]);
   const settings = new Map<string, string>((data ?? []).map((row: { key?: unknown; value?: unknown }) => [String(row.key ?? ""), String(row.value ?? "")]));
   const configuredQueries = splitQueries(settings.get("youtube_auto_queries"));
-  return { enabled: asBoolean(settings.get("youtube_auto_enabled"), asBoolean(process.env.YOUTUBE_AUTO_ENABLED, false)), queries: configuredQueries.length ? configuredQueries : envQueries.length ? envQueries : DEFAULT_QUERIES, maxQueries: asPositiveInt(settings.get("youtube_auto_max_queries") ?? process.env.YOUTUBE_AUTO_MAX_QUERIES, 5, 10), videosPerQuery: asPositiveInt(settings.get("youtube_auto_videos_per_query") ?? process.env.YOUTUBE_AUTO_VIDEOS_PER_QUERY, 10, 25) };
+  return { enabled: asBoolean(settings.get("youtube_auto_enabled"), asBoolean(process.env.YOUTUBE_AUTO_ENABLED, false)), queries: configuredQueries.length ? configuredQueries : envQueries.length ? envQueries : DEFAULT_QUERIES, maxQueries: asPositiveInt(settings.get("youtube_auto_max_queries") ?? process.env.YOUTUBE_AUTO_MAX_QUERIES, 5, 10), videosPerQuery: asPositiveInt(settings.get("youtube_auto_videos_per_query") ?? process.env.YOUTUBE_AUTO_VIDEOS_PER_QUERY, 10, 25), titleQueriesPerRun: asPositiveInt(settings.get("youtube_auto_title_queries") ?? process.env.YOUTUBE_AUTO_TITLE_QUERIES, 10, 20) };
 }
 
 async function recentSearchQueries(limit: number): Promise<string[]> {
@@ -52,8 +53,33 @@ export async function runYouTubeAutoImport(): Promise<AutoImportResult> {
   newRows = await filterNewRows(newRows);
   const uniqueRows = Array.from(new Map(newRows.map(row => [row.providerVideoId, row])).values());
   const supabase = getSupabaseAdmin();
-  const persisted = uniqueRows.length > 0 && supabase ? await persistImportedRows(uniqueRows) : { accepted: 0 };
-  const result: AutoImportResult = { status: failures.length > 0 && scanned === 0 ? "failed" : "completed", queries: queries.length, scanned, newRows: uniqueRows.length, accepted: persisted.accepted, duplicates: Math.max(0, scanned - uniqueRows.length), failures };
-  void recordAnalyticsEvent({ eventName: "admin_action", path: "/admin/youtube-auto", metadata: result });
+  const persisted = uniqueRows.length > 0 && supabase ? await persistImportedRows(uniqueRows) : { accepted: 0, acceptedSlugs: [] as string[] };
+
+  // Mine fresh YouTube titles into candidate /s/{query} pages, then run a
+  // real YouTube search for each candidate so pages get result sets.
+  let titleQueries = 0;
+  let titleQueryResults = 0;
+  let titleQueryPages = 0;
+  const titleCandidates = extractYouTubeTitleQueries(uniqueRows, settings.titleQueriesPerRun);
+  for (const candidate of titleCandidates) {
+    try {
+      const rows = await searchYouTubeVideos(candidate, settings.videosPerQuery);
+      titleQueries += 1;
+      titleQueryResults += rows.length;
+      if (!rows.length) continue;
+      const titlePersisted = supabase ? await persistImportedRows(rows) : { accepted: 0, acceptedSlugs: [] as string[] };
+      const slugs = titlePersisted.acceptedSlugs ?? rows.map(row => makeSlug(\`\${row.artist}-\${row.title}\`));
+      if (slugs.length) {
+        const saved = await upsertCatalogKeyword(candidate, slugs, "youtube-title-search", false);
+        if (saved) titleQueryPages += 1;
+      }
+      void indexYouTubeTitleQueries(rows);
+    } catch (error) {
+      failures.push(\`title:\${candidate}: \${error instanceof Error ? error.message : "YouTube request failed"}\`);
+    }
+  }
+
+  const result: AutoImportResult = { status: failures.length > 0 && scanned === 0 ? "failed" : "completed", queries: queries.length + titleQueries, scanned: scanned + titleQueryResults, newRows: uniqueRows.length, accepted: persisted.accepted, duplicates: Math.max(0, scanned - uniqueRows.length), failures };
+  void recordAnalyticsEvent({ eventName: "admin_action", path: "/admin/youtube-auto", metadata: { ...result, titleQueries, titleQueryResults, titleQueryPages } });
   return result;
 }
