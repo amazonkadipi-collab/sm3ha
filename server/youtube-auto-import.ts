@@ -55,8 +55,6 @@ export async function runYouTubeAutoImport(): Promise<AutoImportResult> {
   const supabase = getSupabaseAdmin();
   const persisted = uniqueRows.length > 0 && supabase ? await persistImportedRows(uniqueRows) : { accepted: 0, acceptedSlugs: [] as string[] };
 
-  // Mine fresh YouTube titles into candidate /s/{query} pages, then run a
-  // real YouTube search for each candidate so pages get result sets.
   let titleQueries = 0;
   let titleQueryResults = 0;
   let titleQueryPages = 0;
@@ -68,14 +66,14 @@ export async function runYouTubeAutoImport(): Promise<AutoImportResult> {
       titleQueryResults += rows.length;
       if (!rows.length) continue;
       const titlePersisted = supabase ? await persistImportedRows(rows) : { accepted: 0, acceptedSlugs: [] as string[] };
-      const slugs = titlePersisted.acceptedSlugs ?? rows.map(row => makeSlug(\`\${row.artist}-\${row.title}\`));
+      const slugs = titlePersisted.acceptedSlugs ?? rows.map(row => makeSlug(`${row.artist}-${row.title}`));
       if (slugs.length) {
         const saved = await upsertCatalogKeyword(candidate, slugs, "youtube-title-search", false);
         if (saved) titleQueryPages += 1;
       }
       void indexYouTubeTitleQueries(rows);
     } catch (error) {
-      failures.push(\`title:\${candidate}: \${error instanceof Error ? error.message : "YouTube request failed"}\`);
+      failures.push(`title:${candidate}: ${error instanceof Error ? error.message : "YouTube request failed"}`);
     }
   }
 
