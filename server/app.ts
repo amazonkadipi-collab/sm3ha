@@ -70,7 +70,7 @@ export function createApp() {
 
   app.get("/sitemap-static.xml", (req, res) => {
     const origin = process.env.PUBLIC_SITE_URL || `${req.protocol}://${req.get("host")}`;
-    const urls = ["/", "/artists", "/search"];
+    const urls = ["/", "/artists", "/albums", "/search"];
     const body = urls.map(path => `<url><loc>${xmlEscape(`${origin}${path}`)}</loc></url>`).join("");
     return res.type("application/xml").send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>`);
   });
