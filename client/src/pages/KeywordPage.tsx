@@ -33,7 +33,8 @@ export default function KeywordPage() {
   const keyword = useMemo(() => decodeURIComponent(slug).replace(/-/g, " ").trim(), [slug]);
   const { data = [], isLoading, isError } = trpc.catalog.search.useQuery({ query: keyword, limit: 10 }, { enabled: Boolean(keyword) });
   const { data: keywordLinks = [] } = trpc.catalog.keywords.useQuery({ limit: 50 });
-  const [activeVideoId, setActiveVideoId] = useState<string | null>(null);\n  const playerRef = useRef<HTMLDivElement | null>(null);
+  const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
+  const playerRef = useRef<HTMLDivElement | null>(null);
   const hasResults = !isLoading && !isError && data.length > 0;
   const relatedKeywords = useMemo(() => {
     const family = keywordFamily(keyword);
@@ -42,7 +43,12 @@ export default function KeywordPage() {
       .slice(0, 12);
   }, [keywordLinks, keyword, slug]);
 
-  useEffect(() => setActiveVideoId(null), [slug]);\n  useEffect(() => {\n    if (activeVideoId) {\n      requestAnimationFrame(() => playerRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));\n    }\n  }, [activeVideoId]);
+  useEffect(() => setActiveVideoId(null), [slug]);
+  useEffect(() => {
+    if (activeVideoId) {
+      requestAnimationFrame(() => playerRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
+    }
+  }, [activeVideoId]);
   useEffect(() => {
     applySeo({
       title: `تحميل ${keyword} Mp3 Mp4 سمعها`,
