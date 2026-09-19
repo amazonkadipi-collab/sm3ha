@@ -78,7 +78,10 @@ function keywordCandidates(query: string) {
 async function saveKeyword(supabase: SupabaseClient, query: string, resultSlugs: string[], source: string, countSearch: boolean) {
   const normalizedQuery = normalizeArabic(query).replace(/\s+/g, " ").trim();
   const incomingSlugs = Array.from(new Set(resultSlugs)).filter(Boolean).slice(0, 50);
-  if (!isMeaningfulKeyword(normalizedQuery) || incomingSlugs.length === 0) return false;
+  // Explicit search queries are intentionally open-ended: one-word, typos,
+  // unusual phrases, and other queries can become SEO pages when they have
+  // real results. Catalog generation applies its own phrase-level filters.
+  if (!normalizedQuery || incomingSlugs.length === 0) return false;
   const slug = makeSlug(normalizedQuery);
   if (!slug) return false;
   const { data: existing } = await supabase.from("catalog_keywords").select("search_count,result_slugs,result_count,source").eq("slug", slug).maybeSingle();
