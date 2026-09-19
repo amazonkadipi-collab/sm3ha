@@ -76,7 +76,7 @@ export default function KeywordPage() {
           </div>
           {isPlaying && <div className="reference-inline-player" aria-label={`مشاهدة ${visibleTitle} داخل سمعها`}>
             <iframe
-              src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(song.providerVideoId)}?autoplay=1&rel=0&modestbranding=1&playsinline=1`}
+              src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(song.providerVideoId)}?autoplay=1&controls=1&rel=0&modestbranding=1&playsinline=1&fs=1`}
               title={visibleTitle || "مشاهدة الفيديو"}
               loading="lazy"
               referrerPolicy="strict-origin-when-cross-origin"
