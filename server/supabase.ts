@@ -34,19 +34,50 @@ export async function persistImportedRows(rows: Array<{ title: string; artist: s
   return { accepted, acceptedSlugs, status: "persisted_demo" as const };
 }
 
+const KEYWORD_STOPWORDS = new Set([
+  "في", "من", "الى", "إلى", "عن", "على", "مع", "هذا", "هذه", "ذلك", "تلك", "هو", "هي",
+  "هم", "هن", "ما", "ماذا", "متى", "كيف", "لماذا", "اين", "أين", "هل", "لا", "لم", "لن",
+  "ان", "أن", "إن", "او", "أو", "و", "يا", "ثم", "كان", "كانت", "يكون", "كل", "أي", "اي",
+  "the", "a", "an", "of", "to", "in", "on", "for", "and", "or", "de", "la", "le", "les", "des"
+]);
+
+function isMeaningfulKeyword(value: string) {
+  const normalized = value.trim();
+  if (!normalized || normalized.length < 2 || normalized.length > 120) return false;
+  const words = normalized.split(" ").filter(Boolean);
+  if (words.length > 1) return true;
+  return normalized.length >= 3 && !KEYWORD_STOPWORDS.has(normalized);
+}
+
 function keywordCandidates(query: string) {
-  const normalized = normalizeArabic(query).replace(/[\u0000-\u001F]/g, " ").replace(/[^a-z0-9\u0600-\u06FF\s]+/gi, " ").replace(/\s+/g, " ").trim();
+  const normalized = normalizeArabic(query)
+    .replace(/[\u0000-\u001F]/g, " ")
+    .replace(/[^a-z0-9\u0600-\u06FF\s]+/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!normalized) return [];
-  const words = normalized.split(" ").filter(word => word.length >= 2 && word.length <= 80); const candidates = new Set<string>(); candidates.add(normalized);
-  for (const word of words) candidates.add(word);
-  for (let size = 2; size <= Math.min(words.length, 4); size += 1) for (let i = 0; i + size <= words.length; i += 1) candidates.add(words.slice(i, i + size).join(" "));
-  return Array.from(candidates).filter(value => value.length >= 2 && value.length <= 120);
+  const words = normalized.split(" ").filter(word => word.length >= 2 && word.length <= 80);
+  const candidates = new Set<string>();
+  if (isMeaningfulKeyword(normalized)) candidates.add(normalized);
+
+  for (const word of words) {
+    if (isMeaningfulKeyword(word)) candidates.add(word);
+  }
+
+  for (let size = 2; size <= Math.min(words.length, 4); size += 1) {
+    for (let i = 0; i + size <= words.length; i += 1) {
+      const phrase = words.slice(i, i + size).join(" ");
+      if (isMeaningfulKeyword(phrase)) candidates.add(phrase);
+    }
+  }
+
+  return Array.from(candidates).filter(isMeaningfulKeyword);
 }
 
 async function saveKeyword(supabase: SupabaseClient, query: string, resultSlugs: string[], source: string, countSearch: boolean) {
   const normalizedQuery = normalizeArabic(query).replace(/\s+/g, " ").trim();
   const incomingSlugs = Array.from(new Set(resultSlugs)).filter(Boolean).slice(0, 50);
-  if (!normalizedQuery || incomingSlugs.length === 0) return false;
+  if (!isMeaningfulKeyword(normalizedQuery) || incomingSlugs.length === 0) return false;
   const slug = makeSlug(normalizedQuery);
   if (!slug) return false;
   const { data: existing } = await supabase.from("catalog_keywords").select("search_count,result_slugs,result_count,source").eq("slug", slug).maybeSingle();
@@ -54,14 +85,20 @@ async function saveKeyword(supabase: SupabaseClient, query: string, resultSlugs:
   const mergedSlugs = Array.from(new Set([...previousSlugs, ...incomingSlugs])).filter(Boolean).slice(0, 500);
   const searchCount = Number(existing?.search_count ?? 0) + (countSearch ? 1 : 0);
   const now = new Date().toISOString();
-  const { error } = await supabase.from("catalog_keywords").upsert({ query: normalizedQuery, slug, title: `تحميل ${normalizedQuery} Mp3 Mp4`, language: "ar", source: existing?.source ?? source, result_count: mergedSlugs.length, result_slugs: mergedSlugs, indexable: mergedSlugs.length > 0, search_count: searchCount, last_searched_at: countSearch ? now : undefined, updated_at: now, status: "active" }, { onConflict: "slug" });
+  const { error } = await supabase.from("catalog_keywords").upsert({
+    query: normalizedQuery, slug, title: `تحميل ${normalizedQuery} Mp3 Mp4`, language: "ar", source: existing?.source ?? source,
+    result_count: mergedSlugs.length, result_slugs: mergedSlugs, indexable: mergedSlugs.length > 0,
+    search_count: searchCount, last_searched_at: countSearch ? now : undefined, updated_at: now, status: "active"
+  }, { onConflict: "slug" });
   if (error) { console.warn("[Supabase] keyword upsert failed:", error.message); return false; }
   return true;
 }
 
 export async function upsertCatalogKeyword(query: string, resultSlugs: string[], source = "search", countSearch = true) {
-  const supabase = getSupabaseAdmin(); const normalizedQuery = normalizeArabic(query).replace(/\s+/g, " ").trim(); const uniqueSlugs = Array.from(new Set(resultSlugs)).filter(Boolean).slice(0, 50);
-  if (!supabase || !normalizedQuery || uniqueSlugs.length === 0) return false;
+  const supabase = getSupabaseAdmin();
+  const normalizedQuery = normalizeArabic(query).replace(/\s+/g, " ").trim();
+  const uniqueSlugs = Array.from(new Set(resultSlugs)).filter(Boolean).slice(0, 50);
+  if (!supabase || !isMeaningfulKeyword(normalizedQuery) || uniqueSlugs.length === 0) return false;
   if (!(await saveKeyword(supabase, normalizedQuery, uniqueSlugs, source, countSearch))) return false;
   if (countSearch) {
     const family = keywordCandidates(normalizedQuery).filter(candidate => candidate !== normalizedQuery);
@@ -73,10 +110,21 @@ export async function upsertCatalogKeyword(query: string, resultSlugs: string[],
 export async function indexCatalogText(rows: Array<{ title: string; artist: string; providerVideoId: string; provider?: string; thumbnailUrl?: string; durationSeconds?: number; album?: string }>) {
   const supabase = getSupabaseAdmin(); if (!supabase) return 0; const candidates = new Map<string, string[]>();
   for (const row of rows) {
-    const songSlug = makeSlug(`${row.artist}-${row.title}`); const texts = [row.title, row.artist, row.album ?? "", `${row.artist} ${row.title}`, `${row.title} ${row.artist}`];
-    for (const text of texts) for (const candidate of keywordCandidates(text)) { const list = candidates.get(candidate) ?? []; if (!list.includes(songSlug)) list.push(songSlug); candidates.set(candidate, list); }
+    const songSlug = makeSlug(`${row.artist}-${row.title}`);
+    const texts = [row.title, row.artist, row.album ?? "", `${row.artist} ${row.title}`, `${row.title} ${row.artist}`];
+    for (const text of texts) {
+      for (const candidate of keywordCandidates(text)) {
+        const list = candidates.get(candidate) ?? [];
+        if (!list.includes(songSlug)) list.push(songSlug);
+        candidates.set(candidate, list);
+      }
+    }
   }
-  let indexed = 0; for (const [candidate, slugs] of candidates) if (slugs.length > 0 && await saveKeyword(supabase, candidate, slugs, "catalog", false)) indexed += 1; return indexed;
+  let indexed = 0;
+  for (const [candidate, slugs] of candidates) {
+    if (slugs.length > 0 && await saveKeyword(supabase, candidate, slugs, "catalog", false)) indexed += 1;
+  }
+  return indexed;
 }
 
 export async function listCatalogKeywords(limit = 20) {
