@@ -60,36 +60,66 @@ export const appRouter = router({
     search: publicProcedure.input(paginationInput).query(async ({ ctx, input }) => {
       const query = input.query?.trim();
       let source = "none";
-      let databaseSongs = await findSongs(query, input.limit);
-      if (query && databaseSongs.length === 0) {
-        const keyword = await findCatalogKeyword(makeSlug(query));
-        if (keyword?.result_slugs?.length) {
-          databaseSongs = await findSongsBySlugs(keyword.result_slugs, input.limit);
-          if (databaseSongs.length) source = "keyword";
-        }
-      }
-      if (databaseSongs.length) source = source === "keyword" ? source : "catalog";
-      let results = databaseSongs.map(song => ({ ...song, artist: "", album: "", duration: formatDuration(song.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}` }));
-      if (query && results.length === 0 && ENV.youtubeApiKey) {
+      let results: ReturnType<typeof youtubeResult>[] | Awaited<ReturnType<typeof findSongs>> = [];
+
+      // Match v1-style behavior: an explicit /search query is treated as a
+      // broad video search first. Persist successful results so the query,
+      // result slugs, and later /s/{query} page can be reused from Supabase.
+      if (query && ENV.youtubeApiKey) {
         try {
           const youtubeRows = await searchYouTubeVideos(query, input.limit);
           if (youtubeRows.length) {
-            // Persist before returning the cards so every opaque token is resolvable when the user clicks «تحميل».
             const persisted = await persistImportedRows(youtubeRows);
             if (persisted.status === "persisted_demo" && persisted.accepted === youtubeRows.length) {
               results = youtubeRows.map(youtubeResult);
               source = "youtube";
-              void upsertCatalogKeyword(query, persisted.acceptedSlugs ?? youtubeRows.map(row => makeSlug(`${row.artist}-${row.title}`)));
+              void upsertCatalogKeyword(
+                query,
+                persisted.acceptedSlugs ?? youtubeRows.map(row => makeSlug(`${row.artist}-${row.title}`)),
+                "youtube-search",
+                true
+              );
             } else {
-              console.warn("[YouTube] metadata persistence unavailable; keeping catalog fallback", persisted.status);
+              console.warn("[YouTube] metadata persistence unavailable; trying cached catalog", persisted.status);
             }
           }
         } catch (error) {
-          console.warn("[YouTube] public search failed:", error instanceof Error ? error.message : error);
+          console.warn("[YouTube] public search failed; trying cached catalog:", error instanceof Error ? error.message : error);
         }
       }
-      if (results.length === 0) { results = searchDemoSongs(query ?? "").slice(0, input.limit).map(demoResult); if (results.length) source = "fallback"; }
-      if (query && source !== "fallback" && results.length) void upsertCatalogKeyword(query, results.map(result => result.slug).filter(Boolean));
+
+      if (results.length === 0 && query) {
+        const keyword = await findCatalogKeyword(makeSlug(query));
+        if (keyword?.result_slugs?.length) {
+          const cachedSongs = await findSongsBySlugs(keyword.result_slugs, input.limit);
+          if (cachedSongs.length) {
+            results = cachedSongs.map(song => ({ ...song, artist: "", album: "", duration: formatDuration(song.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}` }));
+            source = "keyword";
+          }
+        }
+      }
+
+      if (results.length === 0) {
+        const databaseSongs = await findSongs(query, input.limit);
+        if (databaseSongs.length) {
+          results = databaseSongs.map(song => ({ ...song, artist: "", album: "", duration: formatDuration(song.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}` }));
+          source = "catalog";
+        }
+      }
+
+      if (results.length === 0) {
+        results = searchDemoSongs(query ?? "").slice(0, input.limit).map(demoResult);
+        if (results.length) source = "fallback";
+      }
+
+      if (query && source !== "fallback" && results.length) {
+        void upsertCatalogKeyword(
+          query,
+          results.map(result => result.slug).filter(Boolean),
+          source,
+          source === "youtube"
+        );
+      }
       if (query) {
         const forwarded = String(ctx.req.headers["x-forwarded-for"] ?? ctx.req.socket.remoteAddress ?? "").split(",")[0].trim();
         void recordSearchLog({ query, path: "/search", resultCount: results.length, hashedIp: forwarded ? hashRequestValue(forwarded) : undefined, userAgent: String(ctx.req.headers["user-agent"] ?? "") });
