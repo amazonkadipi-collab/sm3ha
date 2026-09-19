@@ -22,7 +22,7 @@ export default async function handler(req: any, res: any) {
   if (req.method === "GET") {
     const { data, error } = await supabase.from("site_settings").select("key,value").in("key", ["youtube_auto_enabled", "youtube_auto_queries", "youtube_auto_max_queries", "youtube_auto_videos_per_query"]);
     if (error) return res.status(500).json({ error: error.message });
-    const settings = Object.fromEntries((data ?? []).map(row => [row.key, row.value]));
+    const settings = Object.fromEntries((data ?? []).map((row: { key: string; value: string | null }) => [row.key, row.value]));
     return res.status(200).json({
       enabled: parseBoolean(settings.youtube_auto_enabled),
       queries: String(settings.youtube_auto_queries ?? "").split(/[\n,،]+/).map((q: string) => q.trim()).filter(Boolean),
