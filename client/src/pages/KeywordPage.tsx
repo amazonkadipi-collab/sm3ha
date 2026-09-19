@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ArrowRight, Clock3, Download, ExternalLink, Play, Square, Youtube } from "lucide-react";
+import { ArrowRight, Clock3, Download, Play, Square, Youtube } from "lucide-react";
 import { Link, useRoute } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { applySeo, resetSeo } from "@/lib/seo";
@@ -55,7 +55,7 @@ export default function KeywordPage() {
 
   return <main dir="rtl" className="reference-page mx-auto max-w-[1080px] px-4 pb-12 pt-4 sm:px-8">
     <Link href="/" className="reference-back"><ArrowRight size={15} /> الرئيسية</Link>
-    <section className="reference-page-head"><div><span>سمعها</span><h1>تحميل {keyword} Mp3 Mp4</h1></div><Link href={`/search?q=${encodeURIComponent(keyword)}`} className="reference-action"><ExternalLink size={16} /> بحث جديد</Link></section>
+    <section className="reference-page-head"><div><span>سمعها</span><h1>تحميل {keyword} Mp3 Mp4</h1></div></section>
     <section className="reference-results" aria-label={`نتائج ${keyword}`}>
       <div className="reference-results-title">نتائج «{keyword}»</div>
       {isLoading && <div className="reference-empty">جارٍ تجهيز النتائج…</div>}
@@ -74,7 +74,16 @@ export default function KeywordPage() {
             <Link href={workflowLinks.media(song.opaqueToken)} className="reference-action"><Download size={15} /> تحميل</Link>
             <button type="button" className="reference-watch" aria-pressed={isPlaying} onClick={() => setActiveVideoId(isPlaying ? null : song.providerVideoId)}>{isPlaying ? <><Square size={14} /> إيقاف</> : <><Play size={14} /> مشاهدة</>}</button>
           </div>
-          {isPlaying && <div className="reference-inline-player"><iframe src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(song.providerVideoId)}`} title={visibleTitle || "YouTube video player"} loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen /></div>}
+          {isPlaying && <div className="reference-inline-player" aria-label={`مشاهدة ${visibleTitle} داخل سمعها`}>
+            <iframe
+              src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(song.providerVideoId)}?autoplay=1&rel=0&modestbranding=1&playsinline=1`}
+              title={visibleTitle || "مشاهدة الفيديو"}
+              loading="lazy"
+              referrerPolicy="strict-origin-when-cross-origin"
+              allow="autoplay; encrypted-media; picture-in-picture"
+              allowFullScreen
+            />
+          </div>}
         </article>;
       })}
     </section>
