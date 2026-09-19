@@ -57,13 +57,13 @@ function keywordCandidates(query: string) {
     .replace(/\s+/g, " ")
     .trim();
   if (!normalized) return [];
-  const words = normalized.split(" ").filter(word => word.length >= 2 && word.length <= 80);
+  const words = normalized.split(" ").filter(word => word.length >= 2 && word.length <= 80 && !KEYWORD_STOPWORDS.has(word));
   const candidates = new Set<string>();
   if (isMeaningfulKeyword(normalized)) candidates.add(normalized);
 
-  for (const word of words) {
-    if (isMeaningfulKeyword(word)) candidates.add(word);
-  }
+  // Do not create indexable pages from isolated words during catalog indexing.
+  // Single-word keywords are still allowed for explicit user searches when meaningful.
+  if (normalized.split(" ").length <= 1 && isMeaningfulKeyword(normalized)) candidates.add(normalized);
 
   for (let size = 2; size <= Math.min(words.length, 4); size += 1) {
     for (let i = 0; i + size <= words.length; i += 1) {
@@ -117,6 +117,10 @@ export async function indexCatalogText(rows: Array<{ title: string; artist: stri
     const texts = [row.title, row.artist, row.album ?? "", `${row.artist} ${row.title}`, `${row.title} ${row.artist}`];
     for (const text of texts) {
       for (const candidate of keywordCandidates(text)) {
+        // Catalog-derived pages must be phrase-level to avoid huge numbers of
+        // generic one-word / stopword pages. Exact user searches are handled
+        // separately by upsertCatalogKeyword().
+        if (!candidate.includes(" ")) continue;
         const list = candidates.get(candidate) ?? [];
         if (!list.includes(songSlug)) list.push(songSlug);
         candidates.set(candidate, list);
