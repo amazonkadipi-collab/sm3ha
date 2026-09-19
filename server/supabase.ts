@@ -98,6 +98,38 @@ async function saveKeyword(supabase: SupabaseClient, query: string, resultSlugs:
   return true;
 }
 
+export async function indexYouTubeTitleQueries(rows: Array<{ title: string; artist: string; providerVideoId: string }>) {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return 0;
+
+  let indexed = 0;
+  for (const row of rows) {
+    const songSlug = makeSlug(`${row.artist}-${row.title}`);
+    if (!songSlug) continue;
+
+    const candidates = new Set<string>();
+
+    // Extract 2-4 word phrases from the actual YouTube title. Stopwords and
+    // punctuation are removed by keywordCandidates(), and only phrase-level
+    // candidates are retained so title mining cannot recreate generic
+    // one-word pages.
+    for (const candidate of keywordCandidates(row.title)) {
+      if (candidate.includes(" ")) candidates.add(candidate);
+    }
+
+    // Also allow artist + title phrase variants, matching the kind of
+    // query/title overlap visible in v1-style search pages.
+    for (const candidate of keywordCandidates(`${row.artist} ${row.title}`)) {
+      if (candidate.includes(" ")) candidates.add(candidate);
+    }
+
+    for (const candidate of candidates) {
+      if (await saveKeyword(supabase, candidate, [songSlug], "youtube-title", false)) indexed += 1;
+    }
+  }
+  return indexed;
+}
+
 export async function upsertCatalogKeyword(query: string, resultSlugs: string[], source = "search", countSearch = true) {
   const supabase = getSupabaseAdmin();
   const normalizedQuery = normalizeArabic(query).replace(/\s+/g, " ").trim();
