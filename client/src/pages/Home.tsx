@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { applySeo, resetSeo } from "@/lib/seo";
 import { workflowLinks } from "@/lib/flow";
 
@@ -15,9 +15,19 @@ export default function Home() {
   const [, navigate] = useLocation();
   const [query, setQuery] = useState("");
   const { data: keywordData, isLoading: keywordsLoading } = trpc.catalog.keywords.useQuery({ limit: 50 });
-  const links = (Array.isArray(keywordData) && keywordData.length ? keywordData : fallbackQueries.map(label => ({ label, slug: label })))
-    .map((item, index) => ({ label: String(item?.label ?? ""), slug: String(item?.slug ?? item?.label ?? ""), index }))
-    .filter(item => item.label && item.slug);
+  const links = useMemo(() => {
+    const stored = Array.isArray(keywordData)
+      ? keywordData.map(item => ({ label: String(item?.label ?? ""), slug: String(item?.slug ?? item?.label ?? "") }))
+      : [];
+    const fallback = fallbackQueries.map(label => ({ label, slug: label }));
+    const merged = [...stored, ...fallback].filter(item => item.label && item.slug);
+    const unique = Array.from(new Map(merged.map(item => [item.slug, item])).values());
+    // Keep the home page fresh: rotate the visible keyword window every 10 minutes.
+    const bucket = Math.floor(Date.now() / (10 * 60 * 1000));
+    const offset = unique.length ? bucket % unique.length : 0;
+    const rotated = unique.length ? [...unique.slice(offset), ...unique.slice(0, offset)] : [];
+    return rotated.slice(0, 50).map((item, index) => ({ ...item, index }));
+  }, [keywordData]);
 
   useEffect(() => {
     applySeo({ title: "سمعها — تحميل واستماع الأغاني والفيديوهات", description: "إبحث عن اغنية او البوم او فنان واكتشف نتائج الوسائط المتاحة عبر سمعها.", path: "/" });
