@@ -59,7 +59,7 @@ export async function findSongsBySlugs(slugs: string[], limit = 20, includeRemov
     const { data, error } = await request;
     if (!error && data) {
       const rows = data.map(mapSupabaseSong);
-      return ordered.flatMap(slug => rows.filter(row => row.slug === slug));
+      return ordered.flatMap(slug => rows.filter((row: { slug: string }) => row.slug === slug));
     }
     if (error) console.warn("[Supabase] keyword songs query failed:", error.message);
   }
