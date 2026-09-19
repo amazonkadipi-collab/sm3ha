@@ -45,6 +45,7 @@ function isMeaningfulKeyword(value: string) {
   const normalized = value.trim();
   if (!normalized || normalized.length < 2 || normalized.length > 120) return false;
   const words = normalized.split(" ").filter(Boolean);
+  if (/^\d+$/.test(normalized)) return false;
   if (words.length > 1) return true;
   return normalized.length >= 3 && !KEYWORD_STOPWORDS.has(normalized);
 }
@@ -101,7 +102,9 @@ export async function upsertCatalogKeyword(query: string, resultSlugs: string[],
   if (!supabase || !isMeaningfulKeyword(normalizedQuery) || uniqueSlugs.length === 0) return false;
   if (!(await saveKeyword(supabase, normalizedQuery, uniqueSlugs, source, countSearch))) return false;
   if (countSearch) {
-    const family = keywordCandidates(normalizedQuery).filter(candidate => candidate !== normalizedQuery);
+    const family = keywordCandidates(normalizedQuery)
+      .filter(candidate => candidate !== normalizedQuery)
+      .filter(candidate => candidate.includes(" "));
     for (const candidate of family) await saveKeyword(supabase, candidate, uniqueSlugs, "search-derived", false);
   }
   return true;
