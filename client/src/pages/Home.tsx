@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { applySeo, resetSeo } from "@/lib/seo";
 import { workflowLinks } from "@/lib/flow";
 
+const ARABIC = /[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff]/;
+
 const fallbackQueries = [
   "اغاني حسين الامير", "ويلو ياسواد ليلو", "كشوق الليالي لضوء القمر", "غنيه ايباه",
   "اغنية الحروف العربية", "رضا البحراوي كوكتيل", "رمضان كريم الجزء الاول", "من كنه نسهر",
@@ -14,19 +16,21 @@ const fallbackQueries = [
 export default function Home() {
   const [, navigate] = useLocation();
   const [query, setQuery] = useState("");
-  const { data: keywordData, isLoading: keywordsLoading } = trpc.catalog.keywords.useQuery({ limit: 50 });
+  const { data: keywordData, isLoading: keywordsLoading } = trpc.catalog.keywords.useQuery({ limit: 100 });
+
   const links = useMemo(() => {
     const stored = Array.isArray(keywordData)
-      ? keywordData.map(item => ({ label: String(item?.label ?? ""), slug: String(item?.slug ?? item?.label ?? "") }))
+      ? keywordData
+          .map(item => ({ label: String(item?.label ?? "").trim(), slug: String(item?.slug ?? item?.label ?? "").trim() }))
+          .filter(item => item.label && item.slug && ARABIC.test(item.label))
       : [];
+
     const fallback = fallbackQueries.map(label => ({ label, slug: label }));
-    const merged = [...stored, ...fallback].filter(item => item.label && item.slug);
+    const merged = [...stored, ...fallback];
     const unique = Array.from(new Map(merged.map(item => [item.slug, item])).values());
-    // Keep the home page fresh: rotate the visible keyword window every 10 minutes.
-    const bucket = Math.floor(Date.now() / (10 * 60 * 1000));
-    const offset = unique.length ? bucket % unique.length : 0;
-    const rotated = unique.length ? [...unique.slice(offset), ...unique.slice(0, offset)] : [];
-    return rotated.slice(0, 50).map((item, index) => ({ ...item, index }));
+
+    // v1-style home feed: Arabic-only, newest/search-relevant first, no random reshuffle.
+    return unique.slice(0, 50).map((item, index) => ({ ...item, index }));
   }, [keywordData]);
 
   useEffect(() => {
