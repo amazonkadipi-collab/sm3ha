@@ -95,13 +95,15 @@ export function createApp() {
     next();
   }, createExpressMiddleware({ router: appRouter, createContext }));
 
+  app.get("/admin", (_req, res, next) => { res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive"); next(); });
+
   app.get("/api/demo-download/:token", (req, res) => {
     const verified = verifyDemoDownloadToken(req.params.token);
     if (!verified) return res.status(410).json({ error: "This demo link has expired or is invalid." });
     res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
     res.setHeader("Content-Type", "text/plain; charset=utf-8");
     res.setHeader("Content-Disposition", 'attachment; filename="naghmahub-demo.txt"');
-    return res.send(`NaghmaHub demonstration file\nToken: ${verified.opaqueToken}\nThis placeholder is authorized for demonstration only.`);
+    return res.send(`SM3HA demonstration file\nToken: ${verified.opaqueToken}\nThis placeholder is authorized for demonstration only.`);
   });
 
   return app;
