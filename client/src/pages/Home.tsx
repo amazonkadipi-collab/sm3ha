@@ -16,7 +16,12 @@ const fallbackQueries = [
 export default function Home() {
   const [, navigate] = useLocation();
   const [query, setQuery] = useState("");
-  const { data: keywordData, isLoading: keywordsLoading } = trpc.catalog.keywords.useQuery({ limit: 100 });
+  const { data: keywordData } = trpc.catalog.keywords.useQuery({ limit: 50 }, {
+    // The Home feed is an enhancement, not a blocking dependency. Keep the
+    // local Arabic feed visible while Supabase is loading or unavailable.
+    retry: 1,
+    staleTime: 60_000,
+  });
 
   const links = useMemo(() => {
     const stored = Array.isArray(keywordData)
@@ -25,11 +30,12 @@ export default function Home() {
           .filter(item => item.label && item.slug && ARABIC.test(item.label))
       : [];
 
+    // Never render an empty Home feed just because the catalog request is
+    // still pending. This also prevents the old "جارٍ تحميل عمليات البحث…"
+    // state from becoming a permanent screen on a slow Supabase connection.
     const fallback = fallbackQueries.map(label => ({ label, slug: label }));
     const merged = [...stored, ...fallback];
     const unique = Array.from(new Map(merged.map(item => [item.slug, item])).values());
-
-    // v1-style home feed: Arabic-only, newest/search-relevant first, no random reshuffle.
     return unique.slice(0, 50).map((item, index) => ({ ...item, index }));
   }, [keywordData]);
 
@@ -54,8 +60,7 @@ export default function Home() {
     </section>
     <section className="reference-list" aria-label="عمليات البحث">
       <div className="reference-list-heading">سمعها</div>
-      {keywordsLoading && <div className="reference-loading">جارٍ تحميل عمليات البحث…</div>}
-      {!keywordsLoading && links.map(item => <Link key={`${item.slug}-${item.index}`} href={workflowLinks.keyword(item.label)} className="reference-list-item"><span>♫</span>{item.label}</Link>)}
+      {links.map(item => <Link key={`${item.slug}-${item.index}`} href={workflowLinks.keyword(item.label)} className="reference-list-item"><span>♫</span>{item.label}</Link>)}
     </section>
     <footer className="reference-footer-card">
       <p>سمعها © 2026</p>
