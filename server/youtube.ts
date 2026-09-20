@@ -43,7 +43,7 @@ function requireApiKeys() {
 async function youtubeGet<T>(resource: string, params: Record<string, string>, apiKey: string) {
   const query = new URLSearchParams({ ...params, key: apiKey });
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
+  const timeout = setTimeout(() => controller.abort(), 5000);
   let response: Response;
   try {
     response = await fetch(`${YOUTUBE_API}/${resource}?${query}`, { signal: controller.signal });
@@ -89,7 +89,7 @@ export async function searchYouTubeVideos(query: string, limit = 10): Promise<Yo
       return await searchWithKey(query, limit, apiKey);
     } catch (error) {
       lastError = error;
-      if (!isYouTubeQuotaError(error)) throw error;
+      // Do not multiply a timeout/transient failure across every key.\n      if (!isYouTubeQuotaError(error)) throw error;
       console.warn("[YouTube] API quota reached; trying the next authorized project key.");
     }
   }
