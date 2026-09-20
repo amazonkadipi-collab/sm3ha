@@ -1,5 +1,5 @@
-const defaultTitle = "سمعها | اكتشاف الأغاني والفيديوهات";
-const defaultDescription = "إبحث عن اغنية او البوم او فنان واكتشف نتائج الوسائط المتاحة عبر سمعها.";
+const defaultTitle = "سمعها - تحميل وإستماع أغاني";
+const defaultDescription = "إبحث عن اغنية او البوم او فنان";
 
 function upsertMeta(attribute: "name" | "property", key: string, content: string) {
   let node = document.head.querySelector(`meta[${attribute}="${key}"]`);
