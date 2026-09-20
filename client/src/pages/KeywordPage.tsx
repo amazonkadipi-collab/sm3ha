@@ -15,8 +15,12 @@ function arabicTitle(value: string) {
   return runs.join(" ") || title;
 }
 
+function normalizeKeywordWords(value: string) {
+  return new Set(value.toLocaleLowerCase("ar").normalize("NFKD").replace(/[\u064B-\u065F\u0670]/g, "").replace(/[إأآا]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي").replace(/[^a-z0-9\u0600-\u06FF\s]+/gi, " ").replace(/\s+/g, " ").trim().split(" ").filter(word => word.length >= 2));
+}
+
 function keywordFamily(value: string) {
-  const words = value.toLocaleLowerCase("ar").normalize("NFKD").replace(/[\u064B-\u065F\u0670]/g, "").replace(/[إأآا]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي").replace(/[^a-z0-9\u0600-\u06FF\s]+/gi, " ").replace(/\s+/g, " ").trim().split(" ").filter(word => word.length >= 2);
+  const words = Array.from(normalizeKeywordWords(value));
   const candidates = new Set<string>();
   if (words.length > 1) {
     for (let size = 2; size <= Math.min(words.length, 4); size += 1) {
@@ -31,23 +35,25 @@ export default function KeywordPage() {
   const [, params] = useRoute("/s/:slug");
   const slug = params?.slug ?? "";
   const keyword = useMemo(() => decodeURIComponent(slug).replace(/-/g, " ").trim(), [slug]);
-  const { data = [], isLoading, isError } = trpc.catalog.search.useQuery({ query: keyword, limit: 10 }, { enabled: Boolean(keyword) });
-  const { data: keywordLinks = [] } = trpc.catalog.keywords.useQuery({ limit: 50 });
+  const { data = [], isLoading, isError } = trpc.catalog.search.useQuery({ query: keyword, limit: 10 }, { enabled: Boolean(keyword), retry: 1 });
+  const { data: keywordLinks = [] } = trpc.catalog.keywords.useQuery({ limit: 50 }, { retry: 1, staleTime: 60_000 });
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
   const playerRef = useRef<HTMLDivElement | null>(null);
   const hasResults = !isLoading && !isError && data.length > 0;
   const relatedKeywords = useMemo(() => {
     const family = keywordFamily(keyword);
     return keywordLinks
-      .filter(item => item.slug !== slug && item.resultCount > 0 && family.has(item.label.toLocaleLowerCase("ar")))
-      .slice(0, 12);
+      .filter(item => item.slug !== slug && item.resultCount > 0)
+      .map(item => ({ item, overlap: Array.from(normalizeKeywordWords(item.label)).filter(word => family.has(word)).length }))
+      .filter(entry => entry.overlap > 0)
+      .sort((a, b) => b.overlap - a.overlap || a.item.label.localeCompare(b.item.label, "ar"))
+      .slice(0, 12)
+      .map(entry => entry.item);
   }, [keywordLinks, keyword, slug]);
 
   useEffect(() => setActiveVideoId(null), [slug]);
   useEffect(() => {
-    if (activeVideoId) {
-      requestAnimationFrame(() => playerRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
-    }
+    if (activeVideoId) requestAnimationFrame(() => playerRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
   }, [activeVideoId]);
   useEffect(() => {
     applySeo({
