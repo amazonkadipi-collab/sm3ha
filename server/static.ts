@@ -2,6 +2,7 @@ import express from "express";
 import fs from "node:fs";
 import path from "node:path";
 import { findCatalogKeyword } from "./supabase";
+import { formatDuration } from "./catalog";
 import { findSongsBySlugs } from "./db";
 
 const escapeHtml = (value: string) => value
@@ -39,7 +40,7 @@ async function renderKeywordShell(req: express.Request, template: string) {
 
   const resultHtml = songs.map(song => {
     const songTitle = escapeHtml(song.title);
-    const duration = escapeHtml(String(song.duration ?? ""));
+    const duration = escapeHtml(formatDuration(song.durationSeconds ?? 0));
     const thumb = song.thumbnailUrl
       ? `<img src="${escapeHtml(song.thumbnailUrl)}" alt="${songTitle}" loading="lazy">`
       : `<span aria-hidden="true">♫</span>`;
