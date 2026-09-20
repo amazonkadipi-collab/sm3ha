@@ -40,7 +40,7 @@ export default function Home() {
   }, [keywordData]);
 
   useEffect(() => {
-    applySeo({ title: "سمعها — تحميل واستماع الأغاني والفيديوهات", description: "إبحث عن اغنية او البوم او فنان واكتشف نتائج الوسائط المتاحة عبر سمعها.", path: "/" });
+    applySeo({ title: "سمعها - تحميل وإستماع أغاني", description: "إبحث عن اغنية او البوم او فنان", path: "/" });
     return resetSeo;
   }, []);
 
