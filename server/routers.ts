@@ -62,10 +62,23 @@ export const appRouter = router({
       let source = "none";
       let results: ReturnType<typeof youtubeResult>[] | Awaited<ReturnType<typeof findSongs>> = [];
 
-      // Match v1-style behavior: an explicit /search query is treated as a
-      // broad video search first. Persist successful results so the query,
-      // result slugs, and later /s/{query} page can be reused from Supabase.
-      if (query && ENV.youtubeApiKey) {
+      // Prefer an already-indexed keyword before calling YouTube. This makes
+      // Home -> /s/{keyword} fast for previously indexed phrases and avoids
+      // leaving the user on a long loading state while an external API responds.
+      if (query) {
+        const keyword = await findCatalogKeyword(makeSlug(query));
+        if (keyword?.result_slugs?.length) {
+          const cachedSongs = await findSongsBySlugs(keyword.result_slugs, input.limit);
+          if (cachedSongs.length) {
+            results = cachedSongs.map(song => ({ ...song, artist: "", album: "", duration: formatDuration(song.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}` }));
+            source = "keyword";
+          }
+        }
+      }
+
+      // Match v1-style behavior for a new query: search YouTube only when
+      // the indexed catalog did not already have usable results.
+      if (results.length === 0 && query && ENV.youtubeApiKey) {
         try {
           const youtubeRows = await searchYouTubeVideos(query, input.limit);
           if (youtubeRows.length) {
