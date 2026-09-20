@@ -6,6 +6,7 @@ import { appRouter } from "./routers";
 import { createContext } from "./_core/context";
 import { verifyDemoDownloadToken } from "./download";
 import { COOKIE_NAME } from "@shared/const";
+import { ENV } from "./_core/env";
 import { countIndexableKeywords, listSitemapKeywords } from "./supabase";
 
 const PUBLIC_ORIGIN = "https://sm3haa.vercel.app";
