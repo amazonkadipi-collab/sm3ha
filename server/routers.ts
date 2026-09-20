@@ -72,10 +72,9 @@ export const appRouter = router({
             const persisted = await persistImportedRows(youtubeRows);
             results = youtubeRows.map(youtubeResult);
             source = "youtube";
-            const persistedSlugs = persisted.status === "persisted_demo" && persisted.acceptedSlugs?.length
-              ? persisted.acceptedSlugs
-              : youtubeRows.map(row => makeSlug(`${row.artist}-${row.title}`));
-            void upsertCatalogKeyword(query, persistedSlugs, "youtube-search", true);
+            if (persisted.status === "persisted_demo" && persisted.acceptedSlugs?.length) {
+              void upsertCatalogKeyword(query, persisted.acceptedSlugs, "youtube-search", true);
+            }
               // Second query source: mine useful phrase candidates from the
               // returned YouTube titles, without counting them as user searches.
               void indexYouTubeTitleQueries(youtubeRows);
