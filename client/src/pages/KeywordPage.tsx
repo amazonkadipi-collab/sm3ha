@@ -67,7 +67,7 @@ export default function KeywordPage() {
 
   return <main dir="rtl" className="reference-page mx-auto max-w-[1080px] px-4 pb-12 pt-4 sm:px-8">
     <Link href="/" className="reference-back"><ArrowRight size={15} /> الرئيسية</Link>
-    <section className="reference-page-head"><div><span>سمعها</span><h1>تحميل {keyword} Mp3 Mp4</h1></div></section>
+    <section className="reference-page-head"><div><span>سمعها</span><h1>تحميل {keyword} Mp3 Mp4 سمعها</h1></div></section>
     <section className="reference-results" aria-label={`نتائج ${keyword}`}>
       <div className="reference-results-title">نتائج «{keyword}»</div>
       {isLoading && <div className="reference-empty">جارٍ تجهيز النتائج…</div>}
