@@ -11,6 +11,8 @@ function getQueryParam(req: Request, key: string): string | undefined {
 }
 
 export function registerOAuthRoutes(app: Express) {
+  // OAuth is optional for SM3HA. Local admin password auth works independently.
+  if (!process.env.OAUTH_SERVER_URL?.trim()) return;
   app.get("/api/oauth/callback", async (req: Request, res: Response) => {
     const code = getQueryParam(req, "code");
     const state = getQueryParam(req, "state");
