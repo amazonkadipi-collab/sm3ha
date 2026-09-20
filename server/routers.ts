@@ -82,18 +82,21 @@ export const appRouter = router({
         try {
           const youtubeRows = await searchYouTubeVideos(query, input.limit);
           if (youtubeRows.length) {
-            const persisted = await persistImportedRows(youtubeRows);
+            // Return results immediately; catalog persistence/indexing runs in the
+            // background so slow Supabase writes never block the user's results.
             results = youtubeRows.map(youtubeResult);
             source = "youtube";
-            if (persisted.status === "persisted_demo" && persisted.acceptedSlugs?.length) {
-              void upsertCatalogKeyword(query, persisted.acceptedSlugs, "youtube-search", true);
-            }
-              // Second query source: mine useful phrase candidates from the
-              // returned YouTube titles, without counting them as user searches.
-              void indexYouTubeTitleQueries(youtubeRows);
-            if (persisted.status !== "persisted_demo") {
-              console.warn("[YouTube] metadata persistence unavailable; results served directly", persisted.status);
-            }
+            void (async () => {
+              try {
+                const persisted = await persistImportedRows(youtubeRows);
+                if (persisted.status === "persisted_demo" && persisted.acceptedSlugs?.length) {
+                  await upsertCatalogKeyword(query, persisted.acceptedSlugs, "youtube-search", true);
+                }
+                await indexYouTubeTitleQueries(youtubeRows);
+              } catch (persistError) {
+                console.warn("[YouTube] background catalog persistence failed:", persistError instanceof Error ? persistError.message : persistError);
+              }
+            })();
           }
         } catch (error) {
           console.warn("[YouTube] public search failed; trying cached catalog:", error instanceof Error ? error.message : error);
