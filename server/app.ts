@@ -92,7 +92,7 @@ export function createApp() {
   });
 
   registerStorageProxy(app);
-  registerOAuthRoutes(app);
+  if (ENV.oAuthServerUrl) registerOAuthRoutes(app);
   app.use("/api/trpc", (req, res, next) => {
     if (req.method === "POST" && req.url.includes("adminLogin")) {
       const key = req.ip || "anonymous";
