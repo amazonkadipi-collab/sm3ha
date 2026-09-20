@@ -42,7 +42,17 @@ function requireApiKeys() {
 
 async function youtubeGet<T>(resource: string, params: Record<string, string>, apiKey: string) {
   const query = new URLSearchParams({ ...params, key: apiKey });
-  const response = await fetch(`${YOUTUBE_API}/${resource}?${query}`);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  let response: Response;
+  try {
+    response = await fetch(`${YOUTUBE_API}/${resource}?${query}`, { signal: controller.signal });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") throw new Error("YouTube API request timed out");
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
   const body = await response.json() as T & { error?: { message?: string; errors?: Array<{ reason?: string }> } };
   if (!response.ok) {
     const reason = body.error?.errors?.[0]?.reason;
