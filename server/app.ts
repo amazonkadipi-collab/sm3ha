@@ -49,6 +49,10 @@ export function createApp() {
   app.use(express.json({ limit: "2mb" }));
   app.use(express.urlencoded({ limit: "1mb", extended: true }));
 
+  app.get("/favicon.ico", (_req, res) => {
+    res.redirect(308, "/favicon.svg");
+  });
+
   app.get("/robots.txt", (req, res) => {
     res.setHeader("X-Robots-Tag", "noindex, nofollow");
     res.type("text/plain").send(`User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/\nDisallow: /media\nSitemap: ${getOrigin(req)}/sitemap.xml\n`);
