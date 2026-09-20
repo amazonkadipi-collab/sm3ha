@@ -35,7 +35,7 @@ export default function KeywordPage() {
   const [, params] = useRoute("/s/:slug");
   const slug = params?.slug ?? "";
   const keyword = useMemo(() => decodeURIComponent(slug).replace(/-/g, " ").trim(), [slug]);
-  const { data = [], isLoading, isError } = trpc.catalog.search.useQuery({ query: keyword, limit: 10 }, { enabled: Boolean(keyword), retry: 1 });
+  const { data = [], isLoading, isError } = trpc.catalog.search.useQuery({ query: keyword, limit: 10 }, { enabled: Boolean(keyword), retry: false, staleTime: 30_000 });
   const { data: keywordLinks = [] } = trpc.catalog.keywords.useQuery({ limit: 50 }, { retry: 1, staleTime: 60_000 });
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
   const playerRef = useRef<HTMLDivElement | null>(null);
