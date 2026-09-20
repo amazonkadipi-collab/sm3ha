@@ -8,7 +8,9 @@ import { verifyDemoDownloadToken } from "./download";
 import { COOKIE_NAME } from "@shared/const";
 import { countIndexableKeywords, listSitemapKeywords } from "./supabase";
 
+const PUBLIC_ORIGIN = "https://sm3haa.vercel.app";
 const xmlEscape = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;").replace(/'/g, "&apos;");
+const getOrigin = (req: express.Request) => process.env.PUBLIC_SITE_URL?.trim().replace(/\/$/, "") || PUBLIC_ORIGIN;
 
 export function createApp() {
   const app = express();
@@ -48,12 +50,12 @@ export function createApp() {
   app.use(express.urlencoded({ limit: "1mb", extended: true }));
 
   app.get("/robots.txt", (req, res) => {
-    const origin = process.env.PUBLIC_SITE_URL || `${req.protocol}://${req.get("host")}`;
-    res.type("text/plain").send(`User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/\nDisallow: /media\nSitemap: ${origin}/sitemap.xml\n`);
+    res.setHeader("X-Robots-Tag", "noindex, nofollow");
+    res.type("text/plain").send(`User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/\nDisallow: /media\nSitemap: ${getOrigin(req)}/sitemap.xml\n`);
   });
 
   app.get("/sitemap.xml", async (req, res) => {
-    const origin = process.env.PUBLIC_SITE_URL || `${req.protocol}://${req.get("host")}`;
+    const origin = getOrigin(req);
     const totalKeywords = await countIndexableKeywords();
     const pageSize = 45000;
     if (totalKeywords > pageSize) {
@@ -69,7 +71,7 @@ export function createApp() {
   });
 
   app.get("/sitemap-static.xml", (req, res) => {
-    const origin = process.env.PUBLIC_SITE_URL || `${req.protocol}://${req.get("host")}`;
+    const origin = getOrigin(req);
     const urls = ["/", "/artists", "/albums", "/search"];
     const body = urls.map(path => `<url><loc>${xmlEscape(`${origin}${path}`)}</loc></url>`).join("");
     return res.type("application/xml").send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>`);
@@ -78,7 +80,7 @@ export function createApp() {
   app.get("/sitemap-keywords-:page.xml", async (req, res) => {
     const page = Number(req.params.page);
     if (!Number.isInteger(page) || page < 1) return res.status(404).type("text/plain").send("Not found");
-    const origin = process.env.PUBLIC_SITE_URL || `${req.protocol}://${req.get("host")}`;
+    const origin = getOrigin(req);
     const keywords = await listSitemapKeywords((page - 1) * 45000, 45000);
     if (!keywords.length) return res.status(404).type("text/plain").send("Not found");
     const body = keywords.map(row => `<url><loc>${xmlEscape(`${origin}/s/${encodeURIComponent(row.slug)}`)}</loc><lastmod>${new Date(row.updated_at).toISOString()}</lastmod></url>`).join("");
@@ -102,7 +104,7 @@ export function createApp() {
     if (!verified) return res.status(410).json({ error: "This demo link has expired or is invalid." });
     res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
     res.setHeader("Content-Type", "text/plain; charset=utf-8");
-    res.setHeader("Content-Disposition", 'attachment; filename="naghmahub-demo.txt"');
+    res.setHeader("Content-Disposition", 'attachment; filename="sm3ha-demo.txt"');
     return res.send(`SM3HA demonstration file\nToken: ${verified.opaqueToken}\nThis placeholder is authorized for demonstration only.`);
   });
 
