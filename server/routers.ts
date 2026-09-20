@@ -70,20 +70,17 @@ export const appRouter = router({
           const youtubeRows = await searchYouTubeVideos(query, input.limit);
           if (youtubeRows.length) {
             const persisted = await persistImportedRows(youtubeRows);
-            if (persisted.status === "persisted_demo" && persisted.accepted === youtubeRows.length) {
-              results = youtubeRows.map(youtubeResult);
-              source = "youtube";
-              void upsertCatalogKeyword(
-                query,
-                persisted.status === "persisted_demo" ? persisted.acceptedSlugs : youtubeRows.map(row => makeSlug(`${row.artist}-${row.title}`)),
-                "youtube-search",
-                true
-              );
+            results = youtubeRows.map(youtubeResult);
+            source = "youtube";
+            const persistedSlugs = persisted.status === "persisted_demo" && persisted.acceptedSlugs?.length
+              ? persisted.acceptedSlugs
+              : youtubeRows.map(row => makeSlug(`${row.artist}-${row.title}`));
+            void upsertCatalogKeyword(query, persistedSlugs, "youtube-search", true);
               // Second query source: mine useful phrase candidates from the
               // returned YouTube titles, without counting them as user searches.
               void indexYouTubeTitleQueries(youtubeRows);
-            } else {
-              console.warn("[YouTube] metadata persistence unavailable; trying cached catalog", persisted.status);
+            if (persisted.status !== "persisted_demo") {
+              console.warn("[YouTube] metadata persistence unavailable; results served directly", persisted.status);
             }
           }
         } catch (error) {
