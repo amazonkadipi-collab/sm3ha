@@ -16,7 +16,7 @@ export default function ConversionPage() {
   const [started, setStarted] = useState(false);
 
   useEffect(() => {
-    applySeo({ title: "اختيار الصيغة والجودة — نغمة", description: "اختر صيغة صوت أو فيديو في تجربة آمنة مرتبطة بمصدر YouTube.", path: `/videos_dl?v=${encodeURIComponent(videoId)}`, noindex: true });
+    applySeo({ title: "اختيار الصيغة والجودة — سمعها", description: "اختر صيغة صوت أو فيديو في تجربة آمنة مرتبطة بمصدر YouTube.", path: `/videos_dl?v=${encodeURIComponent(videoId)}`, noindex: true });
     return resetSeo;
   }, [videoId]);
 
