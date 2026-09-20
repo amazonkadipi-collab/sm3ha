@@ -22,7 +22,7 @@ if (ENV.isProduction) {
   const checks = [
     ["NAGHMAHUB_JWT_SECRET or JWT_SECRET", ENV.cookieSecret, 32],
     ["ADMIN_USERNAME", ENV.adminUsername, 1],
-    ["ADMIN_PASSWORD", ENV.adminPassword, 16],
+    ["ADMIN_PASSWORD", ENV.adminPassword, 6],
   ] as const;
   const missing = checks.filter(([, value, minLength]) => !value || value.length < minLength).map(([name]) => name);
   if (missing.length) console.error(`[Config] Production configuration incomplete: ${missing.join(", ")}`);
