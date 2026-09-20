@@ -60,27 +60,19 @@ function keywordCandidates(query: string) {
   const words = normalized.split(" ").filter(word => word.length >= 2 && word.length <= 80 && !KEYWORD_STOPWORDS.has(word));
   const candidates = new Set<string>();
   if (isMeaningfulKeyword(normalized)) candidates.add(normalized);
-
-  // Do not create indexable pages from isolated words during catalog indexing.
-  // Single-word keywords are still allowed for explicit user searches when meaningful.
   if (normalized.split(" ").length <= 1 && isMeaningfulKeyword(normalized)) candidates.add(normalized);
-
   for (let size = 2; size <= Math.min(words.length, 4); size += 1) {
     for (let i = 0; i + size <= words.length; i += 1) {
       const phrase = words.slice(i, i + size).join(" ");
       if (isMeaningfulKeyword(phrase)) candidates.add(phrase);
     }
   }
-
   return Array.from(candidates).filter(isMeaningfulKeyword);
 }
 
 async function saveKeyword(supabase: SupabaseClient, query: string, resultSlugs: string[], source: string, countSearch: boolean) {
   const normalizedQuery = normalizeArabic(query).replace(/\s+/g, " ").trim();
   const incomingSlugs = Array.from(new Set(resultSlugs)).filter(Boolean).slice(0, 50);
-  // Explicit search queries are intentionally open-ended: one-word, typos,
-  // unusual phrases, and other queries can become SEO pages when they have
-  // real results. Catalog generation applies its own phrase-level filters.
   if (!normalizedQuery || incomingSlugs.length === 0) return false;
   const slug = makeSlug(normalizedQuery);
   if (!slug) return false;
@@ -101,30 +93,18 @@ async function saveKeyword(supabase: SupabaseClient, query: string, resultSlugs:
 export function extractYouTubeTitleQueries(rows: Array<{ title: string; artist: string; providerVideoId: string }>, limit = 50) {
   const candidates = new Set<string>();
   for (const row of rows) {
-    for (const candidate of keywordCandidates(row.title)) {
-      if (candidate.includes(" ")) candidates.add(candidate);
-    }
-    for (const candidate of keywordCandidates(`${row.artist} ${row.title}`)) {
-      if (candidate.includes(" ")) candidates.add(candidate);
-    }
+    for (const candidate of keywordCandidates(row.title)) if (candidate.includes(" ")) candidates.add(candidate);
+    for (const candidate of keywordCandidates(`${row.artist} ${row.title}`)) if (candidate.includes(" ")) candidates.add(candidate);
   }
   return Array.from(candidates).slice(0, Math.max(1, limit));
 }
 
 export async function indexYouTubeTitleQueries(rows: Array<{ title: string; artist: string; providerVideoId: string }>) {
-  const supabase = getSupabaseAdmin();
-  if (!supabase) return 0;
-
+  const supabase = getSupabaseAdmin(); if (!supabase) return 0;
   let indexed = 0;
   for (const row of rows) {
-    const songSlug = makeSlug(`${row.artist}-${row.title}`);
-    if (!songSlug) continue;
-
-    const candidates = new Set(extractYouTubeTitleQueries([row], 50));
-
-    for (const candidate of candidates) {
-      if (await saveKeyword(supabase, candidate, [songSlug], "youtube-title", false)) indexed += 1;
-    }
+    const songSlug = makeSlug(`${row.artist}-${row.title}`); if (!songSlug) continue;
+    for (const candidate of new Set(extractYouTubeTitleQueries([row], 50))) if (await saveKeyword(supabase, candidate, [songSlug], "youtube-title", false)) indexed += 1;
   }
   return indexed;
 }
@@ -133,17 +113,9 @@ export async function upsertCatalogKeyword(query: string, resultSlugs: string[],
   const supabase = getSupabaseAdmin();
   const normalizedQuery = normalizeArabic(query).replace(/\s+/g, " ").trim();
   const uniqueSlugs = Array.from(new Set(resultSlugs)).filter(Boolean).slice(0, 50);
-  // Explicit searches are intentionally open-ended: one-word queries,
-  // typos and unusual phrases are valid SEO candidates when they return results.
-  // Catalog-derived keyword generation remains filtered separately.
   if (!supabase || !normalizedQuery || uniqueSlugs.length === 0) return false;
   if (!(await saveKeyword(supabase, normalizedQuery, uniqueSlugs, source, countSearch))) return false;
-  if (countSearch) {
-    const family = keywordCandidates(normalizedQuery)
-      .filter(candidate => candidate !== normalizedQuery)
-      .filter(candidate => candidate.includes(" "));
-    for (const candidate of family) await saveKeyword(supabase, candidate, uniqueSlugs, "search-derived", false);
-  }
+  if (countSearch) for (const candidate of keywordCandidates(normalizedQuery).filter(candidate => candidate !== normalizedQuery && candidate.includes(" "))) await saveKeyword(supabase, candidate, uniqueSlugs, "search-derived", false);
   return true;
 }
 
@@ -152,29 +124,31 @@ export async function indexCatalogText(rows: Array<{ title: string; artist: stri
   for (const row of rows) {
     const songSlug = makeSlug(`${row.artist}-${row.title}`);
     const texts = [row.title, row.artist, row.album ?? "", `${row.artist} ${row.title}`, `${row.title} ${row.artist}`];
-    for (const text of texts) {
-      for (const candidate of keywordCandidates(text)) {
-        // Catalog-derived pages must be phrase-level to avoid huge numbers of
-        // generic one-word / stopword pages. Exact user searches are handled
-        // separately by upsertCatalogKeyword().
-        if (!candidate.includes(" ")) continue;
-        const list = candidates.get(candidate) ?? [];
-        if (!list.includes(songSlug)) list.push(songSlug);
-        candidates.set(candidate, list);
-      }
+    for (const text of texts) for (const candidate of keywordCandidates(text)) {
+      if (!candidate.includes(" ")) continue;
+      const list = candidates.get(candidate) ?? []; if (!list.includes(songSlug)) list.push(songSlug); candidates.set(candidate, list);
     }
   }
-  let indexed = 0;
-  for (const [candidate, slugs] of candidates) {
-    if (slugs.length > 0 && await saveKeyword(supabase, candidate, slugs, "catalog", false)) indexed += 1;
-  }
+  let indexed = 0; for (const [candidate, slugs] of candidates) if (slugs.length > 0 && await saveKeyword(supabase, candidate, slugs, "catalog", false)) indexed += 1;
   return indexed;
 }
 
 export async function listCatalogKeywords(limit = 20) {
-  const supabase = getSupabaseAdmin(); if (!supabase) return null; const safeLimit = Math.min(Math.max(limit, 1), 50);
-  const { data, error } = await supabase.from("catalog_keywords").select("query,slug,title,result_count,result_slugs,status,last_searched_at,updated_at,search_count").eq("status", "active").eq("indexable", true).gt("result_count", 0).order("last_searched_at", { ascending: false, nullsFirst: false }).order("updated_at", { ascending: false }).limit(safeLimit);
-  if (error) { console.warn("[Supabase] keyword list failed:", error.message); return []; } return data ?? [];
+  const supabase = getSupabaseAdmin(); if (!supabase) return null;
+  const safeLimit = Math.min(Math.max(limit, 1), 50);
+  const query = supabase.from("catalog_keywords").select("query,slug,title,result_count,result_slugs,status,last_searched_at,updated_at,search_count").eq("status", "active").eq("indexable", true).gt("result_count", 0).order("last_searched_at", { ascending: false, nullsFirst: false }).order("updated_at", { ascending: false }).limit(safeLimit);
+  // Home must never remain in a loading state because an optional SEO/catalog
+  // feed is slow or temporarily unavailable. Return an empty feed after a
+  // short server-side deadline; Home already has a local Arabic fallback list.
+  const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("catalog keyword query timeout")), 4000));
+  try {
+    const { data, error } = await Promise.race([query, timeout]);
+    if (error) { console.warn("[Supabase] keyword list failed:", error.message); return []; }
+    return data ?? [];
+  } catch (error) {
+    console.warn("[Supabase] keyword list unavailable:", error instanceof Error ? error.message : error);
+    return [];
+  }
 }
 
 export async function findCatalogKeyword(slug: string) {
