@@ -5,6 +5,8 @@ import { findCatalogKeyword } from "./supabase";
 import { formatDuration } from "./catalog";
 import { findSongsBySlugs } from "./db";
 
+const PUBLIC_ORIGIN = "https://sm3haa.vercel.app";
+
 const escapeHtml = (value: string) => value
   .replace(/&/g, "&amp;")
   .replace(/</g, "&lt;")
@@ -12,10 +14,13 @@ const escapeHtml = (value: string) => value
   .replace(/"/g, "&quot;")
   .replace(/'/g, "&#39;");
 
-const absoluteUrl = (req: express.Request, pathname: string) => {
-  const origin = process.env.PUBLIC_SITE_URL || `${req.protocol}://${req.get("host")}`;
-  return new URL(pathname, origin).toString();
+const getOrigin = (req: express.Request) => {
+  const configured = process.env.PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
+  return configured || PUBLIC_ORIGIN;
 };
+
+const absoluteUrl = (req: express.Request, pathname: string) =>
+  new URL(pathname, getOrigin(req)).toString();
 
 async function renderKeywordShell(req: express.Request, template: string) {
   const rawSlug = String(req.params[0] || "").replace(/^\/+|\/+$/g, "");
@@ -35,8 +40,7 @@ async function renderKeywordShell(req: express.Request, template: string) {
 
   const title = `تحميل ${record.query || keyword} Mp3 Mp4 سمعها`;
   const description = `نتائج ${record.query || keyword} في سمعها. إبحث واستكشف الأغاني والفيديوهات المتاحة.`;
-  const canonicalPath = `/s/${encodeURIComponent(record.slug)}`;
-  const canonical = absoluteUrl(req, canonicalPath);
+  const canonical = absoluteUrl(req, `/s/${encodeURIComponent(record.slug)}`);
 
   const resultHtml = songs.map(song => {
     const songTitle = escapeHtml(song.title);
@@ -60,7 +64,7 @@ async function renderKeywordShell(req: express.Request, template: string) {
   }).replace(/</g, "\\u003c");
 
   const html = template
-    .replace(/<html([^>]*)>/i, '<html$1 lang="ar" dir="rtl">')
+    .replace(/<html[^>]*>/i, '<html lang="ar" dir="rtl">')
     .replace(/<title>[^<]*<\/title>/i, `<title>${escapeHtml(title)}</title>`)
     .replace(/<meta name="description" content="[^"]*"/i, `<meta name="description" content="${escapeHtml(description)}"`)
     .replace(/<meta name="robots" content="[^"]*"/i, '<meta name="robots" content="index,follow"')
@@ -86,9 +90,10 @@ export function serveStatic(app: express.Express) {
       const rendered = await renderKeywordShell(req, template);
       if (!rendered) return next();
       if (rendered.status === 404) {
-        res.setHeader("X-Robots-Tag", "noindex, nofollow");
+        res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
         return res.status(404).send(rendered.html);
       }
+      res.setHeader("X-Robots-Tag", "index, follow");
       return res.status(rendered.status).type("html").send(rendered.html);
     } catch (error) {
       console.warn("[SEO] keyword server render failed:", error);
