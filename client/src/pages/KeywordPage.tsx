@@ -95,6 +95,17 @@ export default function KeywordPage() {
               allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
               allowFullScreen
             />
+            <div className="mt-2 flex items-center justify-between gap-3 text-xs text-black/55">
+              <span>إذا كان الفيديو غير قابل للتضمين، افتحه مباشرة من YouTube.</span>
+              <a
+                href={"https://www.youtube.com/watch?v=" + encodeURIComponent(song.providerVideoId)}
+                target="_blank"
+                rel="noreferrer"
+                className="font-semibold text-black/70 underline underline-offset-2"
+              >
+                فتح في YouTube
+              </a>
+            </div>
           </div>}
         </article>;
       })}
