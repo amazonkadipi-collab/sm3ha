@@ -72,7 +72,8 @@ async function renderKeywordShell(req: express.Request, template: string) {
     .replace(/<meta property="og:description" content="[^"]*"/i, `<meta property="og:description" content="${escapeHtml(description)}"`)
     .replace(/<meta property="og:type" content="[^"]*"/i, '<meta property="og:type" content="website"')
     .replace(/<meta property="og:locale" content="[^"]*"/i, '<meta property="og:locale" content="ar_MA"')
-    .replace(/<link rel="canonical"[^>]*>/i, `<link rel="canonical" href="${escapeHtml(canonical)}">`)\n    .replace("</head>", `<script type="application/ld+json" data-sm3ha-seo="true">${jsonLd}</script></head>`)
+    .replace(/<link rel="canonical"[^>]*>/i, `<link rel="canonical" href="${escapeHtml(canonical)}">`)
+    .replace("</head>", `<script type="application/ld+json" data-sm3ha-seo="true">${jsonLd}</script></head>`)
     .replace('<div id="root"></div>', `<div id="root">${content}</div>`);
 
   return { status: 200, html };
