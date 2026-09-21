@@ -5,6 +5,7 @@ import { registerStorageProxy } from "./_core/storageProxy";
 import { appRouter } from "./routers";
 import { createContext } from "./_core/context";
 import { verifyDemoDownloadToken } from "./download";
+import { makeSlug } from "./catalog";
 import { COOKIE_NAME } from "@shared/const";
 import { ENV } from "./_core/env";
 import { countIndexableKeywords, listSitemapKeywords, countIndexableSongs, listSitemapSongs, countSitemapArtists, listSitemapArtists, countSitemapAlbums, listSitemapAlbums } from "./supabase";
@@ -49,6 +50,16 @@ export function createApp() {
 
   app.use(express.json({ limit: "2mb" }));
   app.use(express.urlencoded({ limit: "1mb", extended: true }));
+
+  // Canonical search flow: turn /search?q=... into the indexable keyword route.
+  // Empty /search remains a normal application page for users who arrive there directly.
+  app.get("/search", (req, res, next) => {
+    const query = typeof req.query.q === "string" ? req.query.q.trim() : "";
+    if (!query) return next();
+    const slug = makeSlug(query);
+    if (!slug || slug === "song") return next();
+    return res.redirect(301, `/s/${encodeURIComponent(slug)}`);
+  });
 
   app.get("/favicon.ico", (_req, res) => {
     res.type("image/svg+xml").send(`<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="16" fill="#756590"/><path d="M38 14v24.2a9.5 9.5 0 1 1-6-8.8V20l18-5v18.2a9.5 9.5 0 1 1-6-8.8V14H38z" fill="white"/></svg>`);
@@ -120,6 +131,11 @@ export function createApp() {
   app.get("/sitemap-artists-:page.xml", (req, res) => sendEntitySitemap(req, res, "artists"));
   app.get("/sitemap-albums.xml", (req, res) => sendEntitySitemap(req, res, "albums"));
   app.get("/sitemap-albums-:page.xml", (req, res) => sendEntitySitemap(req, res, "albums"));
+
+  // Non-content workflow endpoints must never become indexable just because
+  // the SPA has not executed its client-side SEO code yet.
+  app.get("/media", (_req, res, next) => { res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive"); next(); });
+  app.get("/videos_dl", (_req, res, next) => { res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive"); next(); });
 
   registerStorageProxy(app);
   if (ENV.oAuthServerUrl) registerOAuthRoutes(app);
