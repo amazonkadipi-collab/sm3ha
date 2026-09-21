@@ -111,7 +111,6 @@ export function createApp() {
     return res.type("application/xml").send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>`);
   });
 
-  app.get("/sitemap-static-:page.xml", (req, res) => sendEntitySitemap(req, res, "keywords"));
 
   app.get("/sitemap-keywords.xml", (req, res) => sendEntitySitemap(req, res, "keywords"));
   app.get("/sitemap-keywords-:page.xml", (req, res) => sendEntitySitemap(req, res, "keywords"));
