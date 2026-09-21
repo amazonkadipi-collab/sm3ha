@@ -24,7 +24,7 @@ const demoResult = (song: typeof demoSongs[number]) => ({ ...song, duration: for
 const youtubeResult = (row: Awaited<ReturnType<typeof searchYouTubeVideos>>[number], index: number) => {
   const slug = makeSlug(`${row.artist}-${row.title}`);
   const opaqueToken = createOpaqueToken(`${row.providerVideoId}:${slug}`);
-  return { id: -(index + 1), title: row.title, artist: row.artist, artistSlug: makeSlug(row.artist), album: "", slug, providerVideoId: row.providerVideoId, opaqueToken, thumbnailUrl: row.thumbnailUrl, durationSeconds: row.durationSeconds, duration: formatDuration(row.durationSeconds), rightsStatus: "metadata_only" as const, availabilityStatus: "available" as const, mediaUrl: `/media?d=${encodeURIComponent(opaqueToken)}` };
+  return { id: -(index + 1), title: row.title, artist: row.artist, artistSlug: makeSlug(row.artist), album: "", slug, providerVideoId: row.providerVideoId, opaqueToken, thumbnailUrl: row.thumbnailUrl, durationSeconds: row.durationSeconds, duration: row.durationSeconds > 0 ? formatDuration(row.durationSeconds) : "—", rightsStatus: "metadata_only" as const, availabilityStatus: "available" as const, mediaUrl: `/media?d=${encodeURIComponent(opaqueToken)}` };
 };
 
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
