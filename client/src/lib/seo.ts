@@ -44,5 +44,5 @@ export function applySeo(input: { title: string; description: string; path: stri
 
 export function resetSeo() {
   applySeo({ title: defaultTitle, description: defaultDescription, path: "/" });
-  document.head.querySelectorAll('script[data-naghma-seo="true"]').forEach(node => node.remove());
+  document.head.querySelectorAll('script[data-naghma-seo="true"], script[data-sm3ha-seo="true"]').forEach(node => node.remove());
 }
