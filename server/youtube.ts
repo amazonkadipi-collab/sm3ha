@@ -10,7 +10,11 @@ const YOUTUBE_API = "https://www.googleapis.com/youtube/v3";
 };
 
 type YouTubeVideosResponse = {
-  items?: Array<{ id?: string; contentDetails?: { duration?: string } }>;
+  items?: Array<{
+    id?: string;
+    contentDetails?: { duration?: string };
+    status?: { embeddable?: boolean; privacyStatus?: string };
+  }>;
   error?: { message?: string; errors?: Array<{ reason?: string }> };
 };
 
@@ -96,6 +100,39 @@ export async function searchYouTubeVideos(query: string, limit = 10): Promise<Yo
       lastError = error;
       // Do not multiply a timeout/transient failure across every key.\n      if (!isYouTubeQuotaError(error)) throw error;
       console.warn("[YouTube] API quota reached; trying the next authorized project key.");
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error("All configured YouTube API projects are unavailable");
+}
+
+
+export type YouTubeEmbedStatus = {
+  videoId: string;
+  embeddable: boolean | null;
+  privacyStatus: string | null;
+};
+
+export async function getYouTubeEmbedStatus(videoId: string): Promise<YouTubeEmbedStatus> {
+  const id = videoId.trim();
+  if (!id) throw new Error("YouTube video ID is required");
+  let lastError: unknown;
+  for (const apiKey of requireApiKeys()) {
+    try {
+      const response = await youtubeGet<YouTubeVideosResponse>("videos", {
+        part: "status",
+        id,
+      }, apiKey);
+      const item = response.items?.[0];
+      if (!item) return { videoId: id, embeddable: false, privacyStatus: "missing" };
+      return {
+        videoId: id,
+        embeddable: item.status?.embeddable === true,
+        privacyStatus: item.status?.privacyStatus ?? null,
+      };
+    } catch (error) {
+      lastError = error;
+      if (!isYouTubeQuotaError(error)) throw error;
+      console.warn("[YouTube] API quota reached while checking embed status; trying the next authorized project key.");
     }
   }
   throw lastError instanceof Error ? lastError : new Error("All configured YouTube API projects are unavailable");
