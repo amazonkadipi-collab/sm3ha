@@ -51,7 +51,7 @@ export function createApp() {
   app.use(express.urlencoded({ limit: "1mb", extended: true }));
 
   app.get("/favicon.ico", (_req, res) => {
-    res.redirect(308, "/favicon.svg");
+    res.type("image/svg+xml").send(`<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="16" fill="#756590"/><path d="M38 14v24.2a9.5 9.5 0 1 1-6-8.8V20l18-5v18.2a9.5 9.5 0 1 1-6-8.8V14H38z" fill="white"/></svg>`);
   });
 
   app.get("/robots.txt", (req, res) => {
