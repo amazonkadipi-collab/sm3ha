@@ -74,12 +74,17 @@ async function searchWithKey(query: string, limit: number, apiKey: string): Prom
     .filter(item => item.id && item.title);
   if (!candidates.length) return [];
 
-  const details = await youtubeGet<YouTubeVideosResponse>("videos", {
-    part: "contentDetails",
-    id: candidates.map(item => item.id).join(","),
-  }, apiKey);
-  const durations = new Map((details.items ?? []).map(item => [item.id ?? "", parseYouTubeDuration(item.contentDetails?.duration ?? "")]));
-  return candidates.map(item => ({ providerVideoId: item.id, title: item.title, artist: item.artist, thumbnailUrl: item.thumbnailUrl, durationSeconds: durations.get(item.id) ?? 0, provider: "youtube" as const }));
+  // Return search candidates immediately. Duration enrichment used to require a second
+  // YouTube API request, which made every new keyword wait for two upstream calls.
+  // Duration is optional metadata; 0 is rendered as a lightweight placeholder.
+  return candidates.map(item => ({
+    providerVideoId: item.id,
+    title: item.title,
+    artist: item.artist,
+    thumbnailUrl: item.thumbnailUrl,
+    durationSeconds: 0,
+    provider: "youtube" as const,
+  }));
 }
 
 export async function searchYouTubeVideos(query: string, limit = 10): Promise<YouTubeCatalogItem[]> {
