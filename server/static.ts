@@ -5,7 +5,7 @@ import { findCatalogKeyword } from "./supabase";
 import { formatDuration } from "./catalog";
 import { findSongsBySlugs } from "./db";
 
-const PUBLIC_ORIGIN = "https://sm3haa.vercel.app";
+const PUBLIC_ORIGIN = "https://www.sm3ha.online";
 
 const escapeHtml = (value: string) => value
   .replace(/&/g, "&amp;")
@@ -14,7 +14,7 @@ const escapeHtml = (value: string) => value
   .replace(/"/g, "&quot;")
   .replace(/'/g, "&#39;");
 
-const getOrigin = (req: express.Request) => {
+const getOrigin = (_req: express.Request) => {
   const configured = process.env.PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
   return configured || PUBLIC_ORIGIN;
 };
