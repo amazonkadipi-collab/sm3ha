@@ -124,7 +124,7 @@ async function renderEntityShell(req: express.Request, template: string, kind: "
   const ld = JSON.stringify(jsonLd, (_key, value) => value === undefined ? undefined : value).replace(/</g, "\\u003c");
   const html = template
     .replace(/<html[^>]*>/i, '<html lang="ar" dir="rtl">')
-    .replace(/<title>[^<]*<\\/title>/i, `<title>${escapeHtml(title)}</title>`)
+    .replace(/<title>[^<]*<\/title>/i, `<title>${escapeHtml(title)}</title>`)
     .replace(/<meta name="description" content="[^"]*"/i, `<meta name="description" content="${escapeHtml(description)}"`)
     .replace(/<meta name="robots" content="[^"]*"/i, '<meta name="robots" content="index,follow"')
     .replace(/<meta property="og:title" content="[^"]*"/i, `<meta property="og:title" content="${escapeHtml(title)}"`)
