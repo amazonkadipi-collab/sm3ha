@@ -9,7 +9,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { ENV } from "./_core/env";
 import { countIndexableKeywords, listSitemapKeywords } from "./supabase";
 
-const PUBLIC_ORIGIN = "https://sm3haa.vercel.app";
+const PUBLIC_ORIGIN = "https://www.sm3ha.online";
 const xmlEscape = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;").replace(/'/g, "&apos;");
 const getOrigin = (req: express.Request) => process.env.PUBLIC_SITE_URL?.trim().replace(/\/$/, "") || PUBLIC_ORIGIN;
 
@@ -69,7 +69,7 @@ export function createApp() {
       return res.type("application/xml").send(`<?xml version="1.0" encoding="UTF-8"?><sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><sitemap><loc>${xmlEscape(`${origin}/sitemap-static.xml`)}</loc></sitemap>${sitemaps}</sitemapindex>`);
     }
     const keywords = await listSitemapKeywords(0, pageSize);
-    const urls = ["/", "/artists", "/albums", "/search"];
+    const urls = ["/", "/artists", "/albums", "/trending"];
     const staticUrls = urls.map(path => `<url><loc>${xmlEscape(`${origin}${path}`)}</loc></url>`).join("");
     const keywordUrls = keywords.map(row => `<url><loc>${xmlEscape(`${origin}/s/${encodeURIComponent(row.slug)}`)}</loc><lastmod>${new Date(row.updated_at).toISOString()}</lastmod></url>`).join("");
     return res.type("application/xml").send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${staticUrls}${keywordUrls}</urlset>`);
@@ -77,7 +77,7 @@ export function createApp() {
 
   app.get("/sitemap-static.xml", (req, res) => {
     const origin = getOrigin(req);
-    const urls = ["/", "/artists", "/albums", "/search"];
+    const urls = ["/", "/artists", "/albums", "/trending"];
     const body = urls.map(path => `<url><loc>${xmlEscape(`${origin}${path}`)}</loc></url>`).join("");
     return res.type("application/xml").send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>`);
   });
