@@ -13,7 +13,7 @@ import { createDemoDownloadToken } from "./download";
 import { findAlbumBySlug, findArtistBySlug, findSongBySlug, findSongByToken, findSongs, findSongsBySlugs, getDb, listAlbums, listArtists, updateDrizzleSongStatus } from "./db";
 import { findCatalogKeyword, getSupabaseAdmin, indexYouTubeTitleQueries, listCatalogKeywords, persistImportedRows, updateSupabaseSongStatus, upsertCatalogKeyword } from "./supabase";
 import { getAnalyticsSummary, getSiteSettings, hashRequestValue, listSearchLogs, listTakedowns, recordAnalyticsEvent, recordSearchLog, submitTakedown, updateSiteSettings, updateTakedown } from "./admin-observability";
-import { searchYouTubeVideos } from "./youtube";
+import { getYouTubeEmbedStatus, searchYouTubeVideos } from "./youtube";
 import { artists, songs } from "../drizzle/schema";
 
 const paginationInput = z.object({ query: z.string().trim().max(120).optional(), limit: z.number().int().min(1).max(50).default(12) });
@@ -208,6 +208,14 @@ export const appRouter = router({
     }),
   }),
   youtube: router({
+    embedStatus: publicProcedure.input(z.object({ videoId: z.string().trim().min(6).max(32) })).query(async ({ input }) => {
+      try {
+        return await getYouTubeEmbedStatus(input.videoId);
+      } catch (error) {
+        console.warn("[YouTube] embed status check failed:", error instanceof Error ? error.message : error);
+        return { videoId: input.videoId, embeddable: null, privacyStatus: null };
+      }
+    }),
     search: adminProcedure.input(z.object({ query: z.string().trim().min(2).max(120), limit: z.number().int().min(1).max(25).default(10) })).query(async ({ input }) => {
       try {
         return await searchYouTubeVideos(input.query, input.limit);
