@@ -38,6 +38,10 @@ export default function KeywordPage() {
   const { data = [], isLoading, isError } = trpc.catalog.search.useQuery({ query: keyword, limit: 10 }, { enabled: Boolean(keyword), retry: false, staleTime: 30_000 });
   const { data: keywordLinks = [] } = trpc.catalog.keywords.useQuery({ limit: 50 }, { retry: 1, staleTime: 60_000 });
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
+  const { data: embedStatus, isFetching: isCheckingEmbed } = trpc.youtube.embedStatus.useQuery(
+    { videoId: activeVideoId ?? "" },
+    { enabled: Boolean(activeVideoId), retry: false, staleTime: 5 * 60_000, gcTime: 30 * 60_000 }
+  );
   const playerRef = useRef<HTMLDivElement | null>(null);
   const hasResults = !isLoading && !isError && data.length > 0;
   const relatedKeywords = useMemo(() => {
@@ -87,25 +91,27 @@ export default function KeywordPage() {
             <button type="button" className="reference-watch" aria-pressed={isPlaying} onClick={() => setActiveVideoId(isPlaying ? null : song.providerVideoId)}>{isPlaying ? <><Square size={14} /> إيقاف</> : <><Play size={14} /> مشاهدة</>}</button>
           </div>
           {isPlaying && song.providerVideoId && <div ref={playerRef} className="reference-inline-player" aria-label={`مشاهدة ${visibleTitle} داخل سمعها`}>
-            <iframe
-              src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(song.providerVideoId)}?autoplay=1&controls=1&rel=0&modestbranding=1&playsinline=1&fs=1`}
+            {isCheckingEmbed && <div className="flex min-h-[220px] items-center justify-center rounded-2xl bg-black/[0.04] text-sm text-black/55">جاري التحقق من إمكانية المشاهدة…</div>}
+            {!isCheckingEmbed && embedStatus?.embeddable === false && <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 rounded-2xl bg-black/[0.04] px-5 text-center text-sm text-black/60">
+              <span>هذا الفيديو لا يسمح بالمشاهدة داخل المواقع الخارجية.</span>
+              <a href={"https://www.youtube.com/watch?v=" + encodeURIComponent(song.providerVideoId)} target="_blank" rel="noreferrer" className="font-semibold text-black/70 underline underline-offset-2">
+                فتح الفيديو في YouTube
+              </a>
+            </div>}
+            {!isCheckingEmbed && embedStatus?.embeddable !== false && <iframe
+              src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(song.providerVideoId)}?autoplay=1&controls=1&rel=0&playsinline=1&fs=1&origin=${encodeURIComponent(window.location.origin)}`}
               title={visibleTitle || "مشاهدة الفيديو"}
               loading="eager"
               referrerPolicy="strict-origin-when-cross-origin"
               allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
               allowFullScreen
-            />
-            <div className="mt-2 flex items-center justify-between gap-3 text-xs text-black/55">
-              <span>إذا كان الفيديو غير قابل للتضمين، افتحه مباشرة من YouTube.</span>
-              <a
-                href={"https://www.youtube.com/watch?v=" + encodeURIComponent(song.providerVideoId)}
-                target="_blank"
-                rel="noreferrer"
-                className="font-semibold text-black/70 underline underline-offset-2"
-              >
+            />}
+            {!isCheckingEmbed && <div className="mt-2 flex items-center justify-between gap-3 text-xs text-black/55">
+              <span>{embedStatus?.embeddable === false ? "تم تحويلك إلى المصدر الرسمي لأن التضمين غير مسموح." : "المشاهدة تتم عبر مشغل YouTube الرسمي."}</span>
+              <a href={"https://www.youtube.com/watch?v=" + encodeURIComponent(song.providerVideoId)} target="_blank" rel="noreferrer" className="font-semibold text-black/70 underline underline-offset-2">
                 فتح في YouTube
               </a>
-            </div>
+            </div>}
           </div>}
         </article>;
       })}
