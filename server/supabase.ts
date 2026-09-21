@@ -176,3 +176,65 @@ export async function updateSupabaseSongStatus(slug: string, status: "available"
 export function mapSupabaseSong(row: any): CatalogSong {
   return { id: Number(String(row.id).replace(/\D/g, "").slice(-9) || 0), title: row.title, artist: row.artist?.name ?? row.artist_name ?? "فنان تجريبي", artistSlug: row.artist?.slug ?? row.artist_slug ?? "artist", album: row.album?.title ?? row.album_title ?? "إصدار تجريبي", slug: row.slug, providerVideoId: row.provider_video_id, opaqueToken: row.opaque_token ?? row.opaqueToken ?? createOpaqueToken(`${row.provider_video_id}:${row.slug}`), thumbnailUrl: row.thumbnail_url ?? "", durationSeconds: row.duration_seconds ?? 0, isFeatured: Boolean(row.is_featured), rightsStatus: row.rights_status === "licensed" ? "licensed" : row.rights_status === "metadata_only" ? "metadata_only" : "demo", availabilityStatus: row.status === "removed" ? "removed" : "available" };
 }
+
+export async function listSitemapSongs(offset = 0, limit = 45000) {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return [];
+  const { data, error } = await supabase.from("songs")
+    .select("slug,updated_at,created_at")
+    .eq("status", "active")
+    .order("updated_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+  if (error) { console.warn("[Supabase] sitemap song query failed:", error.message); return []; }
+  return data ?? [];
+}
+
+export async function countIndexableSongs() {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return 0;
+  const { count, error } = await supabase.from("songs")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "active");
+  if (error) { console.warn("[Supabase] song count failed:", error.message); return 0; }
+  return count ?? 0;
+}
+
+export async function listSitemapArtists(offset = 0, limit = 45000) {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return [];
+  const { data, error } = await supabase.from("artists")
+    .select("slug,created_at")
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+  if (error) { console.warn("[Supabase] sitemap artist query failed:", error.message); return []; }
+  return data ?? [];
+}
+
+export async function countSitemapArtists() {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return 0;
+  const { count, error } = await supabase.from("artists")
+    .select("id", { count: "exact", head: true });
+  if (error) { console.warn("[Supabase] artist count failed:", error.message); return 0; }
+  return count ?? 0;
+}
+
+export async function listSitemapAlbums(offset = 0, limit = 45000) {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return [];
+  const { data, error } = await supabase.from("albums")
+    .select("slug,created_at")
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+  if (error) { console.warn("[Supabase] sitemap album query failed:", error.message); return []; }
+  return data ?? [];
+}
+
+export async function countSitemapAlbums() {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return 0;
+  const { count, error } = await supabase.from("albums")
+    .select("id", { count: "exact", head: true });
+  if (error) { console.warn("[Supabase] album count failed:", error.message); return 0; }
+  return count ?? 0;
+}
