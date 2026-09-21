@@ -93,7 +93,7 @@ async function renderEntityShell(req: express.Request, template: string, kind: "
   let jsonLd: Record<string, unknown>;
 
   if (kind === "song") {
-    const song = await findSongBySlug(slug);
+    const song = await findSongBySlug(slug) as any;
     if (!song) return { status: 404, html: template };
     title = `${song.title} Mp3 - تحميل واستماع | سمعها`;
     description = `استمع واكتشف ${song.title} على سمعها. معلومات الأغنية ونتائج موسيقية مرتبطة.`;
@@ -102,7 +102,7 @@ async function renderEntityShell(req: express.Request, template: string, kind: "
     content = `<main dir="rtl" class="reference-page mx-auto max-w-[1080px] px-4 pb-12 pt-4 sm:px-8"><a href="/" class="reference-back">الرئيسية</a><section class="reference-page-head"><div><span>سمعها</span><h1>${escapeHtml(song.title)}</h1><p>${artistLink}</p></div></section><section class="reference-results"><article class="reference-media-row"><div class="reference-media-thumb reference-media-thumb-area">${song.thumbnailUrl ? `<img src="${escapeHtml(song.thumbnailUrl)}" alt="${escapeHtml(song.title)}" loading="lazy">` : "<span aria-hidden=\"true\">♫</span>"}</div><div class="reference-media-copy"><h2>${escapeHtml(song.title)}</h2><p>مدة الفيديو: ${escapeHtml(formatDuration(song.durationSeconds ?? 0))}</p></div><div class="reference-media-actions reference-media-actions-area"><a class="reference-action" href="/media?d=${encodeURIComponent(song.opaqueToken)}">تحميل</a><a class="reference-watch" href="https://www.youtube.com/watch?v=${encodeURIComponent(song.providerVideoId)}" target="_blank" rel="noreferrer">مشاهدة</a></div></article></section></main>`;
     jsonLd = { "@context": "https://schema.org", "@type": "MusicRecording", name: song.title, url: canonical, image: song.thumbnailUrl || undefined, duration: song.durationSeconds ? `PT${Math.floor(song.durationSeconds / 60)}M${song.durationSeconds % 60}S` : undefined, byArtist: song.artist ? { "@type": "MusicGroup", name: song.artist, url: song.artistSlug ? absoluteUrl(req, `/artists/${encodeURIComponent(song.artistSlug)}`) : undefined } : undefined };
   } else if (kind === "artist") {
-    const artist = await findArtistBySlug(slug);
+    const artist = await findArtistBySlug(slug) as any;
     if (!artist?.songs?.length) return { status: 404, html: template };
     title = `اغاني ${artist.name} Mp3 - تحميل واستماع | سمعها`;
     description = `استكشف أغاني ${artist.name} واستمع إلى النتائج المتاحة عبر سمعها.`;
@@ -111,7 +111,7 @@ async function renderEntityShell(req: express.Request, template: string, kind: "
     content = `<main dir="rtl" class="reference-page mx-auto max-w-[1080px] px-4 pb-12 pt-4 sm:px-8"><a href="/" class="reference-back">الرئيسية</a><section class="reference-page-head"><div><span>الفنان</span><h1>${escapeHtml(artist.name)}</h1><p>أغاني الفنان المتاحة في سمعها</p></div></section><section class="reference-results" aria-label="أغاني الفنان">${songs}</section></main>`;
     jsonLd = { "@context": "https://schema.org", "@type": "MusicGroup", name: artist.name, url: canonical, image: artist.imageUrl || undefined };
   } else {
-    const album = await findAlbumBySlug(slug);
+    const album = await findAlbumBySlug(slug) as any;
     if (!album?.songs?.length) return { status: 404, html: template };
     title = `البوم ${album.title} - اغاني Mp3 | سمعها`;
     description = `استكشف ألبوم ${album.title} والأغاني المتاحة عبر سمعها.`;
