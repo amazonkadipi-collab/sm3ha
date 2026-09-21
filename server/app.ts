@@ -7,7 +7,7 @@ import { createContext } from "./_core/context";
 import { verifyDemoDownloadToken } from "./download";
 import { COOKIE_NAME } from "@shared/const";
 import { ENV } from "./_core/env";
-import { countIndexableKeywords, listSitemapKeywords } from "./supabase";
+import { countIndexableKeywords, listSitemapKeywords, countIndexableSongs, listSitemapSongs, countSitemapArtists, listSitemapArtists, countSitemapAlbums, listSitemapAlbums } from "./supabase";
 
 const PUBLIC_ORIGIN = "https://www.sm3ha.online";
 const xmlEscape = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;").replace(/'/g, "&apos;");
@@ -61,19 +61,48 @@ export function createApp() {
 
   app.get("/sitemap.xml", async (req, res) => {
     const origin = getOrigin(req);
-    const totalKeywords = await countIndexableKeywords();
     const pageSize = 45000;
-    if (totalKeywords > pageSize) {
-      const pages = Math.ceil(totalKeywords / pageSize);
-      const sitemaps = Array.from({ length: pages }, (_, index) => `<sitemap><loc>${xmlEscape(`${origin}/sitemap-keywords-${index + 1}.xml`)}</loc></sitemap>`).join("");
-      return res.type("application/xml").send(`<?xml version="1.0" encoding="UTF-8"?><sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><sitemap><loc>${xmlEscape(`${origin}/sitemap-static.xml`)}</loc></sitemap>${sitemaps}</sitemapindex>`);
-    }
-    const keywords = await listSitemapKeywords(0, pageSize);
-    const urls = ["/", "/artists", "/albums", "/trending"];
-    const staticUrls = urls.map(path => `<url><loc>${xmlEscape(`${origin}${path}`)}</loc></url>`).join("");
-    const keywordUrls = keywords.map(row => `<url><loc>${xmlEscape(`${origin}/s/${encodeURIComponent(row.slug)}`)}</loc><lastmod>${new Date(row.updated_at).toISOString()}</lastmod></url>`).join("");
-    return res.type("application/xml").send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${staticUrls}${keywordUrls}</urlset>`);
+    const [keywords, songs, artists, albums] = await Promise.all([
+      countIndexableKeywords(), countIndexableSongs(), countSitemapArtists(), countSitemapAlbums()
+    ]);
+    const groups = [
+      { name: "static", count: 4 },
+      { name: "keywords", count: keywords },
+      { name: "songs", count: songs },
+      { name: "artists", count: artists },
+      { name: "albums", count: albums },
+    ];
+    const entries = groups.flatMap(group => {
+      const pages = Math.max(1, Math.ceil(group.count / pageSize));
+      return Array.from({ length: pages }, (_, i) => {
+        const suffix = pages === 1 ? "" : `-${i + 1}`;
+        return `<sitemap><loc>${xmlEscape(`${origin}/sitemap-${group.name}${suffix}.xml`)}</loc></sitemap>`;
+      });
+    }).join("");
+    return res.type("application/xml").send(`<?xml version="1.0" encoding="UTF-8"?><sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${entries}</sitemapindex>`);
   });
+
+  const sendEntitySitemap = async (req: express.Request, res: express.Response, kind: "keywords" | "songs" | "artists" | "albums") => {
+    const page = req.params.page ? Number(req.params.page) : 1;
+    if (!Number.isInteger(page) || page < 1) return res.status(404).type("text/plain").send("Not found");
+    const origin = getOrigin(req);
+    const offset = (page - 1) * 45000;
+    const rows = kind === "keywords"
+      ? await listSitemapKeywords(offset, 45000)
+      : kind === "songs"
+        ? await listSitemapSongs(offset, 45000)
+        : kind === "artists"
+          ? await listSitemapArtists(offset, 45000)
+          : await listSitemapAlbums(offset, 45000);
+    if (!rows.length) return res.status(404).type("text/plain").send("Not found");
+    const prefix = kind === "keywords" ? "/s/" : kind === "songs" ? "/song/" : kind === "artists" ? "/artists/" : "/album/";
+    const body = rows.map((row: any) => {
+      const lastmod = row.updated_at ?? row.created_at;
+      const mod = lastmod ? `<lastmod>${new Date(lastmod).toISOString()}</lastmod>` : "";
+      return `<url><loc>${xmlEscape(`${origin}${prefix}${encodeURIComponent(row.slug)}`)}</loc>${mod}</url>`;
+    }).join("");
+    return res.type("application/xml").send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>`);
+  };
 
   app.get("/sitemap-static.xml", (req, res) => {
     const origin = getOrigin(req);
@@ -82,15 +111,16 @@ export function createApp() {
     return res.type("application/xml").send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>`);
   });
 
-  app.get("/sitemap-keywords-:page.xml", async (req, res) => {
-    const page = Number(req.params.page);
-    if (!Number.isInteger(page) || page < 1) return res.status(404).type("text/plain").send("Not found");
-    const origin = getOrigin(req);
-    const keywords = await listSitemapKeywords((page - 1) * 45000, 45000);
-    if (!keywords.length) return res.status(404).type("text/plain").send("Not found");
-    const body = keywords.map(row => `<url><loc>${xmlEscape(`${origin}/s/${encodeURIComponent(row.slug)}`)}</loc><lastmod>${new Date(row.updated_at).toISOString()}</lastmod></url>`).join("");
-    return res.type("application/xml").send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>`);
-  });
+  app.get("/sitemap-static-:page.xml", (req, res) => sendEntitySitemap(req, res, "keywords"));
+
+  app.get("/sitemap-keywords.xml", (req, res) => sendEntitySitemap(req, res, "keywords"));
+  app.get("/sitemap-keywords-:page.xml", (req, res) => sendEntitySitemap(req, res, "keywords"));
+  app.get("/sitemap-songs.xml", (req, res) => sendEntitySitemap(req, res, "songs"));
+  app.get("/sitemap-songs-:page.xml", (req, res) => sendEntitySitemap(req, res, "songs"));
+  app.get("/sitemap-artists.xml", (req, res) => sendEntitySitemap(req, res, "artists"));
+  app.get("/sitemap-artists-:page.xml", (req, res) => sendEntitySitemap(req, res, "artists"));
+  app.get("/sitemap-albums.xml", (req, res) => sendEntitySitemap(req, res, "albums"));
+  app.get("/sitemap-albums-:page.xml", (req, res) => sendEntitySitemap(req, res, "albums"));
 
   registerStorageProxy(app);
   if (ENV.oAuthServerUrl) registerOAuthRoutes(app);
