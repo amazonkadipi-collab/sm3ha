@@ -117,3 +117,13 @@ a { -webkit-tap-highlight-color: transparent; }
   html { scroll-behavior: auto; }
   *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
+
+
+/* v1-style /trending page */
+.v1-trending { width: min(1080px, 100%); margin: 0 auto; padding: 1.4rem .75rem 3rem; color: #354b4a; }
+.v1-trending h1 { margin: 0 0 1rem; font-size: 1.25rem; font-weight: 700; line-height: 1.5; }
+.v1-trending-list { display: flex; flex-direction: column; align-items: stretch; }
+.v1-trending-item { display: block; width: 100%; box-sizing: border-box; padding: .38rem 0; color: #527566; text-decoration: none; font-size: .88rem; line-height: 1.8; text-align: right; }
+.v1-trending-item:hover { color: #304a45; text-decoration: underline; text-underline-offset: 2px; }
+.v1-trending-state { padding: 1rem 0; color: #899793; font-size: .85rem; }
+@media (max-width: 640px) { .v1-trending { padding-left: .75rem; padding-right: .75rem; } .v1-trending h1 { font-size: 1.1rem; } .v1-trending-item { font-size: .84rem; } }
