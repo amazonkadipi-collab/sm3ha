@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Clock3, Download, Play, Square, Youtube } from "lucide-react";
+import { Clock3, Download, Play, Youtube } from "lucide-react";
 import { useLocation, useRoute } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { applySeo, resetSeo } from "@/lib/seo";
@@ -58,7 +58,15 @@ export default function KeywordPage() {
   }, [keywordLinks, keyword, slug]);
 
   useEffect(() => setQuery(keyword), [keyword]);
-  useEffect(() => setActiveVideoId(null), [slug]);
+  useEffect(() => {
+    const syncHash = () => {
+      const hash = window.location.hash.slice(1).trim();
+      setActiveVideoId(hash || null);
+    };
+    syncHash();
+    window.addEventListener("hashchange", syncHash);
+    return () => window.removeEventListener("hashchange", syncHash);
+  }, [slug]);
   useEffect(() => {
     if (activeVideoId) requestAnimationFrame(() => playerRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
   }, [activeVideoId]);
@@ -98,7 +106,7 @@ export default function KeywordPage() {
           <div className="min-w-0 reference-media-copy"><h2>{visibleTitle}</h2><p><Youtube size={14} /> <Clock3 size={14} /> مدة الفيديو: {song.duration}</p></div>
           <div className="reference-media-actions reference-media-actions-area">
             <a href={workflowLinks.media(song.opaqueToken)} className="reference-action"><Download size={15} /> تحميل</a>
-            <button type="button" className="reference-watch" aria-pressed={isPlaying} onClick={() => setActiveVideoId(isPlaying ? null : song.providerVideoId)}>{isPlaying ? <><Square size={14} /> إيقاف</> : <><Play size={14} /> مشاهدة</>}</button>
+            <a href={`#${encodeURIComponent(song.providerVideoId)}`} className="reference-watch" aria-label={`مشاهدة ${visibleTitle}`} onClick={() => setActiveVideoId(song.providerVideoId)}><Play size={14} /> مشاهدة</a>
           </div>
           {isPlaying && song.providerVideoId && <div ref={playerRef} className="reference-inline-player" aria-label={`مشاهدة ${visibleTitle} داخل سمعها`}>
             {isCheckingEmbed && <div className="flex min-h-[220px] items-center justify-center rounded-2xl bg-black/[0.04] text-sm text-black/55">جاري التحقق من إمكانية المشاهدة…</div>}
