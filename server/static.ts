@@ -1,9 +1,9 @@
 import express from "express";
 import fs from "node:fs";
 import path from "node:path";
-import { findCatalogKeyword, listCatalogKeywords } from "./supabase";
+import { findCatalogKeyword, listCatalogKeywords, upsertCatalogKeyword } from "./supabase";
 import { formatDuration } from "./catalog";
-import { findAlbumBySlug, findArtistBySlug, findSongBySlug, findSongsBySlugs } from "./db";
+import { findAlbumBySlug, findArtistBySlug, findSongBySlug, findSongs, findSongsBySlugs } from "./db";
 
 const PUBLIC_ORIGIN = "https://www.sm3ha.online";
 
@@ -22,6 +22,8 @@ const getOrigin = (_req: express.Request) => {
 const absoluteUrl = (req: express.Request, pathname: string) =>
   new URL(pathname, getOrigin(req)).toString();
 
+const makeKeywordSlug = (value: string) => value.trim().replace(/\s+/g, "-").replace(/^-+|-+$/g, "");
+
 async function renderKeywordShell(req: express.Request, template: string) {
   const rawSlug = String(req.params[0] || "").replace(/^\/+|\/+$/g, "");
   if (!rawSlug) return null;
@@ -32,15 +34,23 @@ async function renderKeywordShell(req: express.Request, template: string) {
   const keyword = slug.replace(/-/g, " ").trim();
   if (!keyword || keyword.length > 120) return { status: 404, html: template };
 
+  // Match the v1 /s/* behavior: any meaningful query can resolve on first visit.
   const record = await findCatalogKeyword(slug);
-  if (!record?.result_slugs?.length) return { status: 404, html: template };
+  const songs = record?.result_slugs?.length
+    ? await findSongsBySlugs(record.result_slugs, 10)
+    : await findSongs(keyword, 10);
 
-  const songs = await findSongsBySlugs(record.result_slugs, 10);
   if (!songs.length) return { status: 404, html: template };
 
-  const title = `تحميل ${record.query || keyword} Mp3 Mp4 سمعها`;
-  const description = `نتائج ${record.query || keyword} في سمعها. إبحث واستكشف الأغاني والفيديوهات المتاحة.`;
-  const canonical = absoluteUrl(req, `/s/${encodeURIComponent(record.slug)}`);
+  const canonicalSlug = record?.slug || makeKeywordSlug(keyword);
+  const resolvedQuery = record?.query || keyword;
+  if (!record?.result_slugs?.length) {
+    await upsertCatalogKeyword(keyword, songs.map(song => song.slug), "search", true);
+  }
+
+  const title = `تحميل ${resolvedQuery} Mp3 Mp4 سمعها`;
+  const description = `نتائج ${resolvedQuery} في سمعها. إبحث واستكشف الأغاني والفيديوهات المتاحة.`;
+  const canonical = absoluteUrl(req, `/s/${encodeURIComponent(canonicalSlug)}`);
 
   const resultHtml = songs.map(song => {
     const songTitle = escapeHtml(song.title);
