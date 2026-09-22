@@ -18,8 +18,6 @@ import AlbumPage from "@/pages/AlbumPage";
 import { Route, Switch, Link } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
-import { useState, type FormEvent } from "react";
-import { workflowLinks } from "@/lib/flow";
 
 export function PublicLayout({ children }: { children: React.ReactNode }) {
   return <div className="naghma-shell">
