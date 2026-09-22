@@ -1,7 +1,7 @@
 import express from "express";
 import fs from "node:fs";
 import path from "node:path";
-import { findCatalogKeyword } from "./supabase";
+import { findCatalogKeyword, listCatalogKeywords } from "./supabase";
 import { formatDuration } from "./catalog";
 import { findAlbumBySlug, findArtistBySlug, findSongBySlug, findSongsBySlugs } from "./db";
 
@@ -49,10 +49,21 @@ async function renderKeywordShell(req: express.Request, template: string) {
       ? `<img src="${escapeHtml(song.thumbnailUrl)}" alt="${songTitle}" loading="lazy">`
       : `<span aria-hidden="true">♫</span>`;
     const watchUrl = `https://www.youtube.com/watch?v=${encodeURIComponent(song.providerVideoId)}`;
-    return `<article class="reference-media-row"><div class="reference-media-thumb reference-media-thumb-area">${thumb}</div><div class="reference-media-copy"><h2>${songTitle}</h2><p>▶ مدة الفيديو: ${duration}</p></div><div class="reference-media-actions reference-media-actions-area"><a class="reference-action" href="/media?d=${encodeURIComponent(song.opaqueToken)}">تحميل</a><a class="reference-watch" href="${watchUrl}" target="_blank" rel="noreferrer">مشاهدة</a></div></article>`;
+    return `<article class="reference-media-row"><div class="reference-media-thumb reference-media-thumb-area">${thumb}</div><div class="reference-media-copy"><h2><a href="/song/${encodeURIComponent(song.slug)}">${songTitle}</a></h2><p>▶ مدة الفيديو: ${duration}</p></div><div class="reference-media-actions reference-media-actions-area"><a class="reference-action" href="/media?d=${encodeURIComponent(song.opaqueToken)}">تحميل</a><a class="reference-watch" href="${watchUrl}" target="_blank" rel="noreferrer">مشاهدة</a></div></article>`;
   }).join("");
 
-  const content = `<main dir="rtl" class="reference-page mx-auto max-w-[1080px] px-4 pb-12 pt-4 sm:px-8"><a href="/" class="reference-back">الرئيسية</a><section class="reference-page-head"><div><span>سمعها</span><h1>${escapeHtml(title)}</h1></div></section><section class="reference-results" aria-label="${escapeHtml(`نتائج ${record.query || keyword}`)}"><div class="reference-results-title">نتائج «${escapeHtml(record.query || keyword)}»</div>${resultHtml}</section></main>`;
+  const relatedRows = await listCatalogKeywords(50);
+  const keywordWords = new Set(keyword.toLocaleLowerCase("ar").split(/\s+/).filter(Boolean));
+  const relatedHtml = relatedRows
+    .filter(item => item.slug !== record.slug && item.result_count > 0)
+    .map(item => ({ item, overlap: item.query.toLocaleLowerCase("ar").split(/\s+/).filter(word => keywordWords.has(word)).length }))
+    .filter(entry => entry.overlap > 0)
+    .sort((a, b) => b.overlap - a.overlap || a.item.query.localeCompare(b.item.query, "ar"))
+    .slice(0, 12)
+    .map(({ item }) => `<a href="/s/${encodeURIComponent(item.slug)}">تحميل ${escapeHtml(item.query)}</a>`)
+    .join("");
+  const relatedSection = relatedHtml ? `<section class="mt-8 border-t border-black/10 pt-5" aria-label="كلمات مرتبطة"><div class="mb-3 text-sm font-semibold">مواضيع مرتبطة</div><div class="flex flex-wrap gap-2">${relatedHtml}</div></section>` : "";
+  const content = `<main dir="rtl" class="reference-page mx-auto max-w-[1080px] px-4 pb-12 pt-4 sm:px-8"><a href="/" class="reference-back">الرئيسية</a><section class="reference-page-head"><div><span>سمعها</span><h1>${escapeHtml(title)}</h1></div></section><section class="reference-results" aria-label="${escapeHtml(`نتائج ${record.query || keyword}`)}"><div class="reference-results-title">نتائج «${escapeHtml(record.query || keyword)}»</div>${resultHtml}</section>${relatedSection}</main>`;
 
   const jsonLd = JSON.stringify({
     "@context": "https://schema.org",
@@ -72,6 +83,9 @@ async function renderKeywordShell(req: express.Request, template: string) {
     .replace(/<meta property="og:description" content="[^"]*"/i, `<meta property="og:description" content="${escapeHtml(description)}"`)
     .replace(/<meta property="og:type" content="[^"]*"/i, '<meta property="og:type" content="website"')
     .replace(/<meta property="og:locale" content="[^"]*"/i, '<meta property="og:locale" content="ar_MA"')
+    .replace(/<meta property="og:url" content="[^"]*"/i, `<meta property="og:url" content="${escapeHtml(canonical)}"`)
+    .replace(/<meta name="twitter:title" content="[^"]*"/i, `<meta name="twitter:title" content="${escapeHtml(title)}"`)
+    .replace(/<meta name="twitter:description" content="[^"]*"/i, `<meta name="twitter:description" content="${escapeHtml(description)}"` )
     .replace(/<link rel="canonical"[^>]*>/i, `<link rel="canonical" href="${escapeHtml(canonical)}">`)
     .replace("</head>", `<script type="application/ld+json" data-sm3ha-seo="true">${jsonLd}</script></head>`)
     .replace('<div id="root"></div>', `<div id="root">${content}</div>`);
