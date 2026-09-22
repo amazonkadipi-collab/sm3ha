@@ -1,6 +1,5 @@
 import express from "express";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import { registerOAuthRoutes } from "./_core/oauth";
 import { registerStorageProxy } from "./_core/storageProxy";
 import { appRouter } from "./routers";
 import { createContext } from "./_core/context";
@@ -165,7 +164,6 @@ export function createApp() {
   });
 
   registerStorageProxy(app);
-  if (ENV.oAuthServerUrl) registerOAuthRoutes(app);
   app.use("/api/trpc", (req, res, next) => {
     if (req.method === "POST" && req.url.includes("adminLogin")) {
       const key = req.ip || "anonymous";
