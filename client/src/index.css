@@ -61,8 +61,8 @@ a { -webkit-tap-highlight-color: transparent; }
 .reference-media-thumb-area { grid-area: thumb; }
 .reference-media-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .reference-media-copy { min-width: 0; grid-area: copy; direction: rtl; text-align: right; }
-.reference-media-row h2 { margin: 0; overflow: hidden; color: #42645b; font-size: .98rem; font-weight: 600; line-height: 1.5; text-overflow: ellipsis; white-space: nowrap; }
-.reference-media-row p { display: flex; align-items: center; gap: .25rem; margin: .18rem 0 0; color: #82918c; font-size: .82rem; line-height: 1.5; }
+.reference-media-row h2 { margin: 0; overflow: hidden; color: #405d56; font-size: 1.08rem; font-weight: 700; line-height: 1.5; text-overflow: ellipsis; white-space: nowrap; }
+.reference-media-row p { display: flex; align-items: center; gap: .25rem; margin: .2rem 0 0; color: #405d56; font-size: .9rem; font-weight: 600; line-height: 1.5; }
 .reference-media-row p svg,
 .reference-media-actions svg,
 .reference-media-thumb svg { display: inline-block; flex: 0 0 auto; vertical-align: middle; }
@@ -111,8 +111,8 @@ a { -webkit-tap-highlight-color: transparent; }
   .reference-footer-card { align-items: flex-start; flex-direction: column; }
   .reference-media-row { grid-template-columns: 112px minmax(0, 1fr); grid-template-areas: "thumb copy" "thumb actions"; gap: .55rem .7rem; min-height: 0; padding: .7rem .7rem; }
   .reference-media-thumb { width: 108px; height: 61px; }
-  .reference-media-row h2 { white-space: normal; font-size: .92rem; line-height: 1.5; }
-  .reference-media-row p { font-size: .76rem; margin-top: .08rem; }
+  .reference-media-row h2 { white-space: normal; font-size: 1rem; line-height: 1.5; }
+  .reference-media-row p { font-size: .86rem; margin-top: .1rem; }
   .reference-media-actions { justify-content: flex-start; gap: .25rem; }
   .reference-media-actions .reference-action, .reference-watch { padding: .38rem .58rem; font-size: .72rem; }
   .reference-media-actions .reference-action svg, .reference-watch svg { width: 15px; height: 15px; }
