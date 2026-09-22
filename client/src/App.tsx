@@ -11,6 +11,7 @@ import ConversionPage from "@/pages/ConversionPage";
 import TrendingPage from "@/pages/TrendingPage";
 import LegalPage from "@/pages/LegalPage";
 import AdminPage from "@/pages/AdminPage";
+import LoginPage from "@/pages/LoginPage";
 import ArtistPage from "@/pages/ArtistPage";
 import ArtistsPage from "@/pages/ArtistsPage";
 import AlbumsPage from "@/pages/AlbumsPage";
@@ -18,8 +19,9 @@ import AlbumPage from "@/pages/AlbumPage";
 import { Route, Switch, Link } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { useAuth } from "./_core/hooks/useAuth";
 
-export function PublicLayout({ children }: { children: React.ReactNode }) {
+function AuthHeader() {\n  const { user, loading, logout } = useAuth();\n  if (loading) return null;\n  return user ? <button type="button" onClick={() => void logout()} className="reference-top-link">خروج</button> : <Link href="/login" className="reference-top-link">دخول</Link>;\n}\n\nexport function PublicLayout({ children }: { children: React.ReactNode }) {
   return <div className="naghma-shell">
     <header className="reference-top-header" dir="rtl">
       <div className="reference-top-header-inner">
@@ -50,7 +52,7 @@ function Router() { return <PublicLayout><Switch>
   <Route path="/terms" component={() => <LegalPage kind="terms" />} />
   <Route path="/dmca" component={() => <LegalPage kind="dmca" />} />
   <Route path="/contact" component={() => <LegalPage kind="contact" />} />
-  <Route path="/admin" component={AdminPage} />
+  <Route path="/login" component={LoginPage} />\n  <Route path="/admin" component={AdminPage} />
   <Route component={NotFound} />
 </Switch></PublicLayout>; }
 
