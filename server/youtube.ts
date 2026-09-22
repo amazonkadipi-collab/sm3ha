@@ -70,6 +70,7 @@ async function searchWithKey(query: string, limit: number, apiKey: string): Prom
     part: "snippet",
     q: query.trim(),
     type: "video",
+    videoCategoryId: "10",
     maxResults: String(Math.min(Math.max(limit, 1), 25)),
     safeSearch: "moderate",
   }, apiKey);
