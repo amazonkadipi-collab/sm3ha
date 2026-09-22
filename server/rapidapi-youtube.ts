@@ -1,5 +1,8 @@
-const RAPIDAPI_BASE = "https://youtube-to-mp4-mp3.p.rapidapi.com/api";
 const RAPIDAPI_HOST = "youtube-to-mp4-mp3.p.rapidapi.com";
+const RAPIDAPI_BASES = [
+  `https://${RAPIDAPI_HOST}/api`,
+  `https://${RAPIDAPI_HOST}`,
+];
 
 export type RapidMediaLink = {
   url: string;
@@ -115,22 +118,34 @@ function linksFromPayload(payload: unknown, format: "mp3" | "mp4"): RapidMediaLi
 
 async function call(path: string, url: string) {
   const key = requireKey();
-  const response = await fetch(`${RAPIDAPI_BASE}${path}?url=${encodeURIComponent(url)}`, {
-    headers: {
-      "x-rapidapi-key": key,
-      "x-rapidapi-host": RAPIDAPI_HOST,
-      accept: "application/json",
-    },
-    signal: AbortSignal.timeout(30_000),
-  });
-  const text = await response.text();
-  let payload: unknown;
-  try { payload = JSON.parse(text); } catch { payload = { raw: text }; }
-  if (!response.ok) {
+  let lastError = "";
+
+  for (const base of RAPIDAPI_BASES) {
+    const response = await fetch(`${base}${path}?url=${encodeURIComponent(url)}`, {
+      headers: {
+        "x-rapidapi-key": key,
+        "x-rapidapi-host": RAPIDAPI_HOST,
+        accept: "application/json",
+      },
+      signal: AbortSignal.timeout(30_000),
+    });
+    const text = await response.text();
+    let payload: unknown;
+    try { payload = JSON.parse(text); } catch { payload = { raw: text }; }
+
+    if (response.ok) return payload;
+
     const message = firstString(payload, ["message", "error", "detail"]) || `RapidAPI returned ${response.status}`;
+    lastError = message;
+
+    // The provider currently reports '/api/video-info' as a missing endpoint on
+    // some deployments even though the marketplace documentation shows /api.
+    // Retry the same endpoint against the host root before failing.
+    if (response.status === 404 || /endpoint.*does not exist/i.test(message)) continue;
     throw new Error(message);
   }
-  return payload;
+
+  throw new Error(lastError || "RapidAPI endpoint unavailable");
 }
 
 export function normalizeVideoId(value: string) {
@@ -138,8 +153,9 @@ export function normalizeVideoId(value: string) {
   if (/^[A-Za-z0-9_-]{6,32}$/.test(input)) return input;
   try {
     const parsed = new URL(input);
-    if (parsed.hostname === "youtu.be") return parsed.pathname.slice(1).split("/")[0];
-    if (/youtube\.com$/i.test(parsed.hostname) || /youtube\.com$/i.test(parsed.hostname.replace(/^www\./i, ""))) {
+    const host = parsed.hostname.replace(/^www\./i, "").toLowerCase();
+    if (host === "youtu.be") return parsed.pathname.slice(1).split("/")[0];
+    if (host === "youtube.com" || host.endsWith(".youtube.com")) {
       return parsed.searchParams.get("v") || parsed.pathname.split("/").filter(Boolean).pop() || "";
     }
   } catch {
@@ -152,15 +168,27 @@ export async function getRapidYouTubeInfo(videoId: string): Promise<RapidYouTube
   const id = normalizeVideoId(videoId);
   if (!id) throw new Error("Invalid YouTube video ID");
   const url = youtubeUrl(id);
-  const [thumbnailPayload, videoPayload, audioPayload] = await Promise.all([
-    call("/thumbnails", url),
+
+  // Metadata endpoints are independent. A thumbnail failure must not prevent
+  // the video/audio result from loading.
+  const [videoResult, audioResult, thumbnailResult] = await Promise.allSettled([
     call("/video-info", url),
     call("/audio-info", url),
+    call("/thumbnails", url),
   ]);
+
+  if (videoResult.status === "rejected" && audioResult.status === "rejected") {
+    throw new Error(videoResult.reason instanceof Error ? videoResult.reason.message : "RapidAPI could not retrieve the video");
+  }
+
+  const videoPayload = videoResult.status === "fulfilled" ? videoResult.value : {};
+  const audioPayload = audioResult.status === "fulfilled" ? audioResult.value : {};
+  const thumbnailPayload = thumbnailResult.status === "fulfilled" ? thumbnailResult.value : {};
   const thumbnails = allUrls(thumbnailPayload).filter(item => /ytimg|youtube/i.test(item));
   const title = firstString(videoPayload, ["title", "name"]) || firstString(audioPayload, ["title", "name"]);
   const durationSeconds = firstNumber(videoPayload, ["duration", "durationSeconds", "duration_seconds"])
     || firstNumber(audioPayload, ["duration", "durationSeconds", "duration_seconds"]);
+
   return {
     videoId: id,
     url,
