@@ -187,3 +187,11 @@ a { -webkit-tap-highlight-color: transparent; }
   .reference-v1-button { width: 100%; justify-content: center; }
   .reference-v1-article { font-size: .76rem; }
 }
+
+.reference-media-search-wrap { width: min(1080px, 100%); margin: 0 auto; padding: .8rem .75rem .45rem; }
+.reference-media-search-wrap .reference-search { max-width: 720px; }
+.reference-media-footer { width: min(1080px, 100%); margin: 0 auto; padding: 1rem .75rem 1.6rem; color: #82918c; font-size: .72rem; line-height: 1.9; text-align: center; }
+.reference-media-footer a { color: #527566; text-decoration: none; }
+.reference-media-footer a:hover { text-decoration: underline; }
+.reference-media-footer > div:first-child { margin-bottom: .1rem; }
+@media (max-width: 620px) { .reference-media-search-wrap { padding: .55rem .75rem .3rem; } .reference-media-footer { padding-left: .75rem; padding-right: .75rem; } }
