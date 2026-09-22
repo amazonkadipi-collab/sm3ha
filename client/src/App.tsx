@@ -21,7 +21,13 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { useAuth } from "./_core/hooks/useAuth";
 
-function AuthHeader() {\n  const { user, loading, logout } = useAuth();\n  if (loading) return null;\n  return user ? <button type="button" onClick={() => void logout()} className="reference-top-link">خروج</button> : <Link href="/login" className="reference-top-link">دخول</Link>;\n}\n\nexport function PublicLayout({ children }: { children: React.ReactNode }) {
+function AuthHeader() {
+  const { user, loading, logout } = useAuth();
+  if (loading) return null;
+  return user ? <button type="button" onClick={() => void logout()} className="reference-top-link">خروج</button> : <Link href="/login" className="reference-top-link">دخول</Link>;
+}
+
+export function PublicLayout({ children }: { children: React.ReactNode }) {
   return <div className="naghma-shell">
     <header className="reference-top-header" dir="rtl">
       <div className="reference-top-header-inner">
@@ -52,7 +58,8 @@ function Router() { return <PublicLayout><Switch>
   <Route path="/terms" component={() => <LegalPage kind="terms" />} />
   <Route path="/dmca" component={() => <LegalPage kind="dmca" />} />
   <Route path="/contact" component={() => <LegalPage kind="contact" />} />
-  <Route path="/login" component={LoginPage} />\n  <Route path="/admin" component={AdminPage} />
+  <Route path="/login" component={LoginPage} />
+  <Route path="/admin" component={AdminPage} />
   <Route component={NotFound} />
 </Switch></PublicLayout>; }
 
