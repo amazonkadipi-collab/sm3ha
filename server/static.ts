@@ -2,7 +2,7 @@ import express from "express";
 import fs from "node:fs";
 import path from "node:path";
 import { findCatalogKeyword, listCatalogKeywords, upsertCatalogKeyword } from "./supabase";
-import { formatDuration } from "./catalog";
+import { formatDuration, makeSlug } from "./catalog";
 import { findAlbumBySlug, findArtistBySlug, findSongBySlug, findSongs, findSongsBySlugs } from "./db";
 
 const PUBLIC_ORIGIN = "https://www.sm3ha.online";
@@ -22,7 +22,7 @@ const getOrigin = (_req: express.Request) => {
 const absoluteUrl = (req: express.Request, pathname: string) =>
   new URL(pathname, getOrigin(req)).toString();
 
-const makeKeywordSlug = (value: string) => value.trim().replace(/\s+/g, "-").replace(/^-+|-+$/g, "");
+
 
 async function renderKeywordShell(req: express.Request, template: string) {
   const rawSlug = String(req.params[0] || "").replace(/^\/+|\/+$/g, "");
@@ -42,7 +42,7 @@ async function renderKeywordShell(req: express.Request, template: string) {
 
   if (!songs.length) return { status: 404, html: template };
 
-  const canonicalSlug = record?.slug || makeKeywordSlug(keyword);
+  const canonicalSlug = record?.slug || makeSlug(keyword);
   const resolvedQuery = record?.query || keyword;
   if (!record?.result_slugs?.length) {
     await upsertCatalogKeyword(keyword, songs.map(song => song.slug), "search", true);
