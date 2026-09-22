@@ -89,6 +89,24 @@ export async function getAnalyticsSummary(days: number) {
   };
 }
 
+export async function listRecentSearches(limit = 50) {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return [];
+  const { data, error } = await supabase.from("search_logs").select("query,created_at").order("created_at", { ascending: false }).limit(clampLimit(limit, 50));
+  if (error) {
+    console.warn("[SearchLogs] recent searches failed:", error.message);
+    return [];
+  }
+  const seen = new Set<string>();
+  return (data ?? []).filter(row => {
+    const query = String(row.query ?? "").trim();
+    const key = query.toLocaleLowerCase();
+    if (!query || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).map(row => ({ query: String(row.query).trim(), createdAt: row.created_at }));
+}
+
 export async function listSearchLogs(input: { query?: string; limit: number; offset: number }) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return { available: false, rows: [], total: 0 };
