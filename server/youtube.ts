@@ -111,6 +111,29 @@ async function searchWithKey(query: string, limit: number, apiKey: string): Prom
   }));
 }
 
+export async function getYouTubeDurations(videoIds: string[]): Promise<Map<string, number>> {
+  const ids = Array.from(new Set(videoIds.map(id => id.trim()).filter(Boolean))).slice(0, 50);
+  const durations = new Map<string, number>();
+  if (!ids.length) return durations;
+  let lastError: unknown;
+  for (const apiKey of requireApiKeys()) {
+    try {
+      const details = await youtubeGet<YouTubeVideosResponse>("videos", {
+        part: "contentDetails",
+        id: ids.join(","),
+      }, apiKey);
+      for (const item of details.items ?? []) {
+        if (item.id) durations.set(item.id, parseYouTubeDuration(item.contentDetails?.duration ?? ""));
+      }
+      return durations;
+    } catch (error) {
+      lastError = error;
+      if (!isYouTubeQuotaError(error)) throw error;
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error("All configured YouTube API projects are unavailable");
+}
+
 export async function searchYouTubeVideos(query: string, limit = 10): Promise<YouTubeCatalogItem[]> {
   let lastError: unknown;
   for (const apiKey of requireApiKeys()) {
