@@ -210,11 +210,25 @@ export const appRouter = router({
       if (!song) throw new TRPCError({ code: "NOT_FOUND", message: "Media token not found" });
       return { ...song, allowedDemo: song.rightsStatus === "demo" || song.rightsStatus === "licensed", sourceAvailable: Boolean(song.providerUrl && song.rightsStatus === "licensed"), variants: song.providerUrl && song.rightsStatus === "licensed" ? [{ format: "mp3", quality: "128 kbps", status: "ready" }, { format: "mp4", quality: "360p", status: "ready" }, { format: "mp4", quality: "720p", status: "ready" }] : [] };
     }),
-    startConversion: publicProcedure.input(z.object({ token: z.string(), format: z.enum(["mp3", "mp4"]), quality: z.string().max(32) })).mutation(async ({ input }) => {
-      const song = demoSongs.find(item => item.opaqueToken === input.token);
-      if (!song) throw new TRPCError({ code: "NOT_FOUND", message: "Demo media token not found" });
-      const signedToken = createDemoDownloadToken(song.opaqueToken);
-      return { id: `demo-job-${song.id}-${Date.now()}`, status: "ready" as const, progress: 100, expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(), downloadUrl: `/api/demo-download/${signedToken}`, notice: "Demo only: no external media was downloaded." };
+    startConversion: publicProcedure.input(z.object({ token: z.string().min(8).max(128), format: z.enum(["mp3", "mp4"]), quality: z.string().max(32) })).mutation(async ({ input }) => {
+      const song = await findSongByToken(input.token);
+      if (!song || song.rightsStatus !== "licensed" || !song.providerUrl) throw new TRPCError({ code: "FORBIDDEN", message: "This media does not have an authorized download source." });
+      try {
+        const job = await startAuthorizedConversion(song.providerUrl, input.format, input.quality);
+        return { id: job.id, status: job.status, progress: 0, downloadUrl: null, expiresAt: null };
+      } catch (error) {
+        throw new TRPCError({ code: "BAD_GATEWAY", message: error instanceof Error ? error.message : "Conversion provider failed" });
+      }
+    }),
+    conversionStatus: publicProcedure.input(z.object({ jobId: z.string().min(1).max(128) })).query(async ({ input }) => {
+      try {
+        const job = await getAuthorizedConversion(input.jobId);
+        const downloadUrl = getExportUrl(job);
+        const progress = Array.isArray(job.tasks) ? Math.max(0, ...job.tasks.map((task: any) => Number(task.percent) || 0)) : 0;
+        return { id: job.id, status: job.status, progress, downloadUrl, expiresAt: downloadUrl ? new Date(Date.now() + 23 * 60 * 60 * 1000).toISOString() : null };
+      } catch (error) {
+        throw new TRPCError({ code: "BAD_GATEWAY", message: error instanceof Error ? error.message : "Conversion status failed" });
+      }
     }),
   }),
   youtube: router({
