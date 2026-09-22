@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Clock3, Download, Play, Youtube } from "lucide-react";
+import { Clock3, Download, Play, Square, Youtube } from "lucide-react";
 import { useLocation, useRoute } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { applySeo, resetSeo } from "@/lib/seo";
@@ -36,7 +36,7 @@ export default function KeywordPage() {
   const [, navigate] = useLocation();
   const slug = params?.slug ?? "";
   const keyword = useMemo(() => decodeURIComponent(slug).replace(/-/g, " ").trim(), [slug]);
-  const [query, setQuery] = useState(keyword);
+  const [query, setQuery] = useState("");
   const { data = [], isLoading, isError } = trpc.catalog.search.useQuery({ query: keyword, limit: 10 }, { enabled: Boolean(keyword), retry: false, staleTime: 30_000 });
   const { data: keywordLinks = [] } = trpc.catalog.keywords.useQuery({ limit: 50 }, { retry: 1, staleTime: 60_000 });
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
@@ -57,7 +57,6 @@ export default function KeywordPage() {
       .map(entry => entry.item);
   }, [keywordLinks, keyword, slug]);
 
-  useEffect(() => setQuery(keyword), [keyword]);
   useEffect(() => {
     const syncHash = () => {
       const hash = window.location.hash.slice(1).trim();
@@ -106,12 +105,12 @@ export default function KeywordPage() {
           <div className="min-w-0 reference-media-copy"><h2>{visibleTitle}</h2><p><Youtube size={14} /> <Clock3 size={14} /> مدة الفيديو: {song.duration}</p></div>
           <div className="reference-media-actions reference-media-actions-area">
             <a href={workflowLinks.media(song.opaqueToken)} className="reference-action"><Download size={15} /> تحميل</a>
-            <a href={`#${encodeURIComponent(song.providerVideoId)}`} className="reference-watch" aria-label={`مشاهدة ${visibleTitle}`} onClick={() => setActiveVideoId(song.providerVideoId)}><Play size={14} /> مشاهدة</a>
+            {isPlaying ? <button type="button" className="reference-watch" aria-pressed="true" onClick={() => { setActiveVideoId(null); window.history.replaceState(null, "", window.location.pathname + window.location.search); }}><Square size={14} /> إيقاف</button> : <a href={`#${encodeURIComponent(song.providerVideoId)}`} className="reference-watch" aria-label={`مشاهدة ${visibleTitle}`} onClick={() => setActiveVideoId(song.providerVideoId)}><Play size={14} /> مشاهدة</a>}
           </div>
           {isPlaying && song.providerVideoId && <div ref={playerRef} className="reference-inline-player" aria-label={`مشاهدة ${visibleTitle} داخل سمعها`}>
             {isCheckingEmbed && <div className="flex min-h-[220px] items-center justify-center rounded-2xl bg-black/[0.04] text-sm text-black/55">جاري التحقق من إمكانية المشاهدة…</div>}
             {!isCheckingEmbed && embedStatus?.embeddable === false && <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 rounded-2xl bg-black/[0.04] px-5 text-center text-sm text-black/60"><span>هذا الفيديو لا يسمح بالمشاهدة داخل المواقع الخارجية.</span><a href={`https://www.youtube.com/watch?v=${encodeURIComponent(song.providerVideoId)}`} target="_blank" rel="noreferrer" className="font-semibold text-black/70 underline underline-offset-2">فتح الفيديو في YouTube</a></div>}
-            {!isCheckingEmbed && embedStatus?.embeddable !== false && <iframe src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(song.providerVideoId)}?autoplay=1&controls=1&rel=0&playsinline=1&fs=1&origin=${encodeURIComponent(window.location.origin)}`} title={visibleTitle || "مشاهدة الفيديو"} loading="eager" referrerPolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen />}
+            {!isCheckingEmbed && embedStatus?.embeddable !== false && <iframe src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(song.providerVideoId)}?controls=1&rel=0&playsinline=1&fs=1&origin=${encodeURIComponent(window.location.origin)}`} title={visibleTitle || "مشاهدة الفيديو"} loading="eager" referrerPolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen />}
             {!isCheckingEmbed && <div className="mt-2 flex items-center justify-between gap-3 text-xs text-black/55"><span>{embedStatus?.embeddable === false ? "تم تحويلك إلى المصدر الرسمي لأن التضمين غير مسموح." : "المشاهدة تتم عبر مشغل YouTube الرسمي."}</span><a href={`https://www.youtube.com/watch?v=${encodeURIComponent(song.providerVideoId)}`} target="_blank" rel="noreferrer" className="font-semibold text-black/70 underline underline-offset-2">فتح في YouTube</a></div>}
           </div>}
         </article>;
