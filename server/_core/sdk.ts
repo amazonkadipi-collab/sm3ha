@@ -277,16 +277,20 @@ class SDKServer {
       throw ForbiddenError("Invalid Supabase session");
     }
 
-    const openId = authUser.id;
+    const openId = String(authUser.id);
+    const metadata = (authUser.user_metadata ?? {}) as Record<string, unknown>;
+    const appMetadata = (authUser.app_metadata ?? {}) as Record<string, unknown>;
+    const displayName = typeof metadata.name === "string" ? metadata.name : (authUser.email ?? null);
+    const provider = typeof appMetadata.provider === "string" ? appMetadata.provider : "supabase";
     const signedInAt = new Date();
     let user = await db.getUserByOpenId(openId);
 
     if (!user) {
       await db.upsertUser({
         openId,
-        name: authUser.user_metadata?.name || authUser.email || null,
+        name: displayName,
         email: authUser.email ?? null,
-        loginMethod: authUser.app_metadata?.provider ?? "supabase",
+        loginMethod: provider,
         lastSignedIn: signedInAt,
       });
       user = await db.getUserByOpenId(openId);
@@ -296,9 +300,9 @@ class SDKServer {
 
     await db.upsertUser({
       openId: user.openId,
-      name: authUser.user_metadata?.name || user.name || authUser.email || null,
+      name: displayName ?? user.name ?? null,
       email: authUser.email ?? user.email ?? null,
-      loginMethod: authUser.app_metadata?.provider ?? user.loginMethod ?? "supabase",
+      loginMethod: provider,
       lastSignedIn: signedInAt,
     });
 
