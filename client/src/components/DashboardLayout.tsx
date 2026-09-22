@@ -19,7 +19,6 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { startLogin } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
 import { LayoutDashboard, LogOut, PanelLeft, Users } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
@@ -48,7 +47,7 @@ export function AdminLoginCard() {
       <div className="soft-card flex w-full max-w-md flex-col items-center gap-8 rounded-[28px] p-8">
         <div className="flex flex-col items-center gap-3 text-center">
           <h1 className="text-2xl font-semibold tracking-tight text-[#514568]">سجّل الدخول للمتابعة</h1>
-          <p className="max-w-sm text-sm leading-7 text-[#81768f]">دخل بحساب admin أو تابع عبر Manus OAuth للوصول إلى لوحة الإدارة.</p>
+          <p className="max-w-sm text-sm leading-7 text-[#81768f]">دخل بحساب admin أو بحساب SM3HA للوصول إلى لوحة الإدارة.</p>
         </div>
         <form onSubmit={event => { event.preventDefault(); adminLogin.mutate({ username, password }); }} className="w-full space-y-3">
           <input value={username} onChange={event => setUsername(event.target.value)} placeholder="اسم المستخدم" autoComplete="username" className="w-full rounded-xl border border-[#756590]/15 bg-white/70 px-4 py-3 text-sm text-[#514568] outline-none focus:border-[#756590]/50" />
@@ -57,7 +56,7 @@ export function AdminLoginCard() {
           <Button type="submit" disabled={adminLogin.isPending || !username || !password} size="lg" className="w-full shadow-lg transition-all hover:shadow-xl">{adminLogin.isPending ? "جارٍ التحقق…" : "دخول admin"}</Button>
         </form>
         <div className="flex w-full items-center gap-3"><span className="h-px flex-1 bg-[#756590]/10" /><span className="text-xs text-[#81768f]">أو</span><span className="h-px flex-1 bg-[#756590]/10" /></div>
-        <Button onClick={() => startLogin()} variant="outline" size="lg" className="w-full">الدخول عبر Manus OAuth</Button>
+        <Button onClick={() => { window.location.href = "/login"; }} variant="outline" size="lg" className="w-full">الدخول بحساب SM3HA</Button>
       </div>
     </div>
   );
