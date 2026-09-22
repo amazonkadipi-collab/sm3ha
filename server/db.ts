@@ -32,7 +32,7 @@ export async function getUserByOpenId(openId: string) {
   return result[0];
 }
 
-const songSelect = "id,title,normalized_title,slug,provider,provider_video_id,opaque_token_hash,thumbnail_url,duration_seconds,status,created_at,artists(name,slug),albums(title)";
+const songSelect = "id,title,normalized_title,slug,provider,provider_video_id,provider_url,opaque_token_hash,thumbnail_url,duration_seconds,status,created_at,artists(name,slug),albums(title)";
 
 async function supabaseSongs(query?: string, limit = 12, includeRemoved = false) {
   const supabase = getSupabaseAdmin();
