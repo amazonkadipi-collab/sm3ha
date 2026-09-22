@@ -13,7 +13,7 @@ import { createDemoDownloadToken } from "./download";
 import { findAlbumBySlug, findArtistBySlug, findSongBySlug, findSongByToken, findSongs, findSongsBySlugs, getDb, listAlbums, listArtists, updateDrizzleSongStatus } from "./db";
 import { findCatalogKeyword, getSupabaseAdmin, indexYouTubeTitleQueries, listCatalogKeywords, persistImportedRows, updateSupabaseSongStatus, upsertCatalogKeyword } from "./supabase";
 import { getAnalyticsSummary, getSiteSettings, hashRequestValue, listSearchLogs, listTakedowns, recordAnalyticsEvent, recordSearchLog, submitTakedown, updateSiteSettings, updateTakedown } from "./admin-observability";
-import { getYouTubeEmbedStatus, searchYouTubeVideos } from "./youtube";
+import { getYouTubeDurations, getYouTubeEmbedStatus, searchYouTubeVideos } from "./youtube";
 import { artists, songs } from "../drizzle/schema";
 
 const paginationInput = z.object({ query: z.string().trim().max(120).optional(), limit: z.number().int().min(1).max(50).default(12) });
@@ -70,7 +70,15 @@ export const appRouter = router({
         if (keyword?.result_slugs?.length) {
           const cachedSongs = await findSongsBySlugs(keyword.result_slugs, input.limit);
           if (cachedSongs.length) {
-            results = cachedSongs.map(song => ({ ...song, artist: "", album: "", duration: formatDuration(song.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}` }));
+            const missingDurationIds = cachedSongs.filter(song => !(song.durationSeconds > 0)).map(song => song.providerVideoId).filter(Boolean);
+            let repairedDurations = new Map<string, number>();
+            if (missingDurationIds.length && ENV.youtubeApiKey) {
+              try { repairedDurations = await getYouTubeDurations(missingDurationIds); } catch (error) { console.warn("[YouTube] duration repair failed:", error instanceof Error ? error.message : error); }
+            }
+            results = cachedSongs.map(song => {
+              const durationSeconds = song.durationSeconds > 0 ? song.durationSeconds : (repairedDurations.get(song.providerVideoId) ?? 0);
+              return { ...song, durationSeconds, artist: "", album: "", duration: durationSeconds > 0 ? formatDuration(durationSeconds) : "—", mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}` };
+            });
             source = "keyword";
           }
         }
