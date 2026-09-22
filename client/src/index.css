@@ -62,8 +62,8 @@ a { -webkit-tap-highlight-color: transparent; }
 .reference-media-thumb-area { grid-area: thumb; }
 .reference-media-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .reference-media-copy { min-width: 0; grid-area: copy; direction: rtl; text-align: right; }
-.reference-media-row h2 { margin: 0; overflow: hidden; color: #42645b; font-size: .9rem; font-weight: 600; line-height: 1.6; text-overflow: ellipsis; white-space: nowrap; }
-.reference-media-row p { display: flex; align-items: center; gap: .3rem; margin: .16rem 0 0; color: #9aa7a3; font-size: .7rem; line-height: 1.5; }
+.reference-media-row h2 { margin: 0; overflow: hidden; color: #42645b; font-size: .86rem; font-weight: 600; line-height: 1.55; text-overflow: ellipsis; white-space: nowrap; }
+.reference-media-row p { display: flex; align-items: center; gap: .28rem; margin: .12rem 0 0; color: #9aa7a3; font-size: .68rem; line-height: 1.45; }
 .reference-media-actions-area { grid-area: actions; direction: rtl; }
 .reference-media-actions { display: flex; align-items: center; gap: .45rem; white-space: nowrap; }
 .reference-media-actions .reference-action { padding: .5rem .72rem; font-size: .74rem; }
