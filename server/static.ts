@@ -202,7 +202,9 @@ export function serveStatic(app: express.Express) {
     }
   });
 
+  // Client-side routes such as /login must load the SPA shell with HTTP 200.
+  // Unknown SEO entity routes are handled above and can still return 404.
   app.use("*", (_req, res) => {
-    res.status(404).sendFile(path.join(publicPath, "index.html"));
+    res.status(200).sendFile(path.join(publicPath, "index.html"));
   });
 }
