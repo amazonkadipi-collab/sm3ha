@@ -163,3 +163,27 @@ a { -webkit-tap-highlight-color: transparent; }
   .reference-download-actions { flex-direction: column; }
   .reference-download-actions .reference-action, .reference-direct-action { width: 100%; }
 }
+
+
+.reference-v1-meta { margin: 1.05rem 0 0; padding: .65rem 0 .55rem; list-style: none; border-top: 1px solid #e1e7e4; border-bottom: 1px solid #e1e7e4; }
+.reference-v1-meta li { margin: .22rem 0; color: #405d56; font-size: .8rem; line-height: 1.65; }
+.reference-v1-meta strong { font-weight: 700; }
+.reference-v1-meta code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .76rem; }
+.reference-v1-downloads { display: flex; flex-direction: column; align-items: flex-start; gap: .55rem; margin: 1rem 0 1.2rem; }
+.reference-v1-button { display: inline-flex; align-items: center; gap: .35rem; min-width: 145px; padding: .45rem .7rem; border: 0; background: #405d56; color: #fff; text-decoration: none; font-size: .75rem; font-weight: 700; line-height: 1.4; }
+.reference-v1-button:hover { background: #304a45; }
+.reference-v1-article { margin-top: .9rem; color: #405d56; font-size: .78rem; line-height: 1.95; }
+.reference-v1-article h2 { margin: 0 0 .35rem; color: #354b4a; font-size: 1rem; font-weight: 700; }
+.reference-v1-article p { margin: 0 0 .45rem; }
+.reference-v1-disclaimer { margin-top: .9rem; color: #657b74; font-size: .73rem; line-height: 1.8; }
+.reference-v1-disclaimer p { display: flex; align-items: flex-start; gap: .35rem; margin: 0; }
+.reference-v1-disclaimer svg { flex: 0 0 auto; margin-top: .2rem; }
+.reference-v1-footer { margin-top: 1.15rem; padding-top: .85rem; border-top: 1px solid #e1e7e4; color: #82918c; font-size: .72rem; line-height: 1.9; text-align: center; }
+.reference-v1-footer a { color: #527566; text-decoration: none; }
+.reference-v1-footer a:hover { text-decoration: underline; }
+.reference-v1-footer div { margin-top: .1rem; }
+@media (max-width: 620px) {
+  .reference-v1-downloads { align-items: stretch; }
+  .reference-v1-button { width: 100%; justify-content: center; }
+  .reference-v1-article { font-size: .76rem; }
+}
