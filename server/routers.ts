@@ -146,6 +146,7 @@ export const appRouter = router({
       const stored = await findSongs(undefined, input.limit);
       return stored.length ? stored.map(song => ({ ...song, artist: "", album: "", duration: formatDuration(song.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}` })) : demoSongs.slice(0, input.limit).map(demoResult);
     }),
+    recentSearches: publicProcedure.input(z.object({ limit: z.number().int().min(1).max(50).default(50) })).query(({ input }) => listRecentSearches(input.limit)),
     artists: publicProcedure.input(z.object({ limit: z.number().int().min(1).max(20).default(12) })).query(async ({ input }) => {
       const stored = await listArtists(input.limit);
       if (stored.length) {
