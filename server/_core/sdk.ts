@@ -6,6 +6,7 @@ import type { Request } from "express";
 import { SignJWT, jwtVerify } from "jose";
 import type { User } from "../../drizzle/schema";
 import * as db from "../db";
+import { getSupabaseAuthUser } from "../supabase-auth";
 import { ENV } from "./env";
 import type {
   ExchangeTokenRequest,
@@ -252,72 +253,56 @@ class SDKServer {
   }
 
   async authenticateRequest(req: Pick<Request, "headers">): Promise<AuthenticatedUser> {
-    // 1. Prefer the session cookie (regular OAuth login).
     const cookies = this.parseCookies(req.headers.cookie);
-    let sessionToken = cookies.get(COOKIE_NAME);
+    const cookieToken = cookies.get(COOKIE_NAME);
 
-    // 2. Fallback to the Authorization header (Preview auto-login via
-    //    sessionStorage), used when the browser blocks iframe cookies such as
-    //    Safari ITP, private browsing, or iOS/Android WebView.
-    if (!sessionToken) {
-      const authHeader = req.headers.authorization;
-      if (typeof authHeader === "string" && authHeader.startsWith("Bearer ")) {
-        sessionToken = authHeader.slice(7);
+    // Local admin sessions continue to use the short-lived server JWT.
+    // Regular users are authenticated by Supabase Auth.
+    if (cookieToken) {
+      const localSession = await this.verifySession(cookieToken);
+      if (localSession?.openId === LOCAL_ADMIN_OPEN_ID) {
+        const now = new Date();
+        return { id: -2, openId: LOCAL_ADMIN_OPEN_ID, name: "admin", email: null, loginMethod: "password", role: "admin", createdAt: now, updatedAt: now, lastSignedIn: now };
       }
     }
 
-    const session = await this.verifySession(sessionToken);
-
-    if (!session) {
-      throw ForbiddenError("Invalid session cookie");
+    const authHeader = req.headers.authorization;
+    if (typeof authHeader !== "string" || !authHeader.startsWith("Bearer ")) {
+      throw ForbiddenError("Authentication required");
     }
 
-    if (session.openId.startsWith(CRON_OPEN_ID_PREFIX)) {
-      const userInfo = await this.getUserInfoWithJwt(sessionToken ?? "");
-      const taskUid = userInfo.taskUid ?? null;
-      if (!taskUid) {
-        throw ForbiddenError("Cron session missing task_uid");
-      }
-      return buildCronUser(userInfo);
+    const accessToken = authHeader.slice(7).trim();
+    const authUser = await getSupabaseAuthUser(accessToken);
+    if (!authUser) {
+      throw ForbiddenError("Invalid Supabase session");
     }
 
-    if (session.openId === LOCAL_ADMIN_OPEN_ID) {
-      const now = new Date();
-      return { id: -2, openId: LOCAL_ADMIN_OPEN_ID, name: "admin", email: null, loginMethod: "password", role: "admin", createdAt: now, updatedAt: now, lastSignedIn: now };
-    }
-
-    const sessionUserId = session.openId;
+    const openId = authUser.id;
     const signedInAt = new Date();
-    let user = await db.getUserByOpenId(sessionUserId);
-
-    // If user not in DB, sync from OAuth server automatically
-    if (!user) {
-      try {
-        const userInfo = await this.getUserInfoWithJwt(sessionToken ?? "");
-        await db.upsertUser({
-          openId: userInfo.openId,
-          name: userInfo.name || null,
-          email: userInfo.email ?? null,
-          loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
-          lastSignedIn: signedInAt,
-        });
-        user = await db.getUserByOpenId(userInfo.openId);
-      } catch (error) {
-        console.error("[Auth] Failed to sync user from OAuth:", error);
-        throw ForbiddenError("Failed to sync user info");
-      }
-    }
+    let user = await db.getUserByOpenId(openId);
 
     if (!user) {
-      throw ForbiddenError("User not found");
+      await db.upsertUser({
+        openId,
+        name: authUser.user_metadata?.name || authUser.email || null,
+        email: authUser.email ?? null,
+        loginMethod: authUser.app_metadata?.provider ?? "supabase",
+        lastSignedIn: signedInAt,
+      });
+      user = await db.getUserByOpenId(openId);
     }
+
+    if (!user) throw ForbiddenError("User profile could not be created");
 
     await db.upsertUser({
       openId: user.openId,
+      name: authUser.user_metadata?.name || user.name || authUser.email || null,
+      email: authUser.email ?? user.email ?? null,
+      loginMethod: authUser.app_metadata?.provider ?? user.loginMethod ?? "supabase",
       lastSignedIn: signedInAt,
     });
 
-    return user;
+    return (await db.getUserByOpenId(openId)) ?? user;
   }
 }
 
