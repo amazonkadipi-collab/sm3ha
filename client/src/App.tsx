@@ -21,6 +21,15 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 
 export function PublicLayout({ children }: { children: React.ReactNode }) {
   return <div className="naghma-shell">
+    <header className="reference-top-header" dir="rtl">
+      <div className="reference-top-header-inner">
+        <Link href="/" className="reference-top-logo" aria-label="سمعها - الرئيسية">سمعها</Link>
+        <nav className="reference-top-nav" aria-label="التنقل الرئيسي">
+          <Link href="/" className="reference-top-link">الرئيسية</Link>
+          <Link href="/trending" className="reference-top-link">جديد البحث</Link>
+        </nav>
+      </div>
+    </header>
     <main>{children}</main>
     <footer className="reference-footer mx-auto mt-10 flex max-w-[1080px] flex-col gap-3 border-t border-[#d9dfdc] px-4 py-5 text-xs text-[#82918c] sm:flex-row sm:items-center sm:justify-between sm:px-8">
       <span>Powered By Sm3ha © 2026</span>
