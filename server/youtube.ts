@@ -66,28 +66,47 @@ async function youtubeGet<T>(resource: string, params: Record<string, string>, a
 }
 
 async function searchWithKey(query: string, limit: number, apiKey: string): Promise<YouTubeCatalogItem[]> {
+  const resultLimit = Math.min(Math.max(limit, 1), 25);
   const search = await youtubeGet<YouTubeSearchResponse>("search", {
     part: "snippet",
     q: query.trim(),
     type: "video",
     videoCategoryId: "10",
-    maxResults: String(Math.min(Math.max(limit, 1), 25)),
+    maxResults: String(resultLimit),
     safeSearch: "moderate",
   }, apiKey);
+
   const candidates = (search.items ?? [])
-    .map(item => ({ id: item.id?.videoId ?? "", title: item.snippet?.title ?? "", artist: item.snippet?.channelTitle ?? "", thumbnailUrl: item.snippet?.thumbnails?.high?.url ?? item.snippet?.thumbnails?.medium?.url ?? "" }))
+    .map(item => ({
+      id: item.id?.videoId ?? "",
+      title: item.snippet?.title ?? "",
+      artist: item.snippet?.channelTitle ?? "",
+      thumbnailUrl: item.snippet?.thumbnails?.high?.url ?? item.snippet?.thumbnails?.medium?.url ?? "",
+    }))
     .filter(item => item.id && item.title);
+
   if (!candidates.length) return [];
 
-  // Return search candidates immediately. Duration enrichment used to require a second
-  // YouTube API request, which made every new keyword wait for two upstream calls.
-  // Duration is optional metadata; 0 is rendered as a lightweight placeholder.
+  // YouTube search.list does not include video duration. Fetch the durations for
+  // all returned IDs in one videos.list request so the UI gets the real duration
+  // without making one request per result.
+  const details = await youtubeGet<YouTubeVideosResponse>("videos", {
+    part: "contentDetails",
+    id: candidates.map(item => item.id).join(","),
+  }, apiKey);
+
+  const durations = new Map(
+    (details.items ?? [])
+      .filter(item => item.id)
+      .map(item => [item.id as string, parseYouTubeDuration(item.contentDetails?.duration ?? "")]),
+  );
+
   return candidates.map(item => ({
     providerVideoId: item.id,
     title: item.title,
     artist: item.artist,
     thumbnailUrl: item.thumbnailUrl,
-    durationSeconds: 0,
+    durationSeconds: durations.get(item.id) ?? 0,
     provider: "youtube" as const,
   }));
 }
@@ -99,7 +118,8 @@ export async function searchYouTubeVideos(query: string, limit = 10): Promise<Yo
       return await searchWithKey(query, limit, apiKey);
     } catch (error) {
       lastError = error;
-      // Do not multiply a timeout/transient failure across every key.\n      if (!isYouTubeQuotaError(error)) throw error;
+      // Do not multiply a timeout/transient failure across every key.
+      if (!isYouTubeQuotaError(error)) throw error;
       console.warn("[YouTube] API quota reached; trying the next authorized project key.");
     }
   }
