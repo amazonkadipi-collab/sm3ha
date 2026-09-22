@@ -8,6 +8,7 @@ export type CatalogSong = {
   album: string;
   slug: string;
   providerVideoId: string;
+  providerUrl?: string;
   opaqueToken: string;
   thumbnailUrl: string;
   durationSeconds: number;
