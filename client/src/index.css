@@ -140,3 +140,26 @@ a { -webkit-tap-highlight-color: transparent; }
   .keyword-search-hero { padding-top: .65rem; }
   .keyword-search-hero h1 { font-size: 1rem; }
 }
+
+.reference-download-card { max-width: 760px; margin: 1.35rem auto 0; border: 1px solid #d7dedb; background: #fff; padding: 1.35rem 1.25rem 1.5rem; }
+.reference-download-card h1 { margin: 0; color: #344d49; font-family: Georgia, "Times New Roman", serif; font-size: clamp(1.8rem, 4vw, 2.35rem); font-weight: 400; line-height: 1.3; text-align: right; }
+.reference-download-meta { margin-top: 1.25rem; border-top: 1px solid #e1e7e4; border-bottom: 1px solid #e1e7e4; padding: .8rem 0; }
+.reference-download-meta p { margin: .28rem 0; color: #527566; font-size: .82rem; line-height: 1.7; }
+.reference-download-meta strong { color: #405d56; }
+.reference-download-meta code { margin-inline-start: .25rem; color: #405d56; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .78rem; }
+.reference-download-actions { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: 1rem; }
+.reference-download-actions .reference-action,
+.reference-direct-action { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; min-height: 38px; padding: .5rem .8rem; text-decoration: none; font-size: .76rem; font-weight: 700; }
+.reference-direct-action { border: 1px solid #d3ddd8; background: #fff; color: #527566; }
+.reference-direct-action:hover { background: #f3f7f4; }
+.reference-download-copy { margin-top: 1.25rem; border-top: 1px solid #e1e7e4; padding-top: 1rem; color: #526b64; }
+.reference-download-copy h2 { margin: 0 0 .35rem; color: #405d56; font-size: 1rem; font-weight: 700; }
+.reference-download-copy p { margin: 0; font-size: .8rem; line-height: 1.9; }
+.reference-download-disclaimer { margin-top: 1rem; border-top: 1px solid #e1e7e4; padding-top: .9rem; color: #82918c; font-size: .74rem; line-height: 1.85; }
+.reference-download-disclaimer p { margin: 0; }
+@media (max-width: 620px) {
+  .reference-download-card { margin-top: .75rem; padding: 1rem .85rem 1.2rem; }
+  .reference-download-card h1 { font-size: 1.8rem; }
+  .reference-download-actions { flex-direction: column; }
+  .reference-download-actions .reference-action, .reference-direct-action { width: 100%; }
+}
