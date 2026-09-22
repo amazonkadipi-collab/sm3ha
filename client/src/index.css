@@ -24,7 +24,6 @@ a { -webkit-tap-highlight-color: transparent; }
 .reference-top-link { color: #fff; font-size: .78rem; font-weight: 600; text-decoration: none; white-space: nowrap; }
 .reference-top-link:hover, .reference-top-link:focus-visible { color: #e5eee9; text-decoration: underline; text-underline-offset: 3px; }
 
-/* Compact reference-style public UI */
 .reference-home, .reference-page { color: #354b4a; }
 .reference-hero { padding: 1.35rem 0 1.65rem; text-align: center; }
 .reference-mark { display: inline-grid; grid-template-columns: auto auto; column-gap: .4rem; align-items: center; color: #4d705f; margin: .3rem auto 1.25rem; }
@@ -64,6 +63,10 @@ a { -webkit-tap-highlight-color: transparent; }
 .reference-media-copy { min-width: 0; grid-area: copy; direction: rtl; text-align: right; }
 .reference-media-row h2 { margin: 0; overflow: hidden; color: #42645b; font-size: .86rem; font-weight: 600; line-height: 1.55; text-overflow: ellipsis; white-space: nowrap; }
 .reference-media-row p { display: flex; align-items: center; gap: .28rem; margin: .12rem 0 0; color: #9aa7a3; font-size: .68rem; line-height: 1.45; }
+.reference-media-row p svg,
+.reference-media-actions svg,
+.reference-media-thumb svg { display: inline-block; flex: 0 0 auto; vertical-align: middle; }
+.reference-media-row p svg { width: 13px; height: 13px; color: currentColor; }
 .reference-media-actions-area { grid-area: actions; direction: rtl; }
 .reference-media-actions { display: flex; align-items: center; gap: .45rem; white-space: nowrap; }
 .reference-media-actions .reference-action { padding: .5rem .72rem; font-size: .74rem; }
@@ -85,7 +88,6 @@ a { -webkit-tap-highlight-color: transparent; }
 .reference-footer-card { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1.25rem 0; color: #82918c; font-size: .77rem; }
 .reference-footer-card div { display: flex; gap: 1rem; }
 
-/* Existing detail/admin surfaces inherit the same restrained system. */
 .reference-detail { display: grid; grid-template-columns: minmax(280px, .8fr) minmax(0, 1.2fr); gap: 2.2rem; align-items: center; }
 .reference-detail img { max-height: 520px; width: 100%; object-fit: cover; }
 .serif { font-family: Georgia, "Times New Roman", serif; }
@@ -115,11 +117,9 @@ a { -webkit-tap-highlight-color: transparent; }
 }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+  *, *::before { transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
 
-
-/* v1-style /trending page */
 .v1-trending { width: min(1080px, 100%); margin: 0 auto; padding: 1.4rem .75rem 3rem; color: #354b4a; }
 .v1-trending h1 { margin: 0 0 1rem; font-size: 1.25rem; font-weight: 700; line-height: 1.5; }
 .v1-trending-list { display: flex; flex-direction: column; align-items: stretch; }
@@ -128,8 +128,6 @@ a { -webkit-tap-highlight-color: transparent; }
 .v1-trending-state { padding: 1rem 0; color: #899793; font-size: .85rem; }
 @media (max-width: 640px) { .v1-trending { padding-left: .75rem; padding-right: .75rem; } .v1-trending h1 { font-size: 1.1rem; } .v1-trending-item { font-size: .84rem; } }
 
-
-/* Keyword search/results layout: keep search visible above the query heading. */
 .keyword-search-hero { padding: 1rem 0 1.1rem; text-align: center; }
 .keyword-search-hero .reference-search { margin: 0 auto; }
 .keyword-search-hero h1 { margin: .85rem 0 0; color: #405d56; font-size: clamp(1.05rem, 2.2vw, 1.35rem); font-weight: 700; line-height: 1.7; text-align: center; }
