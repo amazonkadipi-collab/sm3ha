@@ -127,3 +127,14 @@ a { -webkit-tap-highlight-color: transparent; }
 .v1-trending-item:hover { color: #304a45; text-decoration: underline; text-underline-offset: 2px; }
 .v1-trending-state { padding: 1rem 0; color: #899793; font-size: .85rem; }
 @media (max-width: 640px) { .v1-trending { padding-left: .75rem; padding-right: .75rem; } .v1-trending h1 { font-size: 1.1rem; } .v1-trending-item { font-size: .84rem; } }
+
+
+/* Keyword search/results layout: keep search visible above the query heading. */
+.keyword-search-hero { padding: 1rem 0 1.1rem; text-align: center; }
+.keyword-search-hero .reference-search { margin: 0 auto; }
+.keyword-search-hero h1 { margin: .85rem 0 0; color: #405d56; font-size: clamp(1.05rem, 2.2vw, 1.35rem); font-weight: 700; line-height: 1.7; text-align: center; }
+.keyword-search-hero + .reference-results { margin-top: .15rem; }
+@media (max-width: 620px) {
+  .keyword-search-hero { padding-top: .65rem; }
+  .keyword-search-hero h1 { font-size: 1rem; }
+}
