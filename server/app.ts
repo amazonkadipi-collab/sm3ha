@@ -9,6 +9,7 @@ import { makeSlug } from "./catalog";
 import { COOKIE_NAME } from "@shared/const";
 import { ENV } from "./_core/env";
 import { countIndexableKeywords, listSitemapKeywords, countIndexableSongs, listSitemapSongs, countSitemapArtists, listSitemapArtists, countSitemapAlbums, listSitemapAlbums } from "./supabase";
+import { getRapidYouTubeDownload, getRapidYouTubeInfo, normalizeVideoId } from "./rapidapi-youtube";
 
 const PUBLIC_ORIGIN = "https://www.sm3ha.online";
 const xmlEscape = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;").replace(/'/g, "&apos;");
@@ -52,7 +53,6 @@ export function createApp() {
   app.use(express.urlencoded({ limit: "1mb", extended: true }));
 
   // Canonical search flow: turn /search?q=... into the indexable keyword route.
-  // Empty /search remains a normal application page for users who arrive there directly.
   app.get("/search", (req, res, next) => {
     const query = typeof req.query.q === "string" ? req.query.q.trim() : "";
     if (!query) return next();
@@ -122,7 +122,6 @@ export function createApp() {
     return res.type("application/xml").send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>`);
   });
 
-
   app.get("/sitemap-keywords.xml", (req, res) => sendEntitySitemap(req, res, "keywords"));
   app.get("/sitemap-keywords-:page.xml", (req, res) => sendEntitySitemap(req, res, "keywords"));
   app.get("/sitemap-songs.xml", (req, res) => sendEntitySitemap(req, res, "songs"));
@@ -132,10 +131,38 @@ export function createApp() {
   app.get("/sitemap-albums.xml", (req, res) => sendEntitySitemap(req, res, "albums"));
   app.get("/sitemap-albums-:page.xml", (req, res) => sendEntitySitemap(req, res, "albums"));
 
-  // Non-content workflow endpoints must never become indexable just because
-  // the SPA has not executed its client-side SEO code yet.
+  // Workflow endpoints must not be indexed as content pages.
   app.get("/media", (_req, res, next) => { res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive"); next(); });
   app.get("/videos_dl", (_req, res, next) => { res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive"); next(); });
+
+  // Server-side RapidAPI proxy. The RapidAPI secret never reaches the browser.
+  app.get("/api/youtube/info", async (req, res) => {
+    res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
+    const videoId = normalizeVideoId(typeof req.query.v === "string" ? req.query.v : "");
+    if (!videoId) return res.status(400).json({ error: "Invalid YouTube video ID" });
+    if (!ENV.rapidApiKey) return res.status(503).json({ error: "RapidAPI is not configured" });
+    try {
+      const info = await getRapidYouTubeInfo(videoId);
+      return res.json(info);
+    } catch (error) {
+      return res.status(502).json({ error: error instanceof Error ? error.message : "RapidAPI request failed" });
+    }
+  });
+
+  app.get("/api/youtube/download", async (req, res) => {
+    res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
+    const videoId = normalizeVideoId(typeof req.query.v === "string" ? req.query.v : "");
+    const format = req.query.format === "mp4" ? "mp4" : req.query.format === "mp3" ? "mp3" : "";
+    const quality = typeof req.query.quality === "string" ? req.query.quality.slice(0, 32) : "";
+    if (!videoId || !format || !quality) return res.status(400).json({ error: "Invalid download parameters" });
+    if (!ENV.rapidApiKey) return res.status(503).json({ error: "RapidAPI is not configured" });
+    try {
+      const link = await getRapidYouTubeDownload(videoId, format, quality);
+      return res.json(link);
+    } catch (error) {
+      return res.status(502).json({ error: error instanceof Error ? error.message : "RapidAPI download request failed" });
+    }
+  });
 
   registerStorageProxy(app);
   if (ENV.oAuthServerUrl) registerOAuthRoutes(app);
