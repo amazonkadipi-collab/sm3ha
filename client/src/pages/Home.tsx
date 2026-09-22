@@ -7,10 +7,16 @@ import { workflowLinks } from "@/lib/flow";
 const ARABIC = /[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff]/;
 
 const fallbackQueries = [
-  "اغاني حسين الامير", "ويلو ياسواد ليلو", "كشوق الليالي لضوء القمر", "غنيه ايباه",
-  "اغنية الحروف العربية", "رضا البحراوي كوكتيل", "رمضان كريم الجزء الاول", "من كنه نسهر",
-  "فيديو افلون اسود", "نواف جديد", "العب العب", "كل حياتى", "اغاني رامي صبري الجديدة",
-  "اديني حب حبه", "اغنية انديلا", "راي", "سارية", "ضيعنا", "عالالا نواف عزيز", "قلبي كي ديرله", "نواف عزيز",
+  "سمعها تحميل",
+  "تحميل اغاني سمعها",
+  "اغاني",
+  "تنزيل اغاني",
+  "تحميل اغاني Mp3",
+  "تحميل اغاني Mp4",
+  "اغاني Mp3 Mp4",
+  "تحميل اغاني عربية",
+  "تحميل موسيقى",
+  "اغاني جديدة",
 ];
 
 export default function Home() {
@@ -58,13 +64,19 @@ export default function Home() {
         <button type="submit">بحث</button>
       </form>
     </section>
-    <section className="reference-list" aria-label="عمليات البحث">
+    <section className="reference-list" aria-label="كلمات البحث">
       <div className="reference-list-heading">سمعها</div>
-      {links.map(item => <Link key={`${item.slug}-${item.index}`} href={workflowLinks.keyword(item.label)} className="reference-list-item"><span>♫</span>{item.label}</Link>)}
+      {links.map(item => (
+        <Link
+          key={`${item.slug}-${item.index}`}
+          href={workflowLinks.keyword(item.label)}
+          className="reference-list-item"
+          title={item.label}
+        >
+          <span aria-hidden="true">♫</span>
+          {item.label}
+        </Link>
+      ))}
     </section>
-    <footer className="reference-footer-card">
-      <p>سمعها © 2026</p>
-      <div><Link href="/">سمعها</Link><Link href="/contact">اتصل بنا</Link><Link href="/dmca">DMCA</Link></div>
-    </footer>
   </main>;
 }
