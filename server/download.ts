@@ -8,11 +8,14 @@ function getDownloadSecret() {
   return value;
 }
 
+function sign(payload: string) {
+  return createHmac("sha256", getDownloadSecret()).update(payload).digest("hex");
+}
+
 export function createDemoDownloadToken(opaqueToken: string, ttlSeconds = 900) {
   const expiresAt = Math.floor(Date.now() / 1000) + ttlSeconds;
   const payload = `${opaqueToken}.${expiresAt}`;
-  const signature = createHmac("sha256", getDownloadSecret()).update(payload).digest("hex");
-  return Buffer.from(`${payload}.${signature}`).toString("base64url");
+  return Buffer.from(`${payload}.${sign(payload)}`).toString("base64url");
 }
 
 export function verifyDemoDownloadToken(token: string) {
@@ -23,11 +26,37 @@ export function verifyDemoDownloadToken(token: string) {
     const [opaqueToken, expiryText, signature] = parts;
     const expiresAt = Number(expiryText);
     if (!opaqueToken || !signature || !Number.isFinite(expiresAt) || expiresAt < Math.floor(Date.now() / 1000)) return null;
-    const expected = createHmac("sha256", getDownloadSecret()).update(`${opaqueToken}.${expiresAt}`).digest("hex");
+    const expected = sign(`${opaqueToken}.${expiresAt}`);
     const actualBuffer = Buffer.from(signature, "utf8");
     const expectedBuffer = Buffer.from(expected, "utf8");
     if (actualBuffer.length !== expectedBuffer.length || !timingSafeEqual(actualBuffer, expectedBuffer)) return null;
     return { opaqueToken, expiresAt };
+  } catch {
+    return null;
+  }
+}
+
+export type AuthorizedFormat = "mp3" | "mp4";
+
+export function createAuthorizedDownloadToken(opaqueToken: string, format: AuthorizedFormat, ttlSeconds = 900) {
+  const expiresAt = Math.floor(Date.now() / 1000) + ttlSeconds;
+  const payload = `${opaqueToken}.${format}.${expiresAt}`;
+  return Buffer.from(`${payload}.${sign(payload)}`).toString("base64url");
+}
+
+export function verifyAuthorizedDownloadToken(token: string) {
+  try {
+    const decoded = Buffer.from(token, "base64url").toString("utf8");
+    const parts = decoded.split(".");
+    if (parts.length !== 4) return null;
+    const [opaqueToken, format, expiryText, signature] = parts;
+    const expiresAt = Number(expiryText);
+    if (!opaqueToken || (format !== "mp3" && format !== "mp4") || !signature || !Number.isFinite(expiresAt) || expiresAt < Math.floor(Date.now() / 1000)) return null;
+    const expected = sign(`${opaqueToken}.${format}.${expiresAt}`);
+    const actualBuffer = Buffer.from(signature, "utf8");
+    const expectedBuffer = Buffer.from(expected, "utf8");
+    if (actualBuffer.length !== expectedBuffer.length || !timingSafeEqual(actualBuffer, expectedBuffer)) return null;
+    return { opaqueToken, format: format as AuthorizedFormat, expiresAt };
   } catch {
     return null;
   }

@@ -4,7 +4,8 @@ import { registerOAuthRoutes } from "./_core/oauth";
 import { registerStorageProxy } from "./_core/storageProxy";
 import { appRouter } from "./routers";
 import { createContext } from "./_core/context";
-import { verifyDemoDownloadToken } from "./download";
+import { verifyAuthorizedDownloadToken, verifyDemoDownloadToken } from "./download";
+import { findSongByToken } from "./db";
 import { COOKIE_NAME } from "@shared/const";
 import { countIndexableKeywords, listSitemapKeywords } from "./supabase";
 
@@ -102,6 +103,17 @@ export function createApp() {
     res.setHeader("Content-Type", "text/plain; charset=utf-8");
     res.setHeader("Content-Disposition", 'attachment; filename="naghmahub-demo.txt"');
     return res.send(`NaghmaHub demonstration file\nToken: ${verified.opaqueToken}\nThis placeholder is authorized for demonstration only.`);
+  });
+
+  app.get("/api/authorized-download/:token", async (req, res) => {
+    const verified = verifyAuthorizedDownloadToken(req.params.token);
+    if (!verified) return res.status(410).json({ error: "This authorized link has expired or is invalid." });
+    const song = await findSongByToken(verified.opaqueToken);
+    if (!song || song.rightsStatus !== "licensed") return res.status(403).json({ error: "This source is not licensed for download." });
+    const url = verified.format === "mp3" ? (song as any).mp3Url ?? (song as any).providerUrl : (song as any).mp4Url ?? (song as any).providerUrl;
+    if (!url || !url.startsWith("https://")) return res.status(404).json({ error: "No authorized file is available for this format." });
+    res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
+    return res.redirect(302, url);
   });
 
   return app;

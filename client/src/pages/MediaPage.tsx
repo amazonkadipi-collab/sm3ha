@@ -19,11 +19,11 @@ export default function MediaPage() {
       <div className="reference-file-meta" aria-label="معلومات الملف">
         <p><strong>كود الملف:</strong> <code>{media.providerVideoId}</code></p>
         <p><strong>المدة:</strong> {media.duration}</p>
-        <p><strong>الكوالتي:</strong> Mp3@128kbps - Mp4@720p/360p</p>
+        <p><strong>الحالة:</strong> {media.canDownload ? "ملف مصرح به متاح" : "metadata فقط"}</p>
       </div>
       <div className="reference-download-actions">
-        <Link href={workflowLinks.conversion(media.providerVideoId)} className="reference-action"><Download size={16} /> DOWNLOAD NOW</Link>
-        <Link href={workflowLinks.conversion(media.providerVideoId)} className="reference-direct-action"><Download size={16} /> تحميل مباشر</Link>
+        <Link href={workflowLinks.conversion(token)} className="reference-action"><Download size={16} /> اختيار MP3 / MP4</Link>
+        <Link href={workflowLinks.conversion(token)} className="reference-direct-action"><Download size={16} /> تحميل</Link>
       </div>
       <section className="reference-notice" aria-label="تنبيه قانوني">
         <p><ShieldCheck size={16} /> هذه الواجهة تعرض metadata وروابط مشاهدة رسمية فقط، ولا تستضيف أو تنزّل أي محتوى من YouTube.</p>

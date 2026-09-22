@@ -15,7 +15,7 @@ export function getSupabaseAdmin() {
 
 export function hashOpaqueToken(token: string) { return createHash("sha256").update(token).digest("hex"); }
 
-export async function persistImportedRows(rows: Array<{ title: string; artist: string; providerVideoId: string; provider?: string; thumbnailUrl?: string; durationSeconds?: number }>) {
+export async function persistImportedRows(rows: Array<{ title: string; artist: string; providerVideoId: string; provider?: string; thumbnailUrl?: string; durationSeconds?: number; providerUrl?: string; mp3Url?: string; mp4Url?: string }>) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return { accepted: 0, status: "database_unavailable" as const };
   const { data: batch, error: batchError } = await supabase.from("import_batches").insert({ source: "admin", total_rows: rows.length, status: "completed" }).select("id").single();
@@ -25,7 +25,7 @@ export async function persistImportedRows(rows: Array<{ title: string; artist: s
     const artistSlug = makeSlug(row.artist); const songSlug = makeSlug(`${row.artist}-${row.title}`); const token = createOpaqueToken(`${row.providerVideoId}:${songSlug}`);
     const { data: artist, error: artistError } = await supabase.from("artists").upsert({ name: row.artist, slug: artistSlug }, { onConflict: "slug" }).select("id").single();
     if (artistError || !artist) { await supabase.from("import_rows").insert({ batch_id: batch.id, provider_video_id: row.providerVideoId, title: row.title, artist: row.artist, slug: songSlug, status: "failed", error_message: artistError?.message ?? "Artist insert failed" }); continue; }
-    const { error: songError } = await supabase.from("songs").upsert({ title: row.title, normalized_title: normalizeArabic(row.title), slug: songSlug, artist_id: artist.id, provider: row.provider ?? "demo", provider_video_id: row.providerVideoId, thumbnail_url: row.thumbnailUrl ?? null, duration_seconds: row.durationSeconds ?? 0, rights_status: row.provider === "youtube" ? "metadata_only" : "demo", opaque_token_hash: hashOpaqueToken(token), status: "active" }, { onConflict: "provider,provider_video_id" });
+    const { error: songError } = await supabase.from("songs").upsert({ title: row.title, normalized_title: normalizeArabic(row.title), slug: songSlug, artist_id: artist.id, provider: row.provider ?? "demo", provider_video_id: row.providerVideoId, provider_url: row.providerUrl ?? null, mp3_url: row.mp3Url ?? null, mp4_url: row.mp4Url ?? null, thumbnail_url: row.thumbnailUrl ?? null, duration_seconds: row.durationSeconds ?? 0, rights_status: row.providerUrl || row.mp3Url || row.mp4Url ? "licensed" : row.provider === "youtube" ? "metadata_only" : "demo", opaque_token_hash: hashOpaqueToken(token), status: "active" }, { onConflict: "provider,provider_video_id" });
     await supabase.from("import_rows").insert({ batch_id: batch.id, provider_video_id: row.providerVideoId, title: row.title, artist: row.artist, slug: songSlug, status: songError ? "failed" : "accepted", error_message: songError?.message ?? null });
     if (!songError) { accepted += 1; acceptedSlugs.push(songSlug); }
   }
@@ -99,7 +99,7 @@ export async function indexCatalogText(rows: Array<{ title: string; artist: stri
     const songSlug = makeSlug(`${row.artist}-${row.title}`); const texts = [row.title, row.artist, row.album ?? "", `${row.artist} ${row.title}`, `${row.title} ${row.artist}`];
     for (const text of texts) for (const candidate of keywordCandidates(text)) { const list = candidates.get(candidate) ?? []; if (!list.includes(songSlug)) list.push(songSlug); candidates.set(candidate, list); }
   }
-  let indexed = 0; for (const [candidate, slugs] of candidates) if (slugs.length > 0 && await saveKeyword(supabase, candidate, slugs, "catalog", false)) indexed += 1; return indexed;
+  let indexed = 0; for (const [candidate, slugs] of Array.from(candidates.entries())) if (slugs.length > 0 && await saveKeyword(supabase, candidate, slugs, "catalog", false)) indexed += 1; return indexed;
 }
 
 export async function listCatalogKeywords(limit = 20) {
@@ -130,6 +130,6 @@ export async function updateSupabaseSongStatus(slug: string, status: "available"
   const supabase = getSupabaseAdmin(); if (!supabase) return null; const { error } = await supabase.from("songs").update({ status: status === "available" ? "active" : "removed" }).eq("slug", slug); if (error) throw new Error(error.message); return { slug, status };
 }
 
-export function mapSupabaseSong(row: any): CatalogSong {
-  return { id: Number(String(row.id).replace(/\D/g, "").slice(-9) || 0), title: row.title, artist: row.artist?.name ?? row.artist_name ?? "فنان تجريبي", artistSlug: row.artist?.slug ?? row.artist_slug ?? "artist", album: row.album?.title ?? row.album_title ?? "إصدار تجريبي", slug: row.slug, providerVideoId: row.provider_video_id, opaqueToken: row.opaque_token ?? row.opaqueToken ?? createOpaqueToken(`${row.provider_video_id}:${row.slug}`), thumbnailUrl: row.thumbnail_url ?? "", durationSeconds: row.duration_seconds ?? 0, isFeatured: Boolean(row.is_featured), rightsStatus: row.rights_status === "licensed" ? "licensed" : row.rights_status === "metadata_only" ? "metadata_only" : "demo", availabilityStatus: row.status === "removed" ? "removed" : "available" };
+export function mapSupabaseSong(row: any): CatalogSong & { providerUrl?: string; mp3Url?: string; mp4Url?: string } {
+  return { id: Number(String(row.id).replace(/\D/g, "").slice(-9) || 0), title: row.title, artist: row.artist?.name ?? row.artist_name ?? "فنان تجريبي", artistSlug: row.artist?.slug ?? row.artist_slug ?? "artist", album: row.album?.title ?? row.album_title ?? "إصدار تجريبي", slug: row.slug, providerVideoId: row.provider_video_id, opaqueToken: row.opaque_token ?? row.opaqueToken ?? createOpaqueToken(`${row.provider_video_id}:${row.slug}`), thumbnailUrl: row.thumbnail_url ?? "", durationSeconds: row.duration_seconds ?? 0, isFeatured: Boolean(row.is_featured), rightsStatus: row.rights_status === "licensed" ? "licensed" : row.rights_status === "metadata_only" ? "metadata_only" : "demo", availabilityStatus: row.status === "removed" ? "removed" : "available", providerUrl: row.provider_url ?? undefined, mp3Url: row.mp3_url ?? undefined, mp4Url: row.mp4_url ?? undefined };
 }

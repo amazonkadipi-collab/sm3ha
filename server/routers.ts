@@ -9,7 +9,7 @@ import { LOCAL_ADMIN_OPEN_ID, sdk } from "./_core/sdk";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { createOpaqueToken, demoSongs, formatDuration, makeSlug, normalizeArabic, searchDemoSongs } from "./catalog";
-import { createDemoDownloadToken } from "./download";
+import { createAuthorizedDownloadToken, createDemoDownloadToken } from "./download";
 import { findSongBySlug, findSongByToken, findSongs, findSongsBySlugs, getDb, updateDrizzleSongStatus } from "./db";
 import { findCatalogKeyword, getSupabaseAdmin, listCatalogKeywords, persistImportedRows, updateSupabaseSongStatus, upsertCatalogKeyword } from "./supabase";
 import { getAnalyticsSummary, getSiteSettings, hashRequestValue, listSearchLogs, listTakedowns, recordAnalyticsEvent, recordSearchLog, submitTakedown, updateSiteSettings, updateTakedown } from "./admin-observability";
@@ -17,7 +17,7 @@ import { searchYouTubeVideos } from "./youtube";
 import { artists, songs } from "../drizzle/schema";
 
 const paginationInput = z.object({ query: z.string().trim().max(120).optional(), limit: z.number().int().min(1).max(50).default(12) });
-const importRowInput = z.object({ title: z.string().min(1), artist: z.string().min(1), providerVideoId: z.string().min(1), provider: z.string().max(64).optional(), thumbnailUrl: z.string().url().optional(), durationSeconds: z.number().int().min(0).max(86400).optional() });
+const importRowInput = z.object({ title: z.string().min(1), artist: z.string().min(1), providerVideoId: z.string().min(1), provider: z.string().max(64).optional(), thumbnailUrl: z.string().url().optional(), durationSeconds: z.number().int().min(0).max(86400).optional(), providerUrl: z.string().url().refine(value => value.startsWith("https://"), "Authorized media URL must use HTTPS").optional(), mp3Url: z.string().url().refine(value => value.startsWith("https://"), "Authorized MP3 URL must use HTTPS").optional(), mp4Url: z.string().url().refine(value => value.startsWith("https://"), "Authorized MP4 URL must use HTTPS").optional() });
 const fallbackKeywords = ["راي", "اغاني", "أغاني عربية", "جديد الأغاني", "موسيقى هادئة", "أناشيد", "مهرجانات", "رابح صقر", "فيروز", "عمرو دياب"];
 
 const demoResult = (song: typeof demoSongs[number]) => ({ ...song, duration: formatDuration(song.durationSeconds), mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}` });
@@ -127,13 +127,24 @@ export const appRouter = router({
       const dbSong = await findSongByToken(input.token);
       const song = dbSong ? { ...dbSong, artist: "", album: "", duration: formatDuration(dbSong.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(dbSong.opaqueToken)}` } : demoSongs.map(demoResult).find(item => item.opaqueToken === input.token);
       if (!song) throw new TRPCError({ code: "NOT_FOUND", message: "Media token not found" });
-      return { ...song, allowedDemo: song.rightsStatus === "demo" || song.rightsStatus === "licensed", variants: [{ format: "mp3", quality: "Demo 128 kbps", status: "ready" }, { format: "mp4", quality: "Demo 720p", status: "ready" }] };
+      const licensed = song.rightsStatus === "licensed";
+      return { ...song, allowedDemo: song.rightsStatus === "demo", canDownload: licensed && Boolean((song as any).mp3Url || (song as any).mp4Url || (song as any).providerUrl), variants: [{ format: "mp3", quality: "Authorized source", status: licensed && Boolean((song as any).mp3Url || (song as any).providerUrl) ? "ready" : "unavailable" }, { format: "mp4", quality: "Authorized source", status: licensed && Boolean((song as any).mp4Url || (song as any).providerUrl) ? "ready" : "unavailable" }] };
     }),
     startDemoConversion: publicProcedure.input(z.object({ token: z.string(), format: z.enum(["mp3", "mp4"]), quality: z.string().max(32) })).mutation(async ({ input }) => {
       const song = demoSongs.find(item => item.opaqueToken === input.token);
       if (!song) throw new TRPCError({ code: "NOT_FOUND", message: "Demo media token not found" });
       const signedToken = createDemoDownloadToken(song.opaqueToken);
       return { id: `demo-job-${song.id}-${Date.now()}`, status: "ready" as const, progress: 100, expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(), downloadUrl: `/api/demo-download/${signedToken}`, notice: "Demo only: no external media was downloaded." };
+    }),
+    startConversion: publicProcedure.input(z.object({ token: z.string().min(8).max(128), format: z.enum(["mp3", "mp4"]), quality: z.string().max(32) })).mutation(async ({ input }) => {
+      const song = await findSongByToken(input.token);
+      if (!song) throw new TRPCError({ code: "NOT_FOUND", message: "Media token not found" });
+      const candidate = input.format === "mp3" ? (song as any).mp3Url ?? (song as any).providerUrl : (song as any).mp4Url ?? (song as any).providerUrl;
+      if (song.rightsStatus !== "licensed" || !candidate || !candidate.startsWith("https://")) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "This source has metadata only; an authorized media URL is required." });
+      }
+      const signedToken = createAuthorizedDownloadToken(input.token, input.format);
+      return { id: `authorized-${Date.now()}`, status: "ready" as const, progress: 100, downloadUrl: `/api/authorized-download/${signedToken}`, notice: "Authorized file delivery" };
     }),
   }),
   youtube: router({
@@ -174,7 +185,7 @@ export const appRouter = router({
       const rows = input.rows.map(row => { const duplicate = seen.has(row.providerVideoId); seen.add(row.providerVideoId); return { ...row, slug: makeSlug(`${row.artist}-${row.title}`), normalizedTitle: normalizeArabic(row.title), duplicate }; });
       return { rows, total: rows.length, duplicates: rows.filter(row => row.duplicate).length };
     }),
-    commitImport: adminProcedure.input(z.object({ rows: z.array(importRowInput).max(1000) })).mutation(async ({ input }) => { if (getSupabaseAdmin()) { const result = await persistImportedRows(input.rows); return { ...result, message: `${result.accepted} ligne(s) enregistrée(s) dans Supabase en mode demo.` }; } const db = await getDb(); if (!db) return { accepted: 0, status: "database_unavailable" as const, message: "Database unavailable; no rows were written." }; let accepted = 0; for (const row of input.rows) { const artistSlug = makeSlug(row.artist); const songSlug = makeSlug(`${row.artist}-${row.title}`); await db.insert(artists).values({ name: row.artist, normalizedName: normalizeArabic(row.artist), slug: artistSlug }).onDuplicateKeyUpdate({ set: { name: row.artist, normalizedName: normalizeArabic(row.artist) } }); const artistRows = await db.select({ id: artists.id }).from(artists).where(eq(artists.slug, artistSlug)).limit(1); const artistId = artistRows[0]?.id; if (!artistId) continue; await db.insert(songs).values({ title: row.title, normalizedTitle: normalizeArabic(row.title), slug: songSlug, artistId, provider: row.provider ?? "demo", providerVideoId: row.providerVideoId, thumbnailUrl: row.thumbnailUrl, durationSeconds: row.durationSeconds, opaqueToken: createOpaqueToken(`${row.providerVideoId}:${songSlug}`), availabilityStatus: "available", rightsStatus: row.provider === "youtube" ? "metadata_only" : "demo" }).onDuplicateKeyUpdate({ set: { title: row.title, artistId } }); accepted += 1; } return { accepted, status: "persisted_demo" as const, message: `${accepted} ligne(s) enregistrée(s) en mode demo.` }; }),
+    commitImport: adminProcedure.input(z.object({ rows: z.array(importRowInput).max(1000) })).mutation(async ({ input }) => { if (getSupabaseAdmin()) { const result = await persistImportedRows(input.rows); return { ...result, message: `${result.accepted} ligne(s) enregistrée(s) dans Supabase.` }; } const db = await getDb(); if (!db) return { accepted: 0, status: "database_unavailable" as const, message: "Database unavailable; no rows were written." }; let accepted = 0; for (const row of input.rows) { const artistSlug = makeSlug(row.artist); const songSlug = makeSlug(`${row.artist}-${row.title}`); await db.insert(artists).values({ name: row.artist, normalizedName: normalizeArabic(row.artist), slug: artistSlug }).onDuplicateKeyUpdate({ set: { name: row.artist, normalizedName: normalizeArabic(row.artist) } }); const artistRows = await db.select({ id: artists.id }).from(artists).where(eq(artists.slug, artistSlug)).limit(1); const artistId = artistRows[0]?.id; if (!artistId) continue; await db.insert(songs).values({ title: row.title, normalizedTitle: normalizeArabic(row.title), slug: songSlug, artistId, provider: row.provider ?? "demo", providerVideoId: row.providerVideoId, providerUrl: row.providerUrl, thumbnailUrl: row.thumbnailUrl, durationSeconds: row.durationSeconds, opaqueToken: createOpaqueToken(`${row.providerVideoId}:${songSlug}`), availabilityStatus: "available", rightsStatus: row.providerUrl || row.mp3Url || row.mp4Url ? "licensed" : row.provider === "youtube" ? "metadata_only" : "demo" }).onDuplicateKeyUpdate({ set: { title: row.title, artistId, providerUrl: row.providerUrl } }); accepted += 1; } return { accepted, status: "persisted" as const, message: `${accepted} ligne(s) enregistrée(s).` }; }),
   }),
 });
 

@@ -5,6 +5,7 @@ import React from "react";
 
 const mocks = vi.hoisted(() => ({
   search: vi.fn(),
+  keywords: vi.fn(),
   song: vi.fn(),
   media: vi.fn(),
   trending: vi.fn(),
@@ -15,6 +16,7 @@ let searchValue = "q=ليلة%20هادئة";
 vi.mock("@/lib/trpc", () => ({
   trpc: { catalog: {
     search: { useQuery: (...args: unknown[]) => mocks.search(...args) },
+    keywords: { useQuery: (...args: unknown[]) => mocks.keywords(...args) },
     songBySlug: { useQuery: (...args: unknown[]) => mocks.song(...args) },
     mediaByToken: { useQuery: (...args: unknown[]) => mocks.media(...args) },
     trending: { useQuery: (...args: unknown[]) => mocks.trending(...args) },
@@ -47,9 +49,11 @@ beforeEach(() => {
   document.body.innerHTML = "";
   mocks.navigate.mockReset();
   mocks.search.mockReset();
+  mocks.keywords.mockReset();
   mocks.song.mockReset();
   mocks.media.mockReset();
   mocks.trending.mockReturnValue({ data: [], isLoading: false, isError: false });
+  mocks.keywords.mockReturnValue({ data: [], isLoading: false, isError: false });
 });
 
 describe("reference workflow runtime", () => {
@@ -66,11 +70,11 @@ describe("reference workflow runtime", () => {
     expect(screen.getByRole("link", { name: /تجربة التحميل/ }).getAttribute("href")).toBe("/media?d=opaque-demo");
   });
 
-  it("renders the media-to-conversion link with the provider id", () => {
+  it("renders the media-to-conversion link with the opaque token", () => {
     searchValue = "d=opaque-demo";
     mocks.media.mockReturnValue({ data: { title: "ليلة هادئة", artist: "نغمة", duration: "03:00", opaqueToken: "opaque-demo", providerVideoId: "video-demo" }, isLoading: false, error: null });
     render(<MediaPage />);
-    expect(screen.getByRole("link", { name: /DOWNLOAD NOW/ }).getAttribute("href")).toBe("/videos_dl?v=video-demo");
+    expect(screen.getByRole("link", { name: /اختيار MP3 \/ MP4/ }).getAttribute("href")).toBe("/videos_dl?v=opaque-demo");
   });
 
   it("shows Arabic title text only and toggles one inline YouTube player", () => {
