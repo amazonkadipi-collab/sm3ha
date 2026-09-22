@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Clock3, Download, Play, Square, Youtube } from "lucide-react";
+import { Download, Play, Square, Youtube } from "lucide-react";
 import { useLocation, useRoute } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { applySeo, resetSeo } from "@/lib/seo";
@@ -102,7 +102,7 @@ export default function KeywordPage() {
         const isPlaying = activeVideoId === song.providerVideoId;
         return <article key={`${song.providerVideoId}-${song.slug}`} className="reference-media-row">
           <div className="reference-media-thumb reference-media-thumb-area">{song.thumbnailUrl ? <img src={song.thumbnailUrl} alt={visibleTitle} title={visibleTitle} loading="lazy" /> : <span><Youtube size={20} /></span>}</div>
-          <div className="min-w-0 reference-media-copy"><h2>{visibleTitle}</h2><p><Youtube size={14} /> <Clock3 size={14} /> مدة الفيديو: {song.duration}</p></div>
+          <div className="min-w-0 reference-media-copy"><h2>{visibleTitle}</h2><p><Youtube size={13} /> مدة الفيديو: {song.duration}</p></div>
           <div className="reference-media-actions reference-media-actions-area">
             <a href={workflowLinks.media(song.opaqueToken)} className="reference-action"><Download size={15} /> تحميل</a>
             {isPlaying ? <button type="button" className="reference-watch" aria-pressed="true" onClick={() => { setActiveVideoId(null); window.history.replaceState(null, "", window.location.pathname + window.location.search); }}><Square size={14} /> إيقاف</button> : <a href={`#${encodeURIComponent(song.providerVideoId)}`} className="reference-watch" aria-label={`مشاهدة ${visibleTitle}`} onClick={() => setActiveVideoId(song.providerVideoId)}><Play size={14} /> مشاهدة</a>}
