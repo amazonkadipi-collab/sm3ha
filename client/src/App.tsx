@@ -31,14 +31,6 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
       </div>
     </header>
     <main>{children}</main>
-    <footer className="reference-footer mx-auto mt-10 flex max-w-[1080px] flex-col gap-3 border-t border-[#d9dfdc] px-4 py-5 text-xs text-[#82918c] sm:flex-row sm:items-center sm:justify-between sm:px-8">
-      <span>Powered By Sm3ha © 2026</span>
-      <div className="flex flex-wrap gap-x-5 gap-y-2">
-        <Link href="/">سمعها</Link>
-        <Link href="/contact">اتصل بنا</Link>
-        <Link href="/dmca">DMCA</Link>
-      </div>
-    </footer>
   </div>;
 }
 
