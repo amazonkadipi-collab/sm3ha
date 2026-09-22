@@ -10,6 +10,8 @@ export const ENV = {
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
   youtubeApiKey: process.env.YOUTUBE_API_KEY ?? "",
   youtubeApiKeys: [process.env.YOUTUBE_API_KEY, process.env.YOUTUBE_API_KEY_2, process.env.YOUTUBE_API_KEY_3].filter((key): key is string => Boolean(key)),
+  rapidApiKey: process.env.RAPIDAPI_KEY ?? "",
+  rapidApiHost: process.env.RAPIDAPI_HOST ?? "youtube-to-mp4-mp3.p.rapidapi.com",
   adminUsername: process.env.ADMIN_USERNAME ?? "",
   adminPassword: process.env.ADMIN_PASSWORD ?? "",
 };
