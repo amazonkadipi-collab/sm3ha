@@ -21,6 +21,30 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { useAuth } from "./_core/hooks/useAuth";
 
+function AdBanner() {
+  React.useEffect(() => {
+    try {
+      ((window as Window & { adsbygoogle?: unknown[] }).adsbygoogle =
+        (window as Window & { adsbygoogle?: unknown[] }).adsbygoogle || []).push({});
+    } catch {
+      // AdSense may be unavailable while the account/site is under review.
+    }
+  }, []);
+
+  return (
+    <div className="mx-auto w-full max-w-6xl px-5 py-4" dir="ltr" aria-label="إعلان">
+      <ins
+        className="adsbygoogle"
+        style={{ display: "block" }}
+        data-ad-client="ca-pub-9105855254430799"
+        data-ad-slot="7023973222"
+        data-ad-format="auto"
+        data-full-width-responsive="true"
+      />
+    </div>
+  );
+}
+
 function AuthHeader() {
   const { user, loading, logout } = useAuth();
   if (loading) return null;
@@ -41,6 +65,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
     <main className="flex-1">
       {children}
     </main>
+    <AdBanner />
     <footer className="shrink-0 border-t border-[#756590]/10 bg-white/90" dir="rtl">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-5 py-6 text-sm text-[#81768f]">
         <p>© {new Date().getFullYear()} سمعها — اكتشف الموسيقى وابحث عنها بسهولة.</p>
