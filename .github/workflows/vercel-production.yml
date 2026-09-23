@@ -1,5 +1,6 @@
 name: Deploy to Vercel
 
+# Explicit production deploy for the connected Vercel project.
 on:
   push:
     branches: [main]
