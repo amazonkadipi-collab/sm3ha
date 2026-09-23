@@ -28,8 +28,8 @@ function AuthHeader() {
 }
 
 export function PublicLayout({ children }: { children: React.ReactNode }) {
-  return <div className="naghma-shell">
-    <header className="reference-top-header" dir="rtl">
+  return <div className="naghma-shell min-h-screen flex flex-col">
+    <header className="reference-top-header shrink-0" dir="rtl">
       <div className="reference-top-header-inner">
         <Link href="/" className="reference-top-logo" aria-label="سمعها - الرئيسية">سمعها</Link>
         <nav className="reference-top-nav" aria-label="التنقل الرئيسي">
@@ -38,7 +38,20 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         </nav>
       </div>
     </header>
-    {children}
+    <main className="flex-1">
+      {children}
+    </main>
+    <footer className="shrink-0 border-t border-[#756590]/10 bg-white/90" dir="rtl">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-5 py-6 text-sm text-[#81768f]">
+        <p>© {new Date().getFullYear()} سمعها — اكتشف الموسيقى وابحث عنها بسهولة.</p>
+        <nav className="flex flex-wrap gap-x-5 gap-y-2" aria-label="روابط الموقع">
+          <Link href="/privacy" className="hover:text-[#514568]">الخصوصية</Link>
+          <Link href="/terms" className="hover:text-[#514568]">الشروط</Link>
+          <Link href="/dmca" className="hover:text-[#514568]">DMCA</Link>
+          <Link href="/contact" className="hover:text-[#514568]">اتصل بنا</Link>
+        </nav>
+      </div>
+    </footer>
   </div>;
 }
 
