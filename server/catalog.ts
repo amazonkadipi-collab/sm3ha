@@ -34,6 +34,18 @@ export function makeSlug(value: string) {
   return normalizeArabic(value).replace(/[^a-zA-Z0-9\u0600-\u06FF]+/g, "-").replace(/^-+|-+$/g, "") || "song";
 }
 
+export function isLikelyMusicTitle(title: string, artist = "") {
+  const value = `${title} ${artist}`.toLocaleLowerCase("en");
+  const blocked = [
+    /\bfull\s*(movie|film)\b/, /\b(movie|film)\s*full\b/, /\btrailer\b/, /\bteaser\b/,
+    /\bepisode\b/, /\bep\s*\d+\b/, /\bpart\s*[1-9]\b/, /\bseason\s*\d+\b/,
+    /\bseries\b/, /\bdocumentary\b/, /\bshort\s*film\b/, /\bweb\s*series\b/,
+    /\bmovie\s*202\d\b/, /\bfilm\s*202\d\b/, /\bmafia\s*movie\b/,
+    /\bmy\s+(white|babysitter)\b/, /\bhorror\s+movies?\b/, /\bthe\s+last\s+don\b/
+  ];
+  return !blocked.some(pattern => pattern.test(value));
+}
+
 export function createOpaqueToken(seed?: string) {
   if (seed) return `d_${createHash("sha256").update(seed).digest("hex").slice(0, 16)}`;
   return `d_${randomBytes(16).toString("hex")}`;
