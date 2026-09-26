@@ -8,7 +8,7 @@ import { ENV } from "./_core/env";
 import { LOCAL_ADMIN_OPEN_ID, sdk } from "./_core/sdk";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
-import { createOpaqueToken, demoSongs, formatDuration, makeSlug, normalizeArabic, searchDemoSongs } from "./catalog";
+import { createOpaqueToken, demoSongs, formatDuration, isLikelyMusicTitle, makeSlug, normalizeArabic, searchDemoSongs } from "./catalog";
 import { createDemoDownloadToken } from "./download";
 import { findAlbumBySlug, findArtistBySlug, findSongBySlug, findSongByToken, findSongs, findSongsBySlugs, getDb, listAlbums, listArtists, updateDrizzleSongStatus } from "./db";
 import { findCatalogKeyword, getSupabaseAdmin, indexYouTubeTitleQueries, listCatalogKeywords, persistImportedRows, updateSupabaseSongStatus, upsertCatalogKeyword } from "./supabase";
@@ -169,7 +169,7 @@ export const appRouter = router({
     artistBySlug: publicProcedure.input(z.object({ slug: z.string().min(1).max(255) })).query(async ({ input }) => {
       const profile = await findArtistBySlug(input.slug);
       if (profile?.songs?.length) {
-        return { slug: profile.slug, name: profile.name, imageUrl: profile.imageUrl, songs: profile.songs.map(song => ({ ...song, duration: formatDuration(song.durationSeconds ?? 0), mediaUrl: "/media?d=" + encodeURIComponent(song.opaqueToken) })) };
+        return { slug: profile.slug, name: profile.name, imageUrl: profile.imageUrl, songs: profile.songs.filter(song => isLikelyMusicTitle(song.title, song.artist)).map(song => ({ ...song, duration: formatDuration(song.durationSeconds ?? 0), mediaUrl: "/media?d=" + encodeURIComponent(song.opaqueToken) })) };
       }
       const fallback = demoSongs.filter(song => song.artistSlug === input.slug);
       if (!fallback.length) throw new TRPCError({ code: "NOT_FOUND", message: "Artist not found" });
@@ -186,7 +186,7 @@ export const appRouter = router({
     }),
     songBySlug: publicProcedure.input(z.object({ slug: z.string().min(1).max(255) })).query(async ({ input }) => {
       const dbSong = await findSongBySlug(input.slug);
-      if (dbSong) return { ...dbSong, artist: "", album: "", duration: formatDuration(dbSong.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(dbSong.opaqueToken)}` };
+      if (dbSong && isLikelyMusicTitle(dbSong.title, dbSong.artist)) return { ...dbSong, artist: "", album: "", duration: formatDuration(dbSong.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(dbSong.opaqueToken)}` };
       const song = demoSongs.find(item => item.slug === input.slug);
       if (song) return demoResult(song);
       if (ENV.youtubeApiKey) {
