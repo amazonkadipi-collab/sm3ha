@@ -2,7 +2,7 @@ import express from "express";
 import fs from "node:fs";
 import path from "node:path";
 import { findCatalogKeyword, listCatalogKeywords, upsertCatalogKeyword } from "./supabase";
-import { formatDuration, makeSlug } from "./catalog";
+import { formatDuration, isLikelyMusicTitle, makeSlug } from "./catalog";
 import { findAlbumBySlug, findArtistBySlug, findSongBySlug, findSongs, findSongsBySlugs } from "./db";
 
 const PUBLIC_ORIGIN = "https://www.sm3ha.online";
@@ -118,7 +118,7 @@ async function renderEntityShell(req: express.Request, template: string, kind: "
 
   if (kind === "song") {
     const song = await findSongBySlug(slug) as any;
-    if (!song) return { status: 404, html: template };
+    if (!song || !isLikelyMusicTitle(song.title, song.artist ?? "")) return { status: 404, html: template };
     title = `${song.title} Mp3 - تحميل واستماع | سمعها`;
     description = `استمع واكتشف ${song.title} على سمعها. معلومات الأغنية ونتائج موسيقية مرتبطة.`;
     canonical = absoluteUrl(req, `/song/${encodeURIComponent(song.slug)}`);
