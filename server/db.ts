@@ -90,7 +90,7 @@ export async function findArtistBySlug(slug: string) {
         slug: artist.slug,
         name: artist.name,
         imageUrl: artist.image_url ?? null,
-        songs: (rows ?? []).map(mapSupabaseSong),
+        songs: (rows ?? []).map(mapSupabaseSong).filter(song => isLikelyMusicTitle(song.title, song.artist)),
       };
     }
     if (error) console.warn("[Supabase] artist lookup failed:", error.message);
@@ -101,7 +101,7 @@ export async function findArtistBySlug(slug: string) {
   const artist = artistRows[0];
   if (!artist) return undefined;
   const songRows = await db.select().from(songs).where(and(eq(songs.artistId, artist.id), eq(songs.availabilityStatus, "available"))).orderBy(desc(songs.createdAt)).limit(100);
-  return { ...artist, songs: songRows };
+  return { ...artist, songs: songRows.filter(song => isLikelyMusicTitle(song.title, (song as any).artist ?? "")) };
 }
 
 export async function findAlbumBySlug(slug: string) {
