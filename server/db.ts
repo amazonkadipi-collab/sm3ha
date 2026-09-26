@@ -3,6 +3,7 @@ import { drizzle } from "drizzle-orm/mysql2";
 import { albums, artists, InsertUser, songs, users } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 import { getSupabaseAdmin, hashOpaqueToken, mapSupabaseSong } from "./supabase";
+import { isLikelyMusicTitle } from "./catalog";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
