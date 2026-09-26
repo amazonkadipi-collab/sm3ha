@@ -1,4 +1,4 @@
-const YOUTUBE_API = "https://www.googleapis.com/youtube/v3";
+import { isLikelyMusicTitle } from "./catalog";\n\nconst YOUTUBE_API = "https://www.googleapis.com/youtube/v3";
 
  type YouTubeSearchResponse = {
   items?: Array<{
@@ -83,7 +83,7 @@ async function searchWithKey(query: string, limit: number, apiKey: string): Prom
       artist: item.snippet?.channelTitle ?? "",
       thumbnailUrl: item.snippet?.thumbnails?.high?.url ?? item.snippet?.thumbnails?.medium?.url ?? "",
     }))
-    .filter(item => item.id && item.title);
+    .filter(item => item.id && item.title && isLikelyMusicTitle(item.title, item.artist));
 
   if (!candidates.length) return [];
 
