@@ -1,4 +1,6 @@
-import { isLikelyMusicTitle } from "./catalog";\n\nconst YOUTUBE_API = "https://www.googleapis.com/youtube/v3";
+import { isLikelyMusicTitle } from "./catalog";
+
+const YOUTUBE_API = "https://www.googleapis.com/youtube/v3";
 
  type YouTubeSearchResponse = {
   items?: Array<{
