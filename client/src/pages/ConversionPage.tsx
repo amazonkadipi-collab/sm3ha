@@ -1,5 +1,4 @@
 import { Download, ExternalLink, FileAudio, FileVideo, Loader2, PlayCircle } from "lucide-react";
-import { Download, ExternalLink, FileAudio, FileVideo, Loader2, PlayCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearch } from "wouter";
 import { applySeo, resetSeo } from "@/lib/seo";
