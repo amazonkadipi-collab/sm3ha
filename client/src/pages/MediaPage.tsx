@@ -1,3 +1,4 @@
+import { Download, ExternalLink, ShieldCheck } from "lucide-react";
 import { Download, ShieldCheck, ExternalLink } from "lucide-react";
 import { Link, useLocation, useSearch } from "wouter";
 import { useState, type FormEvent } from "react";
