@@ -17,8 +17,9 @@ function duration(seconds: number) {
 
 export default function ConversionPage() {
   const params = new URLSearchParams(useSearch());
-  const videoId = params.get("v") ?? "";
+  const token = params.get("d") ?? "";
   const [info, setInfo] = useState<MediaInfo | null>(null);
+  const [authorizedDownload, setAuthorizedDownload] = useState(false);
   const [format, setFormat] = useState<"mp3" | "mp4">("mp3");
   const [selectedQuality, setSelectedQuality] = useState("");
   const [loading, setLoading] = useState(Boolean(videoId));
@@ -29,24 +30,25 @@ export default function ConversionPage() {
     applySeo({
       title: info ? `تحميل ${info.title} Mp3 Mp4 — سمعها` : "تحميل الفيديو — سمعها",
       description: info ? `تحميل ${info.title} بصيغ MP3 و MP4.` : "صفحة تحميل الفيديو.",
-      path: `/videos_dl?v=${encodeURIComponent(videoId)}`,
+      path: `/videos_dl?d=${encodeURIComponent(token)}`,
       noindex: true,
     });
     return resetSeo;
-  }, [videoId, info]);
+  }, [token, info]);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      if (!videoId) { setLoading(false); return; }
+      if (!token) { setLoading(false); return; }
       setLoading(true);
       setError("");
       try {
-        const response = await fetch(`/api/youtube/info?v=${encodeURIComponent(videoId)}`);
+        const response = await fetch(`/api/youtube/info?d=${encodeURIComponent(token)}`);
         const payload = await response.json();
         if (!response.ok) throw new Error(payload.error || "تعذر جلب معلومات الفيديو");
         if (!cancelled) {
           setInfo(payload);
+          setAuthorizedDownload(Boolean(payload.authorizedDownload));
           setFormat(payload.audio?.length ? "mp3" : "mp4");
           setSelectedQuality(payload.audio?.[0]?.quality || payload.video?.[0]?.quality || "");
         }
@@ -58,7 +60,7 @@ export default function ConversionPage() {
     }
     void load();
     return () => { cancelled = true; };
-  }, [videoId]);
+  }, [token]);
 
   const links = useMemo(() => format === "mp3" ? info?.audio ?? [] : info?.video ?? [], [format, info]);
 
@@ -67,11 +69,11 @@ export default function ConversionPage() {
   }, [links, selectedQuality]);
 
   const beginDownload = async () => {
-    if (!videoId || !selectedQuality) return;
+    if (!token || !selectedQuality || !authorizedDownload) return;
     setDownloading(true);
     setError("");
     try {
-      const query = new URLSearchParams({ v: videoId, format, quality: selectedQuality });
+      const query = new URLSearchParams({ d: token, format, quality: selectedQuality });
       const response = await fetch(`/api/youtube/download?${query.toString()}`);
       const payload = await response.json();
       if (!response.ok || !payload.url) throw new Error(payload.error || "لم يتم العثور على رابط التحميل");
@@ -90,11 +92,11 @@ export default function ConversionPage() {
     }
   };
 
-  if (!videoId) return <main className="reference-page mx-auto max-w-[1080px] px-4 py-20 text-center sm:px-8"><p className="serif text-4xl text-[#344d49]">مصدر التحميل غير محدد</p><Link href="/" className="mt-4 inline-block font-bold text-[#527566]">العودة للرئيسية</Link></main>;
+  if (!token) return <main className="reference-page mx-auto max-w-[1080px] px-4 py-20 text-center sm:px-8"><p className="serif text-4xl text-[#344d49]">مصدر التحميل غير محدد</p><Link href="/" className="mt-4 inline-block font-bold text-[#527566]">العودة للرئيسية</Link></main>;
   if (loading) return <main dir="rtl" className="reference-page mx-auto max-w-[1080px] px-4 py-20 text-center sm:px-8"><Loader2 className="mx-auto animate-spin" /><p className="mt-4 text-sm text-[#527566]">جاري جلب معلومات الفيديو…</p></main>;
   if (error && !info) return <main dir="rtl" className="reference-page mx-auto max-w-[1080px] px-4 py-20 text-center sm:px-8"><p className="serif text-3xl text-[#344d49]">تعذر تحميل الفيديو</p><p className="mx-auto mt-4 max-w-xl rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</p><a href={`https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`} target="_blank" rel="noreferrer" className="mt-5 inline-flex items-center gap-2 font-bold text-[#527566]"><ExternalLink size={16} /> فتح في YouTube</a></main>;
 
-  const title = info?.title || `YouTube ${videoId}`;
+  const title = info?.title || "المحتوى المطلوب";
   return <main dir="rtl" className="reference-page mx-auto max-w-[1080px] px-4 pb-12 pt-8 sm:px-8">
     <Link href="/" className="text-sm font-bold text-[#756590]">العودة للرئيسية</Link>
     <section className="reference-media mt-8">
@@ -122,7 +124,7 @@ export default function ConversionPage() {
       </div>
 
       {error ? <p className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</p> : null}
-      <p className="mt-6 rounded-xl border border-[#d9dfdc] bg-white p-4 text-sm leading-6 text-[#78938a]">التحميل يتم عبر مزود RapidAPI الموجود في إعدادات الخادم. تأكد من أن لديك الحق في تنزيل وإعادة استخدام المحتوى المطلوب.</p>
+      <p className="mt-6 rounded-xl border border-[#d9dfdc] bg-white p-4 text-sm leading-6 text-[#78938a]">التحميل متاح فقط عندما يكون للمحتوى مصدر تحميل مصرح به في فهرس سمعها.</p>
     </section>
   </main>;
 }
