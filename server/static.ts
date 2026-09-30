@@ -1,9 +1,11 @@
 import express from "express";
 import fs from "node:fs";
 import path from "node:path";
-import { findCatalogKeyword, listCatalogKeywords, upsertCatalogKeyword } from "./supabase";
+import { findCatalogKeyword, listCatalogKeywords, persistImportedRows, upsertCatalogKeyword } from "./supabase";
+import { ENV } from "./_core/env";
+import { searchYouTubeVideos } from "./youtube";
 import { formatDuration, isLikelyMusicTitle, makeSlug } from "./catalog";
-import { findAlbumBySlug, findArtistBySlug, findSongBySlug, findSongs, findSongsBySlugs } from "./db";
+import { findAlbumBySlug, findArtistBySlug, findSongBySlug, findSongs, findSongsBySlugs, listArtists } from "./db";
 
 const PUBLIC_ORIGIN = "https://www.sm3ha.online";
 
@@ -49,10 +51,31 @@ async function renderKeywordShell(req: express.Request, template: string) {
 
   // Match the v1 /s/* behavior: any meaningful query can resolve on first visit.
   const record = await findCatalogKeyword(slug);
-  const rawSongs = record?.result_slugs?.length
+  let rawSongs = record?.result_slugs?.length
     ? await findSongsBySlugs(record.result_slugs, 20)
     : await findSongs(keyword, 20);
-  const songs = rawSongs.slice(0, 10);
+
+  // Match v1-style discovery for new queries: when the local archive has no
+  // usable results, perform one real provider search, persist the metadata,
+  // then render the persisted rows so /s/* is useful to crawlers on first visit.
+  if (!rawSongs.length && ENV.youtubeApiKey) {
+    try {
+      const youtubeRows = await searchYouTubeVideos(keyword, 20);
+      if (youtubeRows.length) {
+        const persisted = await persistImportedRows(youtubeRows);
+        if (persisted.acceptedSlugs?.length) {
+          rawSongs = await findSongsBySlugs(persisted.acceptedSlugs, 20);
+          if (rawSongs.length) {
+            await upsertCatalogKeyword(keyword, rawSongs.map(song => song.slug), "youtube-search", true);
+          }
+        }
+      }
+    } catch (error) {
+      console.warn("[SEO] keyword provider search failed:", error instanceof Error ? error.message : error);
+    }
+  }
+
+  const songs = rawSongs.slice(0, 20);
 
 
   const canonicalSlug = record?.slug || makeSlug(keyword);
@@ -178,12 +201,41 @@ async function renderEntityShell(req: express.Request, template: string, kind: "
   return { status: 200, html };
 }
 
+async function renderArtistsArchiveShell(req: express.Request, template: string) {
+  const artists = await listArtists(50);
+  if (!artists.length) return { status: 404, html: renderNotFoundShell(req, template).html };
+  const title = "الفنانون Mp3 - سمعها";
+  const description = "أرشيف الفنانين في سمعها مع روابط مباشرة إلى صفحات الفنانين وأغانيهم.";
+  const canonical = absoluteUrl(req, "/artists");
+  const cards = artists.map((artist: any) => '<article class="reference-media-row"><div class="reference-media-thumb reference-media-thumb-area">' + (artist.imageUrl ? '<img src="' + escapeHtml(artist.imageUrl) + '" alt="' + escapeHtml(artist.name) + '" loading="lazy">' : '<span aria-hidden="true">♫</span>') + '</div><div class="reference-media-copy"><h2><a href="/artists/' + encodeURIComponent(artist.slug) + '">' + escapeHtml(artist.name) + '</a></h2><p>' + Number(artist.songCount ?? 0) + ' إصدار</p></div></article>').join("");
+  const content = '<main dir="rtl" class="reference-page mx-auto max-w-[1080px] px-4 pb-12 pt-4 sm:px-8"><a href="/" class="reference-back">الرئيسية</a><section class="reference-page-head"><div><span>سمعها</span><h1>' + escapeHtml(title) + '</h1><p>' + escapeHtml(description) + '</p></div></section><section class="reference-results" aria-label="أرشيف الفنانين">' + cards + '</section></main>';
+  const jsonLd = JSON.stringify({ "@context": "https://schema.org", "@type": "CollectionPage", name: title, description, url: canonical, mainEntity: { "@type": "ItemList", itemListElement: artists.map((artist: any, index: number) => ({ "@type": "ListItem", position: index + 1, url: absoluteUrl(req, "/artists/" + encodeURIComponent(artist.slug)), name: artist.name })) } }).replace(/</g, "\\u003c");
+  const html = template.replace(/<html[^>]*>/i, '<html lang="ar" dir="rtl">').replace(/<title>[^<]*<\/title>/i, '<title>' + escapeHtml(title) + '</title>').replace(/<meta name="description" content="[^"]*"/i, '<meta name="description" content="' + escapeHtml(description) + '"').replace(/<meta name="robots" content="[^"]*"/i, '<meta name="robots" content="index,follow"').replace(/<meta property="og:title" content="[^"]*"/i, '<meta property="og:title" content="' + escapeHtml(title) + '"').replace(/<meta property="og:description" content="[^"]*"/i, '<meta property="og:description" content="' + escapeHtml(description) + '"').replace(/<meta property="og:url" content="[^"]*"/i, '<meta property="og:url" content="' + escapeHtml(canonical) + '"').replace(/<link rel="canonical"[^>]*>/i, '<link rel="canonical" href="' + escapeHtml(canonical) + '">').replace("</head>", '<script type="application/ld+json" data-sm3ha-seo="true">' + jsonLd + '</script></head>').replace('<div id="root"></div>', '<div id="root">' + content + '</div>');
+  return { status: 200, html };
+}
+
 export function serveStatic(app: express.Express) {
   const publicPath = path.resolve(process.cwd(), "public");
   if (!fs.existsSync(publicPath)) console.error(`Could not find static directory: ${publicPath}`);
 
   app.use(express.static(publicPath));
 
+
+  app.get("/artists", async (req, res, next) => {
+    try {
+      const template = await fs.promises.readFile(path.join(publicPath, "index.html"), "utf-8");
+      const rendered = await renderArtistsArchiveShell(req, template);
+      if (rendered.status === 404) {
+        res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
+        return res.status(404).type("html").send(rendered.html);
+      }
+      res.setHeader("X-Robots-Tag", "index, follow");
+      return res.status(200).type("html").send(rendered.html);
+    } catch (error) {
+      console.warn("[SEO] artists archive render failed:", error);
+      return next(error);
+    }
+  });
 
   for (const [route, kind] of [["/song/:slug", "song"], ["/artists/:slug", "artist"], ["/album/:slug", "album"]] as const) {
     app.get(route, async (req, res, next) => {
