@@ -2,7 +2,7 @@ import express from "express";
 import fs from "node:fs";
 import path from "node:path";
 import { findCatalogKeyword, listCatalogKeywords, upsertCatalogKeyword } from "./supabase";
-import { formatDuration, isLikelyMusicQuery, isLikelyMusicTitle, makeSlug } from "./catalog";
+import { formatDuration, isLikelyMusicTitle, makeSlug } from "./catalog";
 import { findAlbumBySlug, findArtistBySlug, findSongBySlug, findSongs, findSongsBySlugs } from "./db";
 
 const PUBLIC_ORIGIN = "https://www.sm3ha.online";
@@ -45,16 +45,15 @@ async function renderKeywordShell(req: express.Request, template: string) {
   try { slug = decodeURIComponent(rawSlug); } catch { return { status: 400, html: template }; }
 
   const keyword = slug.replace(/-/g, " ").trim();
-  if (!keyword || keyword.length > 120 || !isLikelyMusicQuery(keyword)) return { status: 404, html: renderNotFoundShell(req, template).html };
+  if (!keyword || keyword.length > 120) return { status: 404, html: renderNotFoundShell(req, template).html };
 
   // Match the v1 /s/* behavior: any meaningful query can resolve on first visit.
   const record = await findCatalogKeyword(slug);
   const rawSongs = record?.result_slugs?.length
     ? await findSongsBySlugs(record.result_slugs, 20)
     : await findSongs(keyword, 20);
-  const songs = rawSongs.filter(song => isLikelyMusicTitle(song.title, song.artist ?? "")).slice(0, 10);
+  const songs = rawSongs.slice(0, 10);
 
-  if (!songs.length) return { status: 404, html: template };
 
   const canonicalSlug = record?.slug || makeSlug(keyword);
   const resolvedQuery = record?.query || keyword;
@@ -79,12 +78,12 @@ async function renderKeywordShell(req: express.Request, template: string) {
 
   const artists = Array.from(new Set(songs.map(song => song.artist).filter(Boolean))).slice(0, 8);
   const artistSummary = artists.length ? ` وتشمل النتائج أعمالاً مرتبطة بـ ${artists.map(escapeHtml).join("، ")}.` : "";
-  const summary = `<section class="reference-results-summary" aria-label="نبذة عن النتائج"><p>هذه صفحة نتائج بحث عن «${escapeHtml(resolvedQuery)}» في سمعها. تعرض الصفحة ${songs.length} نتيجة متاحة من فهرس الموسيقى، مع اسم العمل والفنان والمدة وروابط المشاهدة والتحميل حسب التوفر.${artistSummary} يمكنك فتح أي نتيجة للوصول إلى صفحة الأغنية ومعلوماتها والنتائج الموسيقية المرتبطة.</p></section>`;
+  const summary = `<section class="reference-results-summary" aria-label="نبذة عن النتائج"><p>هذه صفحة نتائج بحث عن «${escapeHtml(resolvedQuery)}» في سمعها. تعرض الصفحة ${songs.length} نتيجة متاحة من فهرس الوسائط، مع اسم العمل والفنان والمدة وروابط المشاهدة والتحميل حسب التوفر.${artistSummary} يمكنك فتح أي نتيجة للوصول إلى صفحة الأغنية ومعلوماتها والنتائج المرتبطة.</p></section>`;
 
   const relatedRows = await listCatalogKeywords(50);
   const keywordWords = new Set(keyword.toLocaleLowerCase("ar").split(/\s+/).filter(Boolean));
   const relatedHtml = relatedRows
-    .filter(item => item.slug !== record.slug && item.result_count > 0)
+    .filter(item => item.slug !== canonicalSlug && item.result_count > 0)
     .map(item => ({ item, overlap: item.query.toLocaleLowerCase("ar").split(/\s+/).filter(word => keywordWords.has(word)).length }))
     .filter(entry => entry.overlap > 0)
     .sort((a, b) => b.overlap - a.overlap || a.item.query.localeCompare(b.item.query, "ar"))
@@ -92,7 +91,7 @@ async function renderKeywordShell(req: express.Request, template: string) {
     .map(({ item }) => `<a href="/s/${encodeURIComponent(item.slug)}">تحميل ${escapeHtml(item.query)}</a>`)
     .join("");
   const relatedSection = relatedHtml ? `<section class="mt-8 border-t border-black/10 pt-5" aria-label="كلمات مرتبطة"><div class="mb-3 text-sm font-semibold">مواضيع مرتبطة</div><div class="flex flex-wrap gap-2">${relatedHtml}</div></section>` : "";
-  const content = `<main dir="rtl" class="reference-page mx-auto max-w-[1080px] px-4 pb-12 pt-4 sm:px-8"><a href="/" class="reference-back">الرئيسية</a><section class="reference-page-head"><div><span>سمعها</span><h1>${escapeHtml(title)}</h1></div></section>${summary}<section class="reference-results" aria-label="${escapeHtml(`نتائج ${record.query || keyword}`)}"><div class="reference-results-title">نتائج «${escapeHtml(record.query || keyword)}»</div>${resultHtml}</section>${relatedSection}</main>`;
+  const content = `<main dir="rtl" class="reference-page mx-auto max-w-[1080px] px-4 pb-12 pt-4 sm:px-8"><a href="/" class="reference-back">الرئيسية</a><section class="reference-page-head"><div><span>سمعها</span><h1>${escapeHtml(title)}</h1></div></section>${summary}<section class="reference-results" aria-label="${escapeHtml(`نتائج ${resolvedQuery}`)}"><div class="reference-results-title">نتائج «${escapeHtml(resolvedQuery)}»</div>${resultHtml}</section>${relatedSection}</main>`;
 
   const jsonLd = JSON.stringify({
     "@context": "https://schema.org",
