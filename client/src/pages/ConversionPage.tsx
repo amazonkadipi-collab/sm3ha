@@ -22,7 +22,7 @@ export default function ConversionPage() {
   const [authorizedDownload, setAuthorizedDownload] = useState(false);
   const [format, setFormat] = useState<"mp3" | "mp4">("mp3");
   const [selectedQuality, setSelectedQuality] = useState("");
-  const [loading, setLoading] = useState(Boolean(videoId));
+  const [loading, setLoading] = useState(Boolean(token));
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState("");
 
@@ -94,7 +94,7 @@ export default function ConversionPage() {
 
   if (!token) return <main className="reference-page mx-auto max-w-[1080px] px-4 py-20 text-center sm:px-8"><p className="serif text-4xl text-[#344d49]">مصدر التحميل غير محدد</p><Link href="/" className="mt-4 inline-block font-bold text-[#527566]">العودة للرئيسية</Link></main>;
   if (loading) return <main dir="rtl" className="reference-page mx-auto max-w-[1080px] px-4 py-20 text-center sm:px-8"><Loader2 className="mx-auto animate-spin" /><p className="mt-4 text-sm text-[#527566]">جاري جلب معلومات الفيديو…</p></main>;
-  if (error && !info) return <main dir="rtl" className="reference-page mx-auto max-w-[1080px] px-4 py-20 text-center sm:px-8"><p className="serif text-3xl text-[#344d49]">تعذر تحميل الفيديو</p><p className="mx-auto mt-4 max-w-xl rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</p><a href={`https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`} target="_blank" rel="noreferrer" className="mt-5 inline-flex items-center gap-2 font-bold text-[#527566]"><ExternalLink size={16} /> فتح في YouTube</a></main>;
+  if (error && !info) return <main dir="rtl" className="reference-page mx-auto max-w-[1080px] px-4 py-20 text-center sm:px-8"><p className="serif text-3xl text-[#344d49]">تعذر تحميل الفيديو</p><p className="mx-auto mt-4 max-w-xl rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</p><a href={`https://www.youtube.com/watch?v=${encodeURIComponent(info?.videoId || "")}`} target="_blank" rel="noreferrer" className="mt-5 inline-flex items-center gap-2 font-bold text-[#527566]"><ExternalLink size={16} /> فتح في YouTube</a></main>;
 
   const title = info?.title || "المحتوى المطلوب";
   return <main dir="rtl" className="reference-page mx-auto max-w-[1080px] px-4 pb-12 pt-8 sm:px-8">
@@ -119,7 +119,7 @@ export default function ConversionPage() {
       </div>
 
       <div className="mt-5 flex flex-wrap gap-3">
-        <button disabled={!selectedQuality || downloading || !links.length} onClick={beginDownload} className="reference-action"><Download size={16} />{downloading ? "جاري تجهيز التحميل..." : "DOWNLOAD NOW"}</button>
+        {authorizedDownload ? <button disabled={!selectedQuality || downloading || !links.length} onClick={beginDownload} className="reference-action"><Download size={16} />{downloading ? "جاري تجهيز التحميل..." : "DOWNLOAD NOW"}</button> : <p className="rounded-xl border border-[#d9dfdc] bg-white px-5 py-3 text-sm text-[#78938a]">لا يوجد مصدر تحميل مصرح به لهذا المحتوى حالياً.</p>}
         <a href={`https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-[#d9dfdc] bg-white px-5 py-3 text-sm font-bold text-[#527566]"><PlayCircle size={16} /> مشاهدة في YouTube</a>
       </div>
 
