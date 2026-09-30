@@ -15,7 +15,7 @@ body { margin: 0; min-width: 320px; background: #f5f6f5; }
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
 a { -webkit-tap-highlight-color: transparent; }
-.naghma-shell { min-height: 100vh; background: #f5f6f5; }
+.sm3ha-shell { min-height: 100vh; background: #f5f6f5; }
 
 .reference-top-header { width: 100%; border-bottom: 1px solid #c7d3ce; background: #405d56; }
 .reference-top-header-inner { display: flex; align-items: center; justify-content: flex-start; gap: 1.35rem; min-height: 52px; max-width: 1080px; margin: 0 auto; padding: 0 .75rem; }
