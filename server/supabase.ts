@@ -138,7 +138,7 @@ export async function indexCatalogText(rows: Array<{ title: string; artist: stri
 export async function listCatalogKeywords(limit = 20) {
   const supabase = getSupabaseAdmin(); if (!supabase) return null;
   const safeLimit = Math.min(Math.max(limit, 1), 50);
-  const query = supabase.from("catalog_keywords").select("query,slug,title,result_count,result_slugs,status,last_searched_at,updated_at,search_count").eq("status", "active").eq("indexable", true).gt("search_count", 0).order("last_searched_at", { ascending: false, nullsFirst: false }).order("updated_at", { ascending: false }).limit(safeLimit);
+  const query = supabase.from("catalog_keywords").select("query,slug,title,result_count,result_slugs,status,last_searched_at,updated_at,search_count").eq("status", "active").eq("indexable", true).order("last_searched_at", { ascending: false, nullsFirst: false }).order("updated_at", { ascending: false }).limit(safeLimit);
   // Home must never remain in a loading state because an optional SEO/catalog
   // feed is slow or temporarily unavailable. Return an empty feed after a
   // short server-side deadline; Home already has a local Arabic fallback list.
@@ -161,13 +161,13 @@ export async function findCatalogKeyword(slug: string) {
 
 export async function listSitemapKeywords(offset = 0, limit = 45000) {
   const supabase = getSupabaseAdmin(); if (!supabase) return [];
-  const { data, error } = await supabase.from("catalog_keywords").select("slug,updated_at").eq("status", "active").eq("indexable", true).gt("search_count", 0).order("updated_at", { ascending: false }).range(offset, offset + limit - 1);
+  const { data, error } = await supabase.from("catalog_keywords").select("slug,updated_at").eq("status", "active").eq("indexable", true).order("updated_at", { ascending: false }).range(offset, offset + limit - 1);
   if (error) { console.warn("[Supabase] sitemap keyword query failed:", error.message); return []; } return data ?? [];
 }
 
 export async function countIndexableKeywords() {
   const supabase = getSupabaseAdmin(); if (!supabase) return 0;
-  const { count, error } = await supabase.from("catalog_keywords").select("id", { count: "exact", head: true }).eq("status", "active").eq("indexable", true).gt("search_count", 0);
+  const { count, error } = await supabase.from("catalog_keywords").select("id", { count: "exact", head: true }).eq("status", "active").eq("indexable", true);
   if (error) { console.warn("[Supabase] keyword count failed:", error.message); return 0; } return count ?? 0;
 }
 
