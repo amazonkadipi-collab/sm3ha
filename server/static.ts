@@ -49,9 +49,10 @@ async function renderKeywordShell(req: express.Request, template: string) {
 
   // Match the v1 /s/* behavior: any meaningful query can resolve on first visit.
   const record = await findCatalogKeyword(slug);
-  const songs = record?.result_slugs?.length
-    ? await findSongsBySlugs(record.result_slugs, 10)
-    : await findSongs(keyword, 10);
+  const rawSongs = record?.result_slugs?.length
+    ? await findSongsBySlugs(record.result_slugs, 20)
+    : await findSongs(keyword, 20);
+  const songs = rawSongs.filter(song => isLikelyMusicTitle(song.title, song.artist ?? "")).slice(0, 10);
 
   if (!songs.length) return { status: 404, html: template };
 
