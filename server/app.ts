@@ -80,9 +80,9 @@ export function createApp() {
       { name: "songs", count: songs },
       { name: "artists", count: artists },
       { name: "albums", count: albums },
-    ];
+    ].filter(group => group.count > 0);
     const entries = groups.flatMap(group => {
-      const pages = Math.max(1, Math.ceil(group.count / pageSize));
+      const pages = Math.ceil(group.count / pageSize);
       return Array.from({ length: pages }, (_, i) => {
         const suffix = pages === 1 ? "" : `-${i + 1}`;
         return `<sitemap><loc>${xmlEscape(`${origin}/sitemap-${group.name}${suffix}.xml`)}</loc></sitemap>`;
