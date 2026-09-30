@@ -94,7 +94,7 @@ export const appRouter = router({
             void (async () => {
               try {
                 const persisted = await persistImportedRows(youtubeRows);
-                if (persisted.status === "persisted_demo" && persisted.acceptedSlugs?.length) {
+                if (persisted.status === "persisted" && persisted.acceptedSlugs?.length) {
                   await upsertCatalogKeyword(query, persisted.acceptedSlugs, "youtube-search", true);
                 }
                 await indexYouTubeTitleQueries(youtubeRows);
