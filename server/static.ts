@@ -54,13 +54,18 @@ async function renderKeywordShell(req: express.Request, template: string) {
 
   const resultHtml = songs.map(song => {
     const songTitle = escapeHtml(song.title);
+    const artist = escapeHtml(song.artist || "فنان");
     const duration = escapeHtml(formatDuration(song.durationSeconds ?? 0));
     const thumb = song.thumbnailUrl
       ? `<img src="${escapeHtml(song.thumbnailUrl)}" alt="${songTitle}" loading="lazy">`
       : `<span aria-hidden="true">♫</span>`;
     const watchUrl = `https://www.youtube.com/watch?v=${encodeURIComponent(song.providerVideoId)}`;
-    return `<article class="reference-media-row"><div class="reference-media-thumb reference-media-thumb-area">${thumb}</div><div class="reference-media-copy"><h2><a href="/song/${encodeURIComponent(song.slug)}">${songTitle}</a></h2><p>▶ مدة الفيديو: ${duration}</p></div><div class="reference-media-actions reference-media-actions-area"><a class="reference-action" href="/media?d=${encodeURIComponent(song.opaqueToken)}">تحميل</a><a class="reference-watch" href="${watchUrl}" target="_blank" rel="noreferrer">مشاهدة</a></div></article>`;
+    return `<article class="reference-media-row"><div class="reference-media-thumb reference-media-thumb-area">${thumb}</div><div class="reference-media-copy"><h2><a href="/song/${encodeURIComponent(song.slug)}">${songTitle}</a></h2><p>${artist}</p><p>▶ مدة الفيديو: ${duration}</p></div><div class="reference-media-actions reference-media-actions-area"><a class="reference-action" href="/media?d=${encodeURIComponent(song.opaqueToken)}">تحميل</a><a class="reference-watch" href="${watchUrl}" target="_blank" rel="noreferrer">مشاهدة</a></div></article>`;
   }).join("");
+
+  const artists = Array.from(new Set(songs.map(song => song.artist).filter(Boolean))).slice(0, 8);
+  const artistSummary = artists.length ? ` وتشمل النتائج أعمالاً مرتبطة بـ ${artists.map(escapeHtml).join("، ")}.` : "";
+  const summary = `<section class="reference-results-summary" aria-label="نبذة عن النتائج"><p>هذه صفحة نتائج بحث عن «${escapeHtml(resolvedQuery)}» في سمعها. تعرض الصفحة ${songs.length} نتيجة متاحة من فهرس الموسيقى، مع اسم العمل والفنان والمدة وروابط المشاهدة والتحميل حسب التوفر.${artistSummary} يمكنك فتح أي نتيجة للوصول إلى صفحة الأغنية ومعلوماتها والنتائج الموسيقية المرتبطة.</p></section>`;
 
   const relatedRows = await listCatalogKeywords(50);
   const keywordWords = new Set(keyword.toLocaleLowerCase("ar").split(/\s+/).filter(Boolean));
@@ -73,7 +78,7 @@ async function renderKeywordShell(req: express.Request, template: string) {
     .map(({ item }) => `<a href="/s/${encodeURIComponent(item.slug)}">تحميل ${escapeHtml(item.query)}</a>`)
     .join("");
   const relatedSection = relatedHtml ? `<section class="mt-8 border-t border-black/10 pt-5" aria-label="كلمات مرتبطة"><div class="mb-3 text-sm font-semibold">مواضيع مرتبطة</div><div class="flex flex-wrap gap-2">${relatedHtml}</div></section>` : "";
-  const content = `<main dir="rtl" class="reference-page mx-auto max-w-[1080px] px-4 pb-12 pt-4 sm:px-8"><a href="/" class="reference-back">الرئيسية</a><section class="reference-page-head"><div><span>سمعها</span><h1>${escapeHtml(title)}</h1></div></section><section class="reference-results" aria-label="${escapeHtml(`نتائج ${record.query || keyword}`)}"><div class="reference-results-title">نتائج «${escapeHtml(record.query || keyword)}»</div>${resultHtml}</section>${relatedSection}</main>`;
+  const content = `<main dir="rtl" class="reference-page mx-auto max-w-[1080px] px-4 pb-12 pt-4 sm:px-8"><a href="/" class="reference-back">الرئيسية</a><section class="reference-page-head"><div><span>سمعها</span><h1>${escapeHtml(title)}</h1></div></section>${summary}<section class="reference-results" aria-label="${escapeHtml(`نتائج ${record.query || keyword}`)}"><div class="reference-results-title">نتائج «${escapeHtml(record.query || keyword)}»</div>${resultHtml}</section>${relatedSection}</main>`;
 
   const jsonLd = JSON.stringify({
     "@context": "https://schema.org",
