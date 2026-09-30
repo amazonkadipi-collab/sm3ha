@@ -3,5 +3,5 @@ export const workflowLinks = {
   keyword: (query: string) => `/s/${encodeURIComponent(query.trim().replace(/\s+/g, "-"))}`,
   song: (slug: string) => `/song/${encodeURIComponent(slug)}`,
   media: (token: string) => `/media?d=${encodeURIComponent(token)}`,
-  conversion: (providerVideoId: string) => `/videos_dl?v=${encodeURIComponent(providerVideoId)}`,
+  conversion: (token: string) => `/videos_dl?d=${encodeURIComponent(token)}`,
 };
