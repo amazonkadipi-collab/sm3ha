@@ -2,7 +2,7 @@ import express from "express";
 import fs from "node:fs";
 import path from "node:path";
 import { findCatalogKeyword, listCatalogKeywords, upsertCatalogKeyword } from "./supabase";
-import { formatDuration, isLikelyMusicTitle, makeSlug } from "./catalog";
+import { formatDuration, isLikelyMusicQuery, isLikelyMusicTitle, makeSlug } from "./catalog";
 import { findAlbumBySlug, findArtistBySlug, findSongBySlug, findSongs, findSongsBySlugs } from "./db";
 
 const PUBLIC_ORIGIN = "https://www.sm3ha.online";
@@ -24,6 +24,19 @@ const absoluteUrl = (req: express.Request, pathname: string) =>
 
 
 
+function renderNotFoundShell(req: express.Request, template: string) {
+  const html = template
+    .replace(/<title>[^<]*<\/title>/i, "<title>الصفحة غير موجودة | سمعها</title>")
+    .replace(/<meta name="description" content="[^"]*"/i, '<meta name="description" content="الصفحة المطلوبة غير موجودة في سمعها."')
+    .replace(/<meta name="robots" content="[^"]*"/i, '<meta name="robots" content="noindex,nofollow,noarchive"')
+    .replace(/<meta property="og:title" content="[^"]*"/i, '<meta property="og:title" content="الصفحة غير موجودة | سمعها"')
+    .replace(/<meta property="og:description" content="[^"]*"/i, '<meta property="og:description" content="الصفحة المطلوبة غير موجودة في سمعها."')
+    .replace(/<link rel="canonical"[^>]*>/i, "")
+    .replace(/<script type="application\/ld\+json" data-sm3ha-seo="true">[\s\S]*?<\/script>/gi, "")
+    .replace('<div id="root"></div>', '<div id="root"><main dir="rtl" class="reference-page mx-auto max-w-[1080px] px-4 pb-12 pt-4 sm:px-8"><a href="/" class="reference-back">الرئيسية</a><h1>الصفحة غير موجودة</h1><p>هذه الصفحة غير متاحة.</p></main></div>');
+  return { status: 404, html };
+}
+
 async function renderKeywordShell(req: express.Request, template: string) {
   const rawSlug = String(req.params[0] || "").replace(/^\/+|\/+$/g, "");
   if (!rawSlug) return null;
@@ -32,7 +45,7 @@ async function renderKeywordShell(req: express.Request, template: string) {
   try { slug = decodeURIComponent(rawSlug); } catch { return { status: 400, html: template }; }
 
   const keyword = slug.replace(/-/g, " ").trim();
-  if (!keyword || keyword.length > 120) return { status: 404, html: template };
+  if (!keyword || keyword.length > 120 || !isLikelyMusicQuery(keyword)) return { status: 404, html: renderNotFoundShell(req, template).html };
 
   // Match the v1 /s/* behavior: any meaningful query can resolve on first visit.
   const record = await findCatalogKeyword(slug);
@@ -179,7 +192,7 @@ export function serveStatic(app: express.Express) {
         const rendered = await renderEntityShell(req, template, kind);
         if (rendered.status === 404) {
           res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
-          return res.status(404).send(rendered.html);
+          return res.status(404).type("html").send(renderNotFoundShell(req, template).html);
         }
         res.setHeader("X-Robots-Tag", "index, follow");
         return res.status(200).type("html").send(rendered.html);
