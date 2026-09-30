@@ -183,8 +183,9 @@ export async function listSitemapSongs(offset = 0, limit = 45000) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return [];
   const { data, error } = await supabase.from("songs")
-    .select("slug,updated_at,created_at")
+    .select("slug,updated_at,created_at,rights_status")
     .eq("status", "active")
+    .neq("rights_status", "demo")
     .order("updated_at", { ascending: false })
     .range(offset, offset + limit - 1);
   if (error) { console.warn("[Supabase] sitemap song query failed:", error.message); return []; }
@@ -196,7 +197,8 @@ export async function countIndexableSongs() {
   if (!supabase) return 0;
   const { count, error } = await supabase.from("songs")
     .select("id", { count: "exact", head: true })
-    .eq("status", "active");
+    .eq("status", "active")
+    .neq("rights_status", "demo");
   if (error) { console.warn("[Supabase] song count failed:", error.message); return 0; }
   return count ?? 0;
 }
@@ -205,7 +207,9 @@ export async function listSitemapArtists(offset = 0, limit = 45000) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return [];
   const { data, error } = await supabase.from("artists")
-    .select("slug,created_at")
+    .select("slug,created_at,songs!inner(status,rights_status)")
+    .eq("songs.status", "active")
+    .neq("songs.rights_status", "demo")
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
   if (error) { console.warn("[Supabase] sitemap artist query failed:", error.message); return []; }
