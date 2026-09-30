@@ -40,7 +40,7 @@ async function supabaseSongs(query?: string, limit = 12, includeRemoved = false)
   if (!supabase) return null;
   const safeLimit = Math.min(Math.max(limit, 1), 50);
   let request = supabase.from("songs").select(songSelect).order("created_at", { ascending: false }).limit(safeLimit);
-  if (!includeRemoved) request = request.eq("status", "active");
+  if (!includeRemoved) request = request.eq("status", "active").neq("rights_status", "demo");
   if (query?.trim()) {
     const term = query.trim().replace(/[%,()]/g, " ");
     request = request.or(`title.ilike.%${term}%,normalized_title.ilike.%${term}%,slug.ilike.%${term}%`);
@@ -56,7 +56,7 @@ export async function findSongsBySlugs(slugs: string[], limit = 20, includeRemov
   const supabase = getSupabaseAdmin();
   if (supabase) {
     let request = supabase.from("songs").select(songSelect).in("slug", ordered).limit(ordered.length);
-    if (!includeRemoved) request = request.eq("status", "active");
+    if (!includeRemoved) request = request.eq("status", "active").neq("rights_status", "demo");
     const { data, error } = await request;
     if (!error && data) {
       const rows = data.map(mapSupabaseSong);
@@ -66,7 +66,7 @@ export async function findSongsBySlugs(slugs: string[], limit = 20, includeRemov
   }
   const db = await getDb();
   if (!db) return [];
-  const rows = await db.select().from(songs).where(includeRemoved ? inArray(songs.slug, ordered) : and(inArray(songs.slug, ordered), eq(songs.availabilityStatus, "available")));
+  const rows = await db.select().from(songs).where(includeRemoved ? inArray(songs.slug, ordered) : and(inArray(songs.slug, ordered), eq(songs.availabilityStatus, "available"), eq(songs.rightsStatus, "metadata_only")));
   return ordered.flatMap(slug => rows.filter(row => row.slug === slug));
 }
 
@@ -76,7 +76,7 @@ export async function findSongs(query?: string, limit = 12, includeRemoved = fal
   const db = await getDb();
   if (!db) return [];
   const safeLimit = Math.min(Math.max(limit, 1), 50);
-      if (!query?.trim()) return db.select().from(songs).orderBy(desc(songs.isFeatured), desc(songs.createdAt)).limit(safeLimit);
+      if (!query?.trim()) return db.select().from(songs).where(songs.rightsStatus !== undefined ? eq(songs.rightsStatus, "metadata_only") : undefined).orderBy(desc(songs.isFeatured), desc(songs.createdAt)).limit(safeLimit);
   const pattern = `%${query.trim()}%`;
   return db.select().from(songs).where(or(like(songs.title, pattern), like(songs.normalizedTitle, pattern), like(songs.slug, pattern))).orderBy(desc(songs.isFeatured), desc(songs.createdAt)).limit(safeLimit);
 }
