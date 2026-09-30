@@ -8,8 +8,7 @@ import { ENV } from "./_core/env";
 import { LOCAL_ADMIN_OPEN_ID, sdk } from "./_core/sdk";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
-import { createOpaqueToken, demoSongs, formatDuration, isLikelyMusicTitle, makeSlug, normalizeArabic, searchDemoSongs } from "./catalog";
-import { createDemoDownloadToken } from "./download";
+import { createOpaqueToken, formatDuration, isLikelyMusicTitle, makeSlug, normalizeArabic } from "./catalog";
 import { findAlbumBySlug, findArtistBySlug, findSongBySlug, findSongByToken, findSongs, findSongsBySlugs, getDb, listAlbums, listArtists, updateDrizzleSongStatus } from "./db";
 import { findCatalogKeyword, getSupabaseAdmin, indexYouTubeTitleQueries, listCatalogKeywords, persistImportedRows, updateSupabaseSongStatus, upsertCatalogKeyword } from "./supabase";
 import { getAnalyticsSummary, getSiteSettings, hashRequestValue, listSearchLogs, listTakedowns, recordAnalyticsEvent, recordSearchLog, submitTakedown, updateSiteSettings, updateTakedown } from "./admin-observability";
@@ -19,9 +18,6 @@ import { artists, songs } from "../drizzle/schema";
 
 const paginationInput = z.object({ query: z.string().trim().max(120).optional(), limit: z.number().int().min(1).max(50).default(12) });
 const importRowInput = z.object({ title: z.string().min(1), artist: z.string().min(1), providerVideoId: z.string().min(1), provider: z.string().max(64).optional(), providerUrl: z.string().url().optional(), thumbnailUrl: z.string().url().optional(), durationSeconds: z.number().int().min(0).max(86400).optional() });
-const fallbackKeywords = ["راي", "اغاني", "أغاني عربية", "جديد الأغاني", "موسيقى هادئة", "أناشيد", "مهرجانات", "رابح صقر", "فيروز", "عمرو دياب"];
-
-const demoResult = (song: typeof demoSongs[number]) => ({ ...song, duration: formatDuration(song.durationSeconds), mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}` });
 const youtubeResult = (row: Awaited<ReturnType<typeof searchYouTubeVideos>>[number], index: number) => {
   const slug = makeSlug(`${row.artist}-${row.title}`);
   const opaqueToken = createOpaqueToken(`${row.providerVideoId}:${slug}`);
@@ -56,7 +52,7 @@ export const appRouter = router({
     keywords: publicProcedure.input(z.object({ limit: z.number().int().min(1).max(50).default(20) })).query(async ({ input }) => {
       const stored = await listCatalogKeywords(input.limit);
       if (stored?.length) return stored.map(row => ({ label: row.query, slug: row.slug, resultCount: row.result_count }));
-      return fallbackKeywords.slice(0, input.limit).map(label => ({ label, slug: makeSlug(label), resultCount: 0 }));
+      return [];
     }),
     search: publicProcedure.input(paginationInput).query(async ({ ctx, input }) => {
       const query = input.query?.trim();
@@ -131,12 +127,7 @@ export const appRouter = router({
         }
       }
 
-      if (results.length === 0) {
-        results = searchDemoSongs(query ?? "").slice(0, input.limit).map(demoResult);
-        if (results.length) source = "fallback";
-      }
-
-      if (query && source !== "fallback" && results.length) {
+      if (query && results.length) {
         void upsertCatalogKeyword(
           query,
           results.map(result => result.slug).filter(Boolean),
@@ -153,7 +144,7 @@ export const appRouter = router({
     }),
     trending: publicProcedure.input(z.object({ limit: z.number().int().min(1).max(20).default(6) })).query(async ({ input }) => {
       const stored = await findSongs(undefined, input.limit);
-      return stored.length ? stored.map(song => ({ ...song, artist: "", album: "", duration: formatDuration(song.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}` })) : demoSongs.slice(0, input.limit).map(demoResult);
+      return stored.map(song => ({ ...song, artist: "", album: "", duration: formatDuration(song.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}` }));
     }),
     recentSearches: publicProcedure.input(z.object({ limit: z.number().int().min(1).max(50).default(50) })).query(({ input }) => listRecentSearches(input.limit)),
     artists: publicProcedure.input(z.object({ limit: z.number().int().min(1).max(20).default(12) })).query(async ({ input }) => {
@@ -164,16 +155,14 @@ export const appRouter = router({
           return { slug: artist.slug, name: artist.name, imageUrl: artist.imageUrl, songCount: profile?.songs?.length ?? 0 };
         }));
       }
-      return Array.from(new Map(demoSongs.map(song => [song.artistSlug, { slug: song.artistSlug, name: song.artist, imageUrl: song.thumbnailUrl, songCount: demoSongs.filter(item => item.artistSlug === song.artistSlug).length }])).values()).slice(0, input.limit);
+      return [];
     }),
     artistBySlug: publicProcedure.input(z.object({ slug: z.string().min(1).max(255) })).query(async ({ input }) => {
       const profile = await findArtistBySlug(input.slug);
       if (profile?.songs?.length) {
         return { slug: profile.slug, name: profile.name, imageUrl: profile.imageUrl, songs: profile.songs.filter(song => isLikelyMusicTitle(song.title, song.artist)).map(song => ({ ...song, duration: formatDuration(song.durationSeconds ?? 0), mediaUrl: "/media?d=" + encodeURIComponent(song.opaqueToken) })) };
       }
-      const fallback = demoSongs.filter(song => song.artistSlug === input.slug);
-      if (!fallback.length) throw new TRPCError({ code: "NOT_FOUND", message: "Artist not found" });
-      return { slug: input.slug, name: fallback[0].artist, imageUrl: fallback[0].thumbnailUrl, songs: fallback.map(demoResult) };
+      throw new TRPCError({ code: "NOT_FOUND", message: "Artist not found" });
     }),
     albums: publicProcedure.input(z.object({ limit: z.number().int().min(1).max(20).default(12) })).query(async ({ input }) => {
       const stored = await listAlbums(input.limit);
@@ -187,8 +176,6 @@ export const appRouter = router({
     songBySlug: publicProcedure.input(z.object({ slug: z.string().min(1).max(255) })).query(async ({ input }) => {
       const dbSong = await findSongBySlug(input.slug);
       if (dbSong && isLikelyMusicTitle(dbSong.title, dbSong.artist)) return { ...dbSong, artist: "", album: "", duration: formatDuration(dbSong.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(dbSong.opaqueToken)}` };
-      const song = demoSongs.find(item => item.slug === input.slug);
-      if (song) return demoResult(song);
       if (ENV.youtubeApiKey) {
         try {
           const youtubeRows = await searchYouTubeVideos(input.slug.replace(/-/g, " "), 10);
@@ -206,9 +193,9 @@ export const appRouter = router({
     }),
     mediaByToken: publicProcedure.input(z.object({ token: z.string().min(8).max(128) })).query(async ({ input }) => {
       const dbSong = await findSongByToken(input.token);
-      const song = dbSong ? { ...dbSong, artist: "", album: "", duration: formatDuration(dbSong.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(dbSong.opaqueToken)}` } : demoSongs.map(demoResult).find(item => item.opaqueToken === input.token);
+      const song = dbSong ? { ...dbSong, artist: "", album: "", duration: formatDuration(dbSong.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(dbSong.opaqueToken)}` } : undefined;
       if (!song) throw new TRPCError({ code: "NOT_FOUND", message: "Media token not found" });
-      return { ...song, allowedDemo: song.rightsStatus === "demo" || song.rightsStatus === "licensed", sourceAvailable: Boolean(song.providerUrl && song.rightsStatus === "licensed"), variants: song.providerUrl && song.rightsStatus === "licensed" ? [{ format: "mp3", quality: "128 kbps", status: "ready" }, { format: "mp4", quality: "360p", status: "ready" }, { format: "mp4", quality: "720p", status: "ready" }] : [] };
+      return { ...song, sourceAvailable: Boolean(song.providerUrl && song.rightsStatus === "licensed"), variants: song.providerUrl && song.rightsStatus === "licensed" ? [{ format: "mp3", quality: "128 kbps", status: "ready" }, { format: "mp4", quality: "360p", status: "ready" }, { format: "mp4", quality: "720p", status: "ready" }] : [] };
     }),
     startConversion: publicProcedure.input(z.object({ token: z.string().min(8).max(128), format: z.enum(["mp3", "mp4"]), quality: z.string().max(32) })).mutation(async ({ input }) => {
       const song = await findSongByToken(input.token);
@@ -263,7 +250,7 @@ export const appRouter = router({
   admin: router({
     listCatalog: adminProcedure.input(z.object({ limit: z.number().int().min(1).max(50).default(25) })).query(async ({ input }) => {
       const songs = await findSongs(undefined, input.limit, true);
-      return songs.map(song => ({ ...song, artist: "artist" in song ? song.artist : "فنان تجريبي", provider: "provider" in song ? song.provider : "demo", status: "availabilityStatus" in song && song.availabilityStatus === "removed" ? "removed" as const : "available" as const }));
+      return songs.map(song => ({ ...song, artist: "artist" in song ? song.artist : "", provider: "provider" in song ? song.provider : "", status: "availabilityStatus" in song && song.availabilityStatus === "removed" ? "removed" as const : "available" as const }));
     }),
     setSongStatus: adminProcedure.input(z.object({ slug: z.string().min(1).max(255), status: z.enum(["available", "removed"]) })).mutation(async ({ input }) => {
       const supabaseResult = await updateSupabaseSongStatus(input.slug, input.status);
@@ -277,7 +264,7 @@ export const appRouter = router({
       const rows = input.rows.map(row => { const duplicate = seen.has(row.providerVideoId); seen.add(row.providerVideoId); return { ...row, slug: makeSlug(`${row.artist}-${row.title}`), normalizedTitle: normalizeArabic(row.title), duplicate }; });
       return { rows, total: rows.length, duplicates: rows.filter(row => row.duplicate).length };
     }),
-    commitImport: adminProcedure.input(z.object({ rows: z.array(importRowInput).max(1000) })).mutation(async ({ input }) => { if (getSupabaseAdmin()) { const result = await persistImportedRows(input.rows); return { ...result, message: `${result.accepted} ligne(s) enregistrée(s) dans Supabase en mode demo.` }; } const db = await getDb(); if (!db) return { accepted: 0, status: "database_unavailable" as const, message: "Database unavailable; no rows were written." }; let accepted = 0; for (const row of input.rows) { const artistSlug = makeSlug(row.artist); const songSlug = makeSlug(`${row.artist}-${row.title}`); await db.insert(artists).values({ name: row.artist, normalizedName: normalizeArabic(row.artist), slug: artistSlug }).onDuplicateKeyUpdate({ set: { name: row.artist, normalizedName: normalizeArabic(row.artist) } }); const artistRows = await db.select({ id: artists.id }).from(artists).where(eq(artists.slug, artistSlug)).limit(1); const artistId = artistRows[0]?.id; if (!artistId) continue; await db.insert(songs).values({ title: row.title, normalizedTitle: normalizeArabic(row.title), slug: songSlug, artistId, provider: row.provider ?? "demo", providerVideoId: row.providerVideoId, providerUrl: row.providerUrl, thumbnailUrl: row.thumbnailUrl, durationSeconds: row.durationSeconds, opaqueToken: createOpaqueToken(`${row.providerVideoId}:${songSlug}`), availabilityStatus: "available", rightsStatus: row.providerUrl ? "licensed" : (row.provider === "youtube" ? "metadata_only" : "demo") }).onDuplicateKeyUpdate({ set: { title: row.title, artistId } }); accepted += 1; } return { accepted, status: "persisted_demo" as const, message: `${accepted} ligne(s) enregistrée(s) en mode demo.` }; }),
+    commitImport: adminProcedure.input(z.object({ rows: z.array(importRowInput).max(1000) })).mutation(async ({ input }) => { if (getSupabaseAdmin()) { const result = await persistImportedRows(input.rows); return { ...result, message: `${result.accepted} ligne(s) enregistrée(s) dans Supabase.` }; } const db = await getDb(); if (!db) return { accepted: 0, status: "database_unavailable" as const, message: "Database unavailable; no rows were written." }; let accepted = 0; for (const row of input.rows) { const artistSlug = makeSlug(row.artist); const songSlug = makeSlug(`${row.artist}-${row.title}`); await db.insert(artists).values({ name: row.artist, normalizedName: normalizeArabic(row.artist), slug: artistSlug }).onDuplicateKeyUpdate({ set: { name: row.artist, normalizedName: normalizeArabic(row.artist) } }); const artistRows = await db.select({ id: artists.id }).from(artists).where(eq(artists.slug, artistSlug)).limit(1); const artistId = artistRows[0]?.id; if (!artistId) continue; await db.insert(songs).values({ title: row.title, normalizedTitle: normalizeArabic(row.title), slug: songSlug, artistId, provider: row.provider ?? "youtube", providerVideoId: row.providerVideoId, providerUrl: row.providerUrl, thumbnailUrl: row.thumbnailUrl, durationSeconds: row.durationSeconds, opaqueToken: createOpaqueToken(`${row.providerVideoId}:${songSlug}`), availabilityStatus: "available", rightsStatus: row.providerUrl ? "licensed" : "metadata_only" }).onDuplicateKeyUpdate({ set: { title: row.title, artistId } }); accepted += 1; } return { accepted, status: "persisted" as const, message: `${accepted} ligne(s) enregistrée(s).` }; }),
   }),
 });
 
