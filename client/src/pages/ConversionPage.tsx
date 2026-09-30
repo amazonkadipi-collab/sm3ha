@@ -95,7 +95,7 @@ export default function ConversionPage() {
 
   if (!token) return <main className="reference-page mx-auto max-w-[1080px] px-4 py-20 text-center sm:px-8"><p className="serif text-4xl text-[#344d49]">مصدر التحميل غير محدد</p><Link href="/" className="mt-4 inline-block font-bold text-[#527566]">العودة للرئيسية</Link></main>;
   if (loading) return <main dir="rtl" className="reference-page mx-auto max-w-[1080px] px-4 py-20 text-center sm:px-8"><Loader2 className="mx-auto animate-spin" /><p className="mt-4 text-sm text-[#527566]">جاري جلب معلومات الفيديو…</p></main>;
-  if (error && !info) return <main dir="rtl" className="reference-page mx-auto max-w-[1080px] px-4 py-20 text-center sm:px-8"><p className="serif text-3xl text-[#344d49]">تعذر تحميل الفيديو</p><p className="mx-auto mt-4 max-w-xl rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</p><a href={`https://www.youtube.com/watch?v=${encodeURIComponent(info?.videoId || "")}`} target="_blank" rel="noreferrer" className="mt-5 inline-flex items-center gap-2 font-bold text-[#527566]"><ExternalLink size={16} /> فتح في YouTube</a></main>;
+  if (error && !info) return <main dir="rtl" className="reference-page mx-auto max-w-[1080px] px-4 py-20 text-center sm:px-8"><p className="serif text-3xl text-[#344d49]">تعذر تحميل الفيديو</p><p className="mx-auto mt-4 max-w-xl rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</p><a href="/" className="mt-5 inline-flex items-center gap-2 font-bold text-[#527566]"><ExternalLink size={16} /> العودة للرئيسية</a></main>;
 
   const title = info?.title || "المحتوى المطلوب";
   return <main dir="rtl" className="reference-page mx-auto max-w-[1080px] px-4 pb-12 pt-8 sm:px-8">
@@ -106,7 +106,7 @@ export default function ConversionPage() {
         <div className="p-6">
           <p className="text-xs font-bold uppercase tracking-[.22em] text-[#78938a]">تحميل الفيديو</p>
           <h1 className="serif mt-2 text-3xl leading-tight text-[#344d49]">{title}</h1>
-          <p className="mt-2 text-sm text-[#527566]">المدة: {duration(info?.durationSeconds ?? 0)} · كود الفيديو: {videoId}</p>
+          <p className="mt-2 text-sm text-[#527566]">المدة: {duration(info?.durationSeconds ?? 0)} · كود الفيديو: {info?.videoId}</p>
         </div>
       </div>
 
