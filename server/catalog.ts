@@ -32,7 +32,9 @@ export function isLikelyMusicTitle(title: string, artist = "") {
     /\bepisode\b/, /\bep\s*\d+\b/, /\bpart\s*[1-9]\b/, /\bseason\s*\d+\b/,
     /\bseries\b/, /\bdocumentary\b/, /\bshort\s*film\b/, /\bweb\s*series\b/,
     /\bmovie\s*202\d\b/, /\bfilm\s*202\d\b/, /\bmafia\s*movie\b/,
-    /\bmy\s+(white|babysitter)\b/, /\bhorror\s+movies?\b/, /\bthe\s+last\s+don\b/
+    /\bmy\s+(white|babysitter)\b/, /\bhorror\s+movies?\b/, /\bthe\s+last\s+don\b/,
+    /(?:^|\s)(?:فيلم|افلام|أفلام|مسلسل|مسلسلات|حلقة|الحلقه|بودكاست|دروس|كورس|ديناصورات|حيوانات|مباراة|مباريات|تمثيلية|تمثيليه|سهرات|اذاعة|إذاعة)(?:\s|$)/,
+    /(?:شرح|طريقة)\s+(?:تحميل|تنزيل)\s+(?:اغاني|فيديو|فيديوهات|الموسيقى|موسيقي)/
   ];
   return !blocked.some(pattern => pattern.test(value));
 }
