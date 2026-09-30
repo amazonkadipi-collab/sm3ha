@@ -149,13 +149,16 @@ export const appRouter = router({
     recentSearches: publicProcedure.input(z.object({ limit: z.number().int().min(1).max(50).default(50) })).query(({ input }) => listRecentSearches(input.limit)),
     artists: publicProcedure.input(z.object({ limit: z.number().int().min(1).max(20).default(12) })).query(async ({ input }) => {
       const stored = await listArtists(input.limit);
-      if (stored.length) {
-        return Promise.all(stored.map(async artist => {
-          const profile = await findArtistBySlug(artist.slug);
-          return { slug: artist.slug, name: artist.name, imageUrl: artist.imageUrl, songCount: profile?.songs?.length ?? 0 };
-        }));
-      }
-      return [];
+      if (!stored.length) return [];
+      // Keep the archive fast: the old implementation made one extra songs
+      // query per artist (20+ round trips). The archive list only needs the
+      // lightweight artist cards; the artist detail page loads the full songs.
+      return stored.map(artist => ({
+        slug: artist.slug,
+        name: artist.name,
+        imageUrl: artist.imageUrl,
+        songCount: 0,
+      }));
     }),
     artistBySlug: publicProcedure.input(z.object({ slug: z.string().min(1).max(255) })).query(async ({ input }) => {
       const profile = await findArtistBySlug(input.slug);
