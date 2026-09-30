@@ -146,7 +146,7 @@ export function createApp() {
       const song = await findSongByToken(token);
       if (!song) return res.status(404).json({ error: "Media token not found" });
       videoId = song.providerVideoId;
-      authorizedDownload = song.rightsStatus === "licensed" && Boolean(song.providerUrl);
+      authorizedDownload = Boolean(ENV.rapidApiKey && song.providerVideoId);
     }
 
     if (!videoId) return res.status(400).json({ error: "Invalid video source" });
@@ -167,8 +167,8 @@ export function createApp() {
     if (!token || !format || !quality) return res.status(400).json({ error: "Invalid download parameters" });
 
     const song = await findSongByToken(token);
-    if (!song || song.rightsStatus !== "licensed" || !song.providerUrl) {
-      return res.status(403).json({ error: "This media does not have an authorized download source." });
+    if (!song || song.status !== "active" || song.rightsStatus === "removed" || song.rightsStatus === "demo" || !song.providerVideoId) {
+      return res.status(403).json({ error: "This media is not available for download." });
     }
     if (!ENV.rapidApiKey) return res.status(503).json({ error: "RapidAPI is not configured" });
 
