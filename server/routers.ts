@@ -157,7 +157,7 @@ export const appRouter = router({
         slug: artist.slug,
         name: artist.name,
         imageUrl: artist.imageUrl,
-        songCount: 0,
+        songCount: Number((artist as any).songCount ?? 0),
       }));
     }),
     artistBySlug: publicProcedure.input(z.object({ slug: z.string().min(1).max(255) })).query(async ({ input }) => {
