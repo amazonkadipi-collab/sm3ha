@@ -5,7 +5,7 @@ import { Link, useSearch } from "wouter";
 import { applySeo, resetSeo } from "@/lib/seo";
 
 type MediaLink = { url: string; format: "mp3" | "mp4"; quality: string; bitrate?: number; size?: number };
-type MediaInfo = { videoId: string; url: string; title: string; thumbnail: string; durationSeconds: number; audio: MediaLink[]; video: MediaLink[] };
+type MediaInfo = { videoId: string; url: string; title: string; thumbnail: string; durationSeconds: number; audio: MediaLink[]; video: MediaLink[]; authorizedDownload?: boolean };
 
 function duration(seconds: number) {
   if (!Number.isFinite(seconds) || seconds <= 0) return "—";
@@ -120,12 +120,12 @@ export default function ConversionPage() {
       </div>
 
       <div className="mt-5 flex flex-wrap gap-3">
-        {authorizedDownload ? <button disabled={!selectedQuality || downloading || !links.length} onClick={beginDownload} className="reference-action"><Download size={16} />{downloading ? "جاري تجهيز التحميل..." : "DOWNLOAD NOW"}</button> : <p className="rounded-xl border border-[#d9dfdc] bg-white px-5 py-3 text-sm text-[#78938a]">لا يوجد مصدر تحميل مصرح به لهذا المحتوى حالياً.</p>}
+        {authorizedDownload ? <button disabled={!selectedQuality || downloading || !links.length} onClick={beginDownload} className="reference-action"><Download size={16} />{downloading ? "جاري تجهيز التحميل..." : "DOWNLOAD NOW"}</button> : <p className="rounded-xl border border-[#d9dfdc] bg-white px-5 py-3 text-sm text-[#78938a]">خدمة التحميل غير متاحة حالياً لهذا المحتوى.</p>}
         <a href={`https://www.youtube.com/watch?v=${encodeURIComponent(info?.videoId || "")}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-[#d9dfdc] bg-white px-5 py-3 text-sm font-bold text-[#527566]"><PlayCircle size={16} /> مشاهدة في YouTube</a>
       </div>
 
       {error ? <p className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</p> : null}
-      <p className="mt-6 rounded-xl border border-[#d9dfdc] bg-white p-4 text-sm leading-6 text-[#78938a]">التحميل متاح فقط عندما يكون للمحتوى مصدر تحميل مصرح به في فهرس سمعها.</p>
+      <p className="mt-6 rounded-xl border border-[#d9dfdc] bg-white p-4 text-sm leading-6 text-[#78938a]">التحميل يتم عبر خدمة التحويل الخارجية من المصدر المرتبط بهذا المحتوى. استخدم التحميل فقط للمحتوى الذي تملك حق تنزيله أو إعادة استخدامه.</p>
     </section>
   </main>;
 }
