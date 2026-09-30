@@ -1,4 +1,4 @@
-import { Download, ShieldCheck } from "lucide-react";
+import { Download, ShieldCheck, ExternalLink } from "lucide-react";
 import { Link, useLocation, useSearch } from "wouter";
 import { useState, type FormEvent } from "react";
 import { trpc } from "@/lib/trpc";
@@ -74,7 +74,7 @@ export default function MediaPage() {
     </>;
   }
 
-  const downloadUrl = workflowLinks.conversion(media.providerVideoId);
+  const downloadUrl = media.sourceAvailable ? workflowLinks.conversion(media.opaqueToken) : "";
 
   return <>
     <MediaSearchBar />
@@ -87,15 +87,37 @@ export default function MediaPage() {
           <li><strong>الكوالتي:</strong> Mp3@128kbps - Mp4@720p/360p</li>
         </ul>
         <div className="reference-v1-downloads">
-          <Link href={downloadUrl} title="Fast Download" className="reference-v1-button"><Download size={15} />DOWNLOAD NOW</Link>
-          <Link href={downloadUrl} title="Fast Download" className="reference-v1-button"><Download size={15} />تحميل مباشر</Link>
+          {media.sourceAvailable ? (
+            <>
+              <Link href={downloadUrl} title="Fast Download" className="reference-v1-button"><Download size={15} />DOWNLOAD NOW</Link>
+              <Link href={downloadUrl} title="Fast Download" className="reference-v1-button"><Download size={15} />تحميل مباشر</Link>
+            </>
+          ) : (
+            <a
+              href={`https://www.youtube.com/watch?v=${encodeURIComponent(media.providerVideoId)}`}
+              target="_blank"
+              rel="noreferrer"
+              className="reference-v1-button"
+              title="مشاهدة المصدر"
+            >
+              <ExternalLink size={15} />مشاهدة المصدر
+            </a>
+          )}
         </div>
-        <article className="reference-v1-article">
-          <h2>تنزيل خدمات جوجل بلاي</h2>
-          <p>جوجل بلاي Google Play سابقاً سوق أندرويد هي خدمة توزيع رقمية يتم تشغيلها وتطويرها بواسطة جوجل. وهو بمثابة متجر التطبيقات الرسميّ للأجهزة المُعتمدة التي تعمل على نظام التشغيل أندرويد، ممَّا يسمح للمستخدمين بتصفح وتنزيل التطبيقات التي تمَّ تطويرها بِاستخدام مجموعة تطوير برامج أندرويد ونشرها عبر جوجل.</p>
-          <p>ومع ذلك، يتم تثبيته افتراضيًا في جميع أجهزة أندرويد، كما يحصل على تحديثات منتظمة، وعدد الأذونات التي يتطلب الوصول إليها كبير جدًا، حيث يصل إلى كل شيء تقريبًا. باختصار هو تطبيق يرتبط ارتباطًا وثيقًا بنظام أندرويد نفسه ويمكن ايضاً من خلالة تحميل الافلام وتحميل الالعاب.</p>
-          <p>أي معلومات، لا تتردد في الاتصال بنا على: 4shareinfotv@gmail.com</p>
-        </article>
+        <section className="reference-v1-article">
+          <h2>{media.sourceAvailable ? "خيارات التحميل المتاحة" : "حالة التحميل"}</h2>
+          {media.sourceAvailable ? (
+            <ul className="space-y-2 text-sm leading-7">
+              {media.variants.map((variant: any) => (
+                <li key={`${variant.format}-${variant.quality}`}>
+                  {String(variant.format).toUpperCase()} · {variant.quality}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>لا يوجد حالياً مصدر تحميل مصرح به لهذا المحتوى. يمكن فتح المصدر الخارجي للمشاهدة.</p>
+          )}
+        </section>
         <section className="reference-v1-disclaimer" aria-label="إخلاء مسؤولية">
           <p><ShieldCheck size={15} /><strong>إخلاء مسئولية:</strong> هذا المحتوى لم يتم انشائه او استضافته بواسطة موقع سمعها وأي مسئولية قانونية تقع على عاتق الطرف الثالث</p>
         </section>
