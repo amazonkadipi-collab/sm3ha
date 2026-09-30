@@ -195,7 +195,7 @@ export const appRouter = router({
       const dbSong = await findSongByToken(input.token);
       const song = dbSong ? { ...dbSong, artist: "", album: "", duration: formatDuration(dbSong.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(dbSong.opaqueToken)}` } : undefined;
       if (!song) throw new TRPCError({ code: "NOT_FOUND", message: "Media token not found" });
-      return { ...song, sourceAvailable: Boolean(song.providerUrl && song.rightsStatus === "licensed"), variants: song.providerUrl && song.rightsStatus === "licensed" ? [{ format: "mp3", quality: "128 kbps", status: "ready" }, { format: "mp4", quality: "360p", status: "ready" }, { format: "mp4", quality: "720p", status: "ready" }] : [] };
+      return { ...song, sourceAvailable: Boolean(ENV.rapidApiKey && song.providerVideoId), variants: ENV.rapidApiKey && song.providerVideoId ? [{ format: "mp3", quality: "128 kbps", status: "available" }, { format: "mp4", quality: "360p", status: "available" }, { format: "mp4", quality: "720p", status: "available" }] : [] };
     }),
     startConversion: publicProcedure.input(z.object({ token: z.string().min(8).max(128), format: z.enum(["mp3", "mp4"]), quality: z.string().max(32) })).mutation(async ({ input }) => {
       const song = await findSongByToken(input.token);
