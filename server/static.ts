@@ -55,19 +55,24 @@ async function renderKeywordShell(req: express.Request, template: string) {
     ? await findSongsBySlugs(record.result_slugs, 20)
     : await findSongs(keyword, 20);
 
-  // Match v1-style discovery for new queries: when the local archive has no
-  // usable results, perform one real provider search, persist the metadata,
-  // then render the persisted rows so /s/* is useful to crawlers on first visit.
-  if (!rawSongs.length && ENV.youtubeApiKey) {
+  // Match v1-style result depth: keep existing archive results, then fill the
+  // page with fresh real provider metadata until we have up to 20 unique rows.
+  if (rawSongs.length < 20 && ENV.youtubeApiKey) {
     try {
       const youtubeRows = await searchYouTubeVideos(keyword, 20);
       if (youtubeRows.length) {
         const persisted = await persistImportedRows(youtubeRows);
-        if (persisted.acceptedSlugs?.length) {
-          rawSongs = await findSongsBySlugs(persisted.acceptedSlugs, 20);
-          if (rawSongs.length) {
-            await upsertCatalogKeyword(keyword, rawSongs.map(song => song.slug), "youtube-search", true);
-          }
+        const candidateSlugs = Array.from(new Set([
+          ...(persisted.acceptedSlugs ?? []),
+          ...youtubeRows.map(row => row.slug),
+        ]));
+        const importedRows = candidateSlugs.length
+          ? await findSongsBySlugs(candidateSlugs, 20)
+          : [];
+        const seen = new Set(rawSongs.map(song => song.slug));
+        rawSongs = [...rawSongs, ...importedRows.filter(song => !seen.has(song.slug))].slice(0, 20);
+        if (rawSongs.length) {
+          await upsertCatalogKeyword(keyword, rawSongs.map(song => song.slug), "youtube-search", true);
         }
       }
     } catch (error) {
