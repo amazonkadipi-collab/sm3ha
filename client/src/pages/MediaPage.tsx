@@ -84,7 +84,7 @@ export default function MediaPage() {
         <ul className="reference-v1-meta">
           <li><strong>كود الملف:</strong> <code dir="ltr">{media.providerVideoId}</code></li>
           <li><strong>المدة:</strong> {media.duration}</li>
-          <li><strong>الكوالتي:</strong> Mp3@128kbps - Mp4@720p/360p</li>
+          <li><strong>الكوالتي:</strong> {media.sourceAvailable ? media.variants.map((variant: any) => `${String(variant.format).toUpperCase()}@${variant.quality}`).join(" - ") : "غير متاحة حالياً"}</li>
         </ul>
         <div className="reference-v1-downloads">
           {media.sourceAvailable ? (
@@ -119,7 +119,7 @@ export default function MediaPage() {
           )}
         </section>
         <section className="reference-v1-disclaimer" aria-label="إخلاء مسؤولية">
-          <p><ShieldCheck size={15} /><strong>إخلاء مسئولية:</strong> هذا المحتوى لم يتم انشائه او استضافته بواسطة موقع سمعها وأي مسئولية قانونية تقع على عاتق الطرف الثالث</p>
+          <p><ShieldCheck size={15} /><strong>حقوق المحتوى:</strong> التحميل متاح فقط للمصادر المصرح بها في فهرس سمعها؛ أما المصادر الخارجية فتُفتح للمشاهدة فقط.</p>
         </section>
       </section>
     </main>
