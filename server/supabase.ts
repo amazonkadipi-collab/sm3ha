@@ -195,12 +195,13 @@ export async function listSitemapSongs(offset = 0, limit = 45000) {
 export async function countIndexableSongs() {
   const supabase = getSupabaseAdmin();
   if (!supabase) return 0;
-  const { count, error } = await supabase.from("songs")
-    .select("id", { count: "exact", head: true })
+  const { data, error } = await supabase.from("songs")
+    .select("id")
     .eq("status", "active")
-    .neq("rights_status", "demo");
+    .neq("rights_status", "demo")
+    .range(0, 44999);
   if (error) { console.warn("[Supabase] song count failed:", error.message); return 0; }
-  return count ?? 0;
+  return data?.length ?? 0;
 }
 
 export async function listSitemapArtists(offset = 0, limit = 45000) {
@@ -219,10 +220,13 @@ export async function listSitemapArtists(offset = 0, limit = 45000) {
 export async function countSitemapArtists() {
   const supabase = getSupabaseAdmin();
   if (!supabase) return 0;
-  const { count, error } = await supabase.from("artists")
-    .select("id", { count: "exact", head: true });
+  const { data, error } = await supabase.from("artists")
+    .select("id,songs!inner(status,rights_status)")
+    .eq("songs.status", "active")
+    .neq("songs.rights_status", "demo")
+    .range(0, 44999);
   if (error) { console.warn("[Supabase] artist count failed:", error.message); return 0; }
-  return count ?? 0;
+  return data?.length ?? 0;
 }
 
 export async function listSitemapAlbums(offset = 0, limit = 45000) {
@@ -239,8 +243,9 @@ export async function listSitemapAlbums(offset = 0, limit = 45000) {
 export async function countSitemapAlbums() {
   const supabase = getSupabaseAdmin();
   if (!supabase) return 0;
-  const { count, error } = await supabase.from("albums")
-    .select("id", { count: "exact", head: true });
+  const { data, error } = await supabase.from("albums")
+    .select("id")
+    .range(0, 44999);
   if (error) { console.warn("[Supabase] album count failed:", error.message); return 0; }
-  return count ?? 0;
+  return data?.length ?? 0;
 }
