@@ -168,8 +168,17 @@ export async function findSongByToken(token: string) {
 export async function listArtists(limit = 12) {
   const supabase = getSupabaseAdmin();
   if (supabase) {
-    const { data, error } = await supabase.from("artists").select("id,name,slug,image_url,created_at").order("created_at", { ascending: false }).limit(Math.min(limit, 50));
-    if (!error && data) return data.map((artist: any, index: number) => ({ id: index + 1, name: artist.name, normalizedName: artist.name, slug: artist.slug, imageUrl: artist.image_url ?? null, createdAt: new Date(artist.created_at), updatedAt: new Date(artist.created_at) }));
+    const { data, error } = await supabase.from("artists").select("id,name,slug,image_url,created_at,songs(count)").order("created_at", { ascending: false }).limit(Math.min(limit, 50));
+    if (!error && data) return data.map((artist: any, index: number) => ({
+      id: index + 1,
+      name: artist.name,
+      normalizedName: artist.name,
+      slug: artist.slug,
+      imageUrl: artist.image_url ?? null,
+      songCount: Array.isArray(artist.songs) ? Number(artist.songs[0]?.count ?? 0) : 0,
+      createdAt: new Date(artist.created_at),
+      updatedAt: new Date(artist.created_at)
+    }));
     if (error) console.warn("[Supabase] artists query failed:", error.message);
   }
   const db = await getDb();
