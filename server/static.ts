@@ -83,8 +83,8 @@ async function renderKeywordShell(req: express.Request, template: string) {
   const relatedRows = await listCatalogKeywords(50);
   const keywordWords = new Set(keyword.toLocaleLowerCase("ar").split(/\s+/).filter(Boolean));
   const relatedHtml = relatedRows
-    .filter(item => item.slug !== canonicalSlug && item.result_count > 0)
-    .map(item => ({ item, overlap: item.query.toLocaleLowerCase("ar").split(/\s+/).filter(word => keywordWords.has(word)).length }))
+    .filter(item => Boolean(item?.slug) && item.slug !== canonicalSlug && Number(item.result_count ?? 0) > 0 && Boolean(item?.query))
+    .map(item => ({ item, overlap: String(item.query ?? "").toLocaleLowerCase("ar").split(/\s+/).filter(Boolean).filter(word => keywordWords.has(word)).length }))
     .filter(entry => entry.overlap > 0)
     .sort((a, b) => b.overlap - a.overlap || a.item.query.localeCompare(b.item.query, "ar"))
     .slice(0, 12)
