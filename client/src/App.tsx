@@ -52,7 +52,7 @@ function AuthHeader() {
 }
 
 export function PublicLayout({ children }: { children: React.ReactNode }) {
-  return <div className="naghma-shell min-h-screen flex flex-col">
+  return <div className="sm3ha-shell min-h-screen flex flex-col">
     <header className="reference-top-header shrink-0" dir="rtl">
       <div className="reference-top-header-inner">
         <Link href="/" className="reference-top-logo" aria-label="سمعها - الرئيسية">سمعها</Link>
