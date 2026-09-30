@@ -39,15 +39,6 @@ export function isLikelyMusicTitle(title: string, artist = "") {
   return !blocked.some(pattern => pattern.test(value));
 }
 
-export function isLikelyMusicQuery(query: string) {
-  const value = query.toLocaleLowerCase("ar").trim();
-  if (!value) return false;
-  if (/^(movies|movie|films?|دروس|مسلسلات?|افلام?|أفلام?|ديناصورات|حيوانات)\b/.test(value)) return false;
-  if (/\b(movie|movies|film|films|trailer|episode|season|documentary|course|courses)\b/i.test(value)) return false;
-  if (/(دروس|مسلسل|مسلسلات|ديناصورات|حيوانات|كورس|دورات|افلام|أفلام)/.test(value)) return false;
-  return true;
-}
-
 export function createOpaqueToken(seed?: string) {
   if (seed) return `d_${createHash("sha256").update(seed).digest("hex").slice(0, 16)}`;
   return `d_${randomBytes(16).toString("hex")}`;
