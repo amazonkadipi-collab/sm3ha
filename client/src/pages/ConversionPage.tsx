@@ -1,4 +1,5 @@
 import { Download, ExternalLink, FileAudio, FileVideo, Loader2, PlayCircle } from "lucide-react";
+import { Download, ExternalLink, FileAudio, FileVideo, Loader2, PlayCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearch } from "wouter";
 import { applySeo, resetSeo } from "@/lib/seo";
@@ -120,7 +121,7 @@ export default function ConversionPage() {
 
       <div className="mt-5 flex flex-wrap gap-3">
         {authorizedDownload ? <button disabled={!selectedQuality || downloading || !links.length} onClick={beginDownload} className="reference-action"><Download size={16} />{downloading ? "جاري تجهيز التحميل..." : "DOWNLOAD NOW"}</button> : <p className="rounded-xl border border-[#d9dfdc] bg-white px-5 py-3 text-sm text-[#78938a]">لا يوجد مصدر تحميل مصرح به لهذا المحتوى حالياً.</p>}
-        <a href={`https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-[#d9dfdc] bg-white px-5 py-3 text-sm font-bold text-[#527566]"><PlayCircle size={16} /> مشاهدة في YouTube</a>
+        <a href={`https://www.youtube.com/watch?v=${encodeURIComponent(info?.videoId || "")}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-[#d9dfdc] bg-white px-5 py-3 text-sm font-bold text-[#527566]"><PlayCircle size={16} /> مشاهدة في YouTube</a>
       </div>
 
       {error ? <p className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</p> : null}
