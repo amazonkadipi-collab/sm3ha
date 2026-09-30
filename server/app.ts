@@ -7,7 +7,7 @@ import { makeSlug } from "./catalog";
 import { COOKIE_NAME } from "@shared/const";
 import { ENV } from "./_core/env";
 import { countIndexableKeywords, listSitemapKeywords, countIndexableSongs, listSitemapSongs, countSitemapArtists, listSitemapArtists, countSitemapAlbums, listSitemapAlbums } from "./supabase";
-import { getRapidYouTubeDownload, getRapidYouTubeInfo, normalizeVideoId } from "./rapidapi-youtube";
+import { getRapidYouTubeInfo, normalizeVideoId, streamRapidYouTubeDownload } from "./rapidapi-youtube";
 import { findSongByToken } from "./db";
 
 const PUBLIC_ORIGIN = "https://www.sm3ha.online";
@@ -162,19 +162,44 @@ export function createApp() {
   app.get("/api/youtube/download", async (req, res) => {
     res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
     const token = typeof req.query.d === "string" ? req.query.d.trim() : "";
+    const rawVideoId = typeof req.query.v === "string" ? req.query.v.trim() : "";
     const format = req.query.format === "mp4" ? "mp4" : req.query.format === "mp3" ? "mp3" : "";
     const quality = typeof req.query.quality === "string" ? req.query.quality.slice(0, 32) : "";
-    if (!token || !format || !quality) return res.status(400).json({ error: "Invalid download parameters" });
+    if ((!token && !rawVideoId) || !format || !quality) return res.status(400).json({ error: "Invalid download parameters" });
 
-    const song = await findSongByToken(token);
-    if (!song || song.status !== "active" || song.rightsStatus === "removed" || song.rightsStatus === "demo" || !song.providerVideoId) {
-      return res.status(403).json({ error: "This media is not available for download." });
+    let videoId = rawVideoId;
+    if (token) {
+      const song = await findSongByToken(token);
+      if (!song || song.status !== "active" || song.rightsStatus === "removed" || song.rightsStatus === "demo" || !song.providerVideoId) {
+        return res.status(403).json({ error: "This media is not available for download." });
+      }
+      videoId = song.providerVideoId;
     }
+    videoId = normalizeVideoId(videoId);
+    if (!videoId) return res.status(400).json({ error: "Invalid YouTube video ID" });
     if (!ENV.rapidApiKey) return res.status(503).json({ error: "RapidAPI is not configured" });
 
     try {
-      const link = await getRapidYouTubeDownload(song.providerVideoId, format, quality);
-      return res.json(link);
+      const upstream = await streamRapidYouTubeDownload(videoId, format, quality);
+      if (!upstream.ok || !upstream.body) {
+        const message = await upstream.text().catch(() => "");
+        return res.status(502).json({ error: message || `RapidAPI download failed (${upstream.status})` });
+      }
+      res.status(200);
+      res.setHeader("Content-Type", upstream.headers.get("content-type") || (format === "mp3" ? "audio/mpeg" : "video/mp4"));
+      const length = upstream.headers.get("content-length");
+      if (length) res.setHeader("Content-Length", length);
+      const disposition = upstream.headers.get("content-disposition");
+      res.setHeader("Content-Disposition", disposition || `attachment; filename="sm3ha-${videoId}.${format}"`);
+      const body = upstream.body.getReader();
+      const pump = async (): Promise<void> => {
+        const { done, value } = await body.read();
+        if (done) return;
+        res.write(Buffer.from(value));
+        await pump();
+      };
+      await pump();
+      return res.end();
     } catch (error) {
       return res.status(502).json({ error: error instanceof Error ? error.message : "RapidAPI download request failed" });
     }
