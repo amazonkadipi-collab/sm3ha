@@ -75,7 +75,7 @@ function keywordCandidates(query: string) {
 async function saveKeyword(supabase: SupabaseClient, query: string, resultSlugs: string[], source: string, countSearch: boolean) {
   const normalizedQuery = normalizeArabic(query).replace(/\s+/g, " ").trim();
   const incomingSlugs = Array.from(new Set(resultSlugs)).filter(Boolean).slice(0, 50);
-  if (!normalizedQuery || incomingSlugs.length === 0) return false;
+  if (!normalizedQuery) return false;
   const slug = makeSlug(normalizedQuery);
   if (!slug) return false;
   const { data: existing } = await supabase.from("catalog_keywords").select("search_count,result_slugs,result_count,source").eq("slug", slug).maybeSingle();
@@ -85,7 +85,7 @@ async function saveKeyword(supabase: SupabaseClient, query: string, resultSlugs:
   const now = new Date().toISOString();
   const { error } = await supabase.from("catalog_keywords").upsert({
     query: normalizedQuery, slug, title: `تحميل ${normalizedQuery} Mp3 Mp4`, language: "ar", source: existing?.source ?? source,
-    result_count: mergedSlugs.length, result_slugs: mergedSlugs, indexable: mergedSlugs.length > 0,
+    result_count: mergedSlugs.length, result_slugs: mergedSlugs, indexable: countSearch || mergedSlugs.length > 0,
     search_count: searchCount, last_searched_at: countSearch ? now : undefined, updated_at: now, status: "active"
   }, { onConflict: "slug" });
   if (error) { console.warn("[Supabase] keyword upsert failed:", error.message); return false; }
@@ -115,7 +115,7 @@ export async function upsertCatalogKeyword(query: string, resultSlugs: string[],
   const supabase = getSupabaseAdmin();
   const normalizedQuery = normalizeArabic(query).replace(/\s+/g, " ").trim();
   const uniqueSlugs = Array.from(new Set(resultSlugs)).filter(Boolean).slice(0, 50);
-  if (!supabase || !normalizedQuery || uniqueSlugs.length === 0) return false;
+  if (!supabase || !normalizedQuery) return false;
   if (!(await saveKeyword(supabase, normalizedQuery, uniqueSlugs, source, countSearch))) return false;
   if (countSearch) for (const candidate of keywordCandidates(normalizedQuery).filter(candidate => candidate !== normalizedQuery && candidate.includes(" "))) await saveKeyword(supabase, candidate, uniqueSlugs, "search-derived", false);
   return true;
@@ -138,7 +138,7 @@ export async function indexCatalogText(rows: Array<{ title: string; artist: stri
 export async function listCatalogKeywords(limit = 20) {
   const supabase = getSupabaseAdmin(); if (!supabase) return null;
   const safeLimit = Math.min(Math.max(limit, 1), 50);
-  const query = supabase.from("catalog_keywords").select("query,slug,title,result_count,result_slugs,status,last_searched_at,updated_at,search_count").eq("status", "active").eq("indexable", true).gt("result_count", 0).gt("search_count", 0).order("last_searched_at", { ascending: false, nullsFirst: false }).order("updated_at", { ascending: false }).limit(safeLimit);
+  const query = supabase.from("catalog_keywords").select("query,slug,title,result_count,result_slugs,status,last_searched_at,updated_at,search_count").eq("status", "active").eq("indexable", true).gt("search_count", 0).order("last_searched_at", { ascending: false, nullsFirst: false }).order("updated_at", { ascending: false }).limit(safeLimit);
   // Home must never remain in a loading state because an optional SEO/catalog
   // feed is slow or temporarily unavailable. Return an empty feed after a
   // short server-side deadline; Home already has a local Arabic fallback list.
@@ -155,19 +155,19 @@ export async function listCatalogKeywords(limit = 20) {
 
 export async function findCatalogKeyword(slug: string) {
   const supabase = getSupabaseAdmin(); if (!supabase) return null;
-  const { data, error } = await supabase.from("catalog_keywords").select("query,slug,title,result_count,result_slugs,status,indexable").eq("slug", slug).eq("status", "active").eq("indexable", true).gt("result_count", 0).maybeSingle();
+  const { data, error } = await supabase.from("catalog_keywords").select("query,slug,title,result_count,result_slugs,status,indexable").eq("slug", slug).eq("status", "active").eq("indexable", true).maybeSingle();
   if (error) { console.warn("[Supabase] keyword lookup failed:", error.message); return null; } return data;
 }
 
 export async function listSitemapKeywords(offset = 0, limit = 45000) {
   const supabase = getSupabaseAdmin(); if (!supabase) return [];
-  const { data, error } = await supabase.from("catalog_keywords").select("slug,updated_at").eq("status", "active").eq("indexable", true).gt("result_count", 0).gt("search_count", 0).order("updated_at", { ascending: false }).range(offset, offset + limit - 1);
+  const { data, error } = await supabase.from("catalog_keywords").select("slug,updated_at").eq("status", "active").eq("indexable", true).gt("search_count", 0).order("updated_at", { ascending: false }).range(offset, offset + limit - 1);
   if (error) { console.warn("[Supabase] sitemap keyword query failed:", error.message); return []; } return data ?? [];
 }
 
 export async function countIndexableKeywords() {
   const supabase = getSupabaseAdmin(); if (!supabase) return 0;
-  const { count, error } = await supabase.from("catalog_keywords").select("id", { count: "exact", head: true }).eq("status", "active").eq("indexable", true).gt("result_count", 0).gt("search_count", 0);
+  const { count, error } = await supabase.from("catalog_keywords").select("id", { count: "exact", head: true }).eq("status", "active").eq("indexable", true).gt("search_count", 0);
   if (error) { console.warn("[Supabase] keyword count failed:", error.message); return 0; } return count ?? 0;
 }
 
