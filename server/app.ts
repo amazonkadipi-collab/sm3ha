@@ -198,12 +198,29 @@ export function createApp() {
       const disposition = upstream.headers.get("content-disposition");
       res.setHeader("Content-Disposition", disposition || `attachment; filename="sm3ha-${song.slug}.${format}"`);
       const reader = upstream.body.getReader();
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        res.write(Buffer.from(value));
+      const streamTimeout = setTimeout(() => {
+        console.warn("[Download] upstream stream exceeded 240s; aborting");
+        void reader.cancel("stream timeout").catch(() => undefined);
+        if (!res.writableEnded) res.destroy(new Error("Download stream timed out"));
+      }, 240_000);
+      const onClose = () => {
+        void reader.cancel("client disconnected").catch(() => undefined);
+      };
+      res.once("close", onClose);
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (!res.writableEnded) res.write(Buffer.from(value));
+          else break;
+        }
+      } finally {
+        clearTimeout(streamTimeout);
+        res.off("close", onClose);
+        void reader.cancel().catch(() => undefined);
       }
-      return res.end();
+      if (!res.writableEnded) res.end();
+      return;
     } catch (error) {
       return res.status(502).json({ error: error instanceof Error ? error.message : "RapidAPI stream failed" });
     }
