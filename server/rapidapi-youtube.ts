@@ -76,7 +76,7 @@ async function request(path: string, init: RequestInit = {}) {
       accept: "*/*",
       ...(init.headers ?? {}),
     },
-    signal: init.signal ?? AbortSignal.timeout(60_000),
+    signal: init.signal ?? AbortSignal.timeout(30_000),
   });
   return response;
 }
