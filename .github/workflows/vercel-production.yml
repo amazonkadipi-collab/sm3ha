@@ -1,13 +1,12 @@
-name: Deploy to Vercel
+name: Build and verify
 
-# Explicit production deploy for the connected Vercel project.
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,9 +17,3 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      - run: npm install -g vercel@latest
-      - run: vercel deploy --prebuilt --prod --yes --token="$VERCEL_TOKEN"
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: team_AMXeRqHf1n1RIJA61j2463EU
-          VERCEL_PROJECT_ID: prj_QSICXdmpEh3Dfp3NGGirGhsEz8V9
