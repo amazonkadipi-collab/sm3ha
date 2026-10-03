@@ -5,7 +5,8 @@
   "installCommand": "pnpm install --frozen-lockfile",
   "functions": {
     "api/[...path].ts": {
-      "includeFiles": "public/**"
+      "includeFiles": "public/**",
+      "maxDuration": 240
     }
   },
   "crons": [
