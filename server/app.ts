@@ -7,7 +7,7 @@ import { makeSlug } from "./catalog";
 import { COOKIE_NAME } from "@shared/const";
 import { ENV } from "./_core/env";
 import { countIndexableKeywords, listSitemapKeywords, countIndexableSongs, listSitemapSongs, countSitemapArtists, listSitemapArtists, countSitemapAlbums, listSitemapAlbums } from "./supabase";
-import { getRapidYouTubeInfo, normalizeVideoId, streamRapidYouTubeDownload } from "./rapidapi-youtube";
+import { getRapidYouTubeInfo, MediaProviderError, normalizeVideoId, streamRapidYouTubeDownload } from "./rapidapi-youtube";
 import { findSongByToken } from "./db";
 
 const PUBLIC_ORIGIN = "https://www.sm3ha.online";
@@ -155,7 +155,7 @@ export function createApp() {
       const info = await getRapidYouTubeInfo(videoId);
       return res.json({ ...info, authorizedDownload });
     } catch (error) {
-      return res.status(502).json({ error: error instanceof Error ? error.message : "RapidAPI request failed" });
+      const status = error instanceof MediaProviderError ? error.status : 502;\n      return res.status(status).json({ error: error instanceof Error ? error.message : "Media provider request failed" });
     }
   });
 
@@ -222,7 +222,7 @@ export function createApp() {
       if (!res.writableEnded) res.end();
       return;
     } catch (error) {
-      return res.status(502).json({ error: error instanceof Error ? error.message : "RapidAPI stream failed" });
+      const status = error instanceof MediaProviderError ? error.status : 502;\n      return res.status(status).json({ error: error instanceof Error ? error.message : "Media provider stream failed" });
     }
   });
 
