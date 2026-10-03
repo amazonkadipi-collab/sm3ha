@@ -205,10 +205,10 @@ export function createApp() {
     const quality = typeof req.query.quality === "string" ? req.query.quality.slice(0, 32) : "";
     if (!token || !format || !quality) return res.status(400).json({ error: "Invalid download parameters" });
     const song = await findSongByToken(token);
-    if (!song || song.status !== "active" || song.rightsStatus === "removed" || song.rightsStatus === "demo" || !song.providerVideoId) {
-      return res.status(403).json({ error: "This media is not available for download." });
+    if (!song || song.status !== "active" || song.rightsStatus !== "licensed" || !song.providerVideoId) {
+      return res.status(403).json({ error: "This media is not licensed for download." });
     }
-    if (!ENV.rapidApiKey) return res.status(503).json({ error: "RapidAPI is not configured" });
+    if (!ENV.rapidApiKey) return res.status(503).json({ error: "Authorized media provider is not configured" });
     return res.json({ url: `/api/youtube/stream?d=${encodeURIComponent(token)}&format=${format}&quality=${encodeURIComponent(quality)}` });
   });
 
