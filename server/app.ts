@@ -139,23 +139,62 @@ export function createApp() {
     res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
     const token = typeof req.query.d === "string" ? req.query.d.trim() : "";
     const legacyVideoId = normalizeVideoId(typeof req.query.v === "string" ? req.query.v : "");
-    let videoId = legacyVideoId;
-    let authorizedDownload = false;
 
     if (token) {
       const song = await findSongByToken(token);
       if (!song) return res.status(404).json({ error: "Media token not found" });
-      videoId = song.providerVideoId;
-      authorizedDownload = Boolean(ENV.rapidApiKey && song.providerVideoId);
+
+      const videoId = song.providerVideoId;
+      const youtubeUrl = song.providerUrl || `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`;
+      const thumbnail = song.thumbnailUrl || `https://i.ytimg.com/vi/${encodeURIComponent(videoId)}/hqdefault.jpg`;
+
+      // Metadata-only catalog rows must never pretend that a download provider is available.
+      // A real download is exposed only when the catalog explicitly marks the item licensed.
+      const authorizedDownload = Boolean(
+        ENV.rapidApiKey &&
+        videoId &&
+        song.rightsStatus === "licensed"
+      );
+
+      if (!authorizedDownload) {
+        return res.json({
+          videoId,
+          url: youtubeUrl,
+          title: song.title,
+          thumbnail,
+          durationSeconds: Number(song.durationSeconds || 0),
+          audio: [],
+          video: [],
+          authorizedDownload: false,
+          downloadAvailable: false,
+          message: song.rightsStatus === "metadata_only"
+            ? "Download is not available for this catalog item."
+            : "Download provider is not currently authorized for this item.",
+        });
+      }
+
+      try {
+        const info = await getRapidYouTubeInfo(videoId);
+        return res.json({ ...info, authorizedDownload: true, downloadAvailable: true });
+      } catch (error) {
+        const status = error instanceof MediaProviderError ? error.status : 502;
+        return res.status(status).json({
+          error: error instanceof Error ? error.message : "Media provider request failed",
+        });
+      }
     }
 
-    if (!videoId) return res.status(400).json({ error: "Invalid video source" });
-    if (!ENV.rapidApiKey) return res.status(503).json({ error: "RapidAPI is not configured" });
+    if (!legacyVideoId) return res.status(400).json({ error: "Invalid video source" });
+    if (!ENV.rapidApiKey) return res.status(503).json({ error: "Media provider is not configured" });
+
     try {
-      const info = await getRapidYouTubeInfo(videoId);
-      return res.json({ ...info, authorizedDownload });
+      const info = await getRapidYouTubeInfo(legacyVideoId);
+      return res.json({ ...info, authorizedDownload: false, downloadAvailable: false });
     } catch (error) {
-      const status = error instanceof MediaProviderError ? error.status : 502;\n      return res.status(status).json({ error: error instanceof Error ? error.message : "Media provider request failed" });
+      const status = error instanceof MediaProviderError ? error.status : 502;
+      return res.status(status).json({
+        error: error instanceof Error ? error.message : "Media provider request failed",
+      });
     }
   });
 
