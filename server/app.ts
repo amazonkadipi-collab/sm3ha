@@ -261,7 +261,8 @@ export function createApp() {
       if (!res.writableEnded) res.end();
       return;
     } catch (error) {
-      const status = error instanceof MediaProviderError ? error.status : 502;\n      return res.status(status).json({ error: error instanceof Error ? error.message : "Media provider stream failed" });
+      const status = error instanceof MediaProviderError ? error.status : 502;
+      return res.status(status).json({ error: error instanceof Error ? error.message : "Media provider stream failed" });
     }
   });
 
