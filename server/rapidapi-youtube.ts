@@ -22,9 +22,20 @@ export type RapidYouTubeInfo = {
   video: RapidMediaLink[];
 };
 
+export class MediaProviderError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly code: "NOT_CONFIGURED" | "NOT_SUBSCRIBED" | "UPSTREAM" | "TIMEOUT",
+  ) {
+    super(message);
+    this.name = "MediaProviderError";
+  }
+}
+
 function requireKey() {
   const key = process.env.RAPIDAPI_KEY?.trim();
-  if (!key) throw new Error("RAPIDAPI_KEY is not configured");
+  if (!key) throw new MediaProviderError("Download provider is not configured.", 503, "NOT_CONFIGURED");
   return key;
 }
 
@@ -68,17 +79,23 @@ function firstNumber(payload: unknown, keys: string[]) {
 
 async function request(path: string, init: RequestInit = {}) {
   const key = requireKey();
-  const response = await fetch(`${RAPIDAPI_BASE}${path}`, {
-    ...init,
-    headers: {
-      "x-rapidapi-key": key,
-      "x-rapidapi-host": RAPIDAPI_HOST,
-      accept: "*/*",
-      ...(init.headers ?? {}),
-    },
-    signal: init.signal ?? AbortSignal.timeout(30_000),
-  });
-  return response;
+  try {
+    return await fetch(`${RAPIDAPI_BASE}${path}`, {
+      ...init,
+      headers: {
+        "x-rapidapi-key": key,
+        "x-rapidapi-host": RAPIDAPI_HOST,
+        accept: "*/*",
+        ...(init.headers ?? {}),
+      },
+      signal: init.signal ?? AbortSignal.timeout(30_000),
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new MediaProviderError("The media provider timed out. Please try again.", 504, "TIMEOUT");
+    }
+    throw error;
+  }
 }
 
 async function jsonRequest(path: string) {
@@ -87,8 +104,15 @@ async function jsonRequest(path: string) {
   let payload: unknown;
   try { payload = JSON.parse(text); } catch { payload = { raw: text }; }
   if (!response.ok) {
-    const message = firstString(payload, ["message", "error", "detail"]) || `RapidAPI returned ${response.status}`;
-    throw new Error(message);
+    const rawMessage = firstString(payload, ["message", "error", "detail"]);
+    if (response.status === 401 || response.status === 403 || /not subscribed|subscription required|not authorized/i.test(rawMessage)) {
+      throw new MediaProviderError(
+        "The configured media provider is not subscribed or authorized for this operation.",
+        503,
+        "NOT_SUBSCRIBED",
+      );
+    }
+    throw new MediaProviderError(rawMessage || `Media provider returned ${response.status}`, 502, "UPSTREAM");
   }
   return payload;
 }
@@ -125,7 +149,7 @@ function thumbnailFromInfo(payload: unknown) {
 
 export async function getRapidYouTubeInfo(videoId: string): Promise<RapidYouTubeInfo> {
   const id = normalizeVideoId(videoId);
-  if (!id) throw new Error("Invalid YouTube video ID");
+  if (!id) throw new MediaProviderError("Invalid YouTube video ID.", 400, "UPSTREAM");
 
   const payload = await jsonRequest(`/get-video-info/${encodeURIComponent(id)}`);
   const title = firstString(payload, ["title", "name"]) || `YouTube ${id}`;
@@ -163,9 +187,22 @@ function mp3Quality(value: string) {
 
 export async function streamRapidYouTubeDownload(videoId: string, format: "mp3" | "mp4", requestedQuality: string) {
   const id = normalizeVideoId(videoId);
-  if (!id) throw new Error("Invalid YouTube video ID");
+  if (!id) throw new MediaProviderError("Invalid YouTube video ID.", 400, "UPSTREAM");
   const path = format === "mp3"
     ? `/download-mp3/${encodeURIComponent(id)}?quality=${encodeURIComponent(mp3Quality(requestedQuality))}`
     : `/download-mp4/${encodeURIComponent(id)}`;
-  return request(path, { headers: { accept: "*/*" } });
+  const response = await request(path, { headers: { accept: "*/*" } });
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    if (response.status === 401 || response.status === 403 || /not subscribed|subscription required|not authorized/i.test(text)) {
+      throw new MediaProviderError(
+        "The configured media provider is not subscribed or authorized for downloads.",
+        503,
+        "NOT_SUBSCRIBED",
+      );
+    }
+    throw new MediaProviderError(text || `Media provider returned ${response.status}`, 502, "UPSTREAM");
+  }
+  if (!response.body) throw new MediaProviderError("Media provider returned an empty stream.", 502, "UPSTREAM");
+  return response;
 }
