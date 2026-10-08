@@ -12,6 +12,7 @@ export const ENV = {
   youtubeApiKeys: [process.env.YOUTUBE_API_KEY, process.env.YOUTUBE_API_KEY_2, process.env.YOUTUBE_API_KEY_3].filter((key): key is string => Boolean(key)),
   rapidApiKey: process.env.RAPIDAPI_KEY ?? "",
   rapidApiHost: process.env.RAPIDAPI_HOST ?? "youtube-to-mp4-mp3.p.rapidapi.com",
+  cloudConvertApiKey: process.env.CLOUDCONVERT_API_KEY ?? "",
   adminUsername: process.env.ADMIN_USERNAME ?? "",
   adminPassword: process.env.ADMIN_PASSWORD ?? "",
 };
