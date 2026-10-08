@@ -18,6 +18,7 @@ export function createApp() {
   const app = express();
   const requestWindow = new Map<string, { count: number; resetAt: number }>();
   const adminLoginWindow = new Map<string, { count: number; resetAt: number }>();
+  const downloadWindow = new Map<string, { count: number; resetAt: number }>();
 
   const allowRequest = (window: Map<string, { count: number; resetAt: number }>, key: string, limit: number, windowMs: number) => {
     const now = Date.now();
@@ -71,7 +72,7 @@ export function createApp() {
 
   app.get("/sitemap.xml", async (req, res) => {
     const origin = getOrigin(req);
-    const pageSize = 45000;
+    const pageSize = 5000;
     const [keywords, songs, artists, albums] = await Promise.all([
       countIndexableKeywords(), countIndexableSongs(), countSitemapArtists(), countSitemapAlbums()
     ]);
@@ -96,14 +97,14 @@ export function createApp() {
     const page = req.params.page ? Number(req.params.page) : 1;
     if (!Number.isInteger(page) || page < 1) return res.status(404).type("text/plain").send("Not found");
     const origin = getOrigin(req);
-    const offset = (page - 1) * 45000;
+    const offset = (page - 1) * 5000;
     const rows = kind === "keywords"
-      ? await listSitemapKeywords(offset, 45000)
+      ? await listSitemapKeywords(offset, 5000)
       : kind === "songs"
-        ? await listSitemapSongs(offset, 45000)
+        ? await listSitemapSongs(offset, 5000)
         : kind === "artists"
-          ? await listSitemapArtists(offset, 45000)
-          : await listSitemapAlbums(offset, 45000);
+          ? await listSitemapArtists(offset, 5000)
+          : await listSitemapAlbums(offset, 5000);
     if (!rows.length) return res.status(404).type("text/plain").send("Not found");
     const prefix = kind === "keywords" ? "/s/" : kind === "songs" ? "/song/" : kind === "artists" ? "/artists/" : "/album/";
     const body = rows.map((row: any) => {
@@ -199,6 +200,10 @@ export function createApp() {
   });
 
   app.get("/api/youtube/download", async (req, res) => {
+    const downloadKey = req.ip || "anonymous";
+    if (!allowRequest(downloadWindow, downloadKey, 3, 10 * 60_000)) {
+      return res.status(429).json({ error: "Download rate limit exceeded. Please wait before starting another download." });
+    }
     res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
     const token = typeof req.query.d === "string" ? req.query.d.trim() : "";
     const format = req.query.format === "mp4" ? "mp4" : req.query.format === "mp3" ? "mp3" : "";
@@ -213,6 +218,10 @@ export function createApp() {
   });
 
   app.get("/api/youtube/stream", async (req, res) => {
+    const streamKey = req.ip || "anonymous";
+    if (!allowRequest(downloadWindow, `stream:${streamKey}`, 3, 10 * 60_000)) {
+      return res.status(429).json({ error: "Download rate limit exceeded. Please wait before starting another download." });
+    }
     res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
     const token = typeof req.query.d === "string" ? req.query.d.trim() : "";
     const format = req.query.format === "mp4" ? "mp4" : req.query.format === "mp3" ? "mp3" : "";
@@ -238,10 +247,10 @@ export function createApp() {
       res.setHeader("Content-Disposition", disposition || `attachment; filename="sm3ha-${song.slug}.${format}"`);
       const reader = upstream.body.getReader();
       const streamTimeout = setTimeout(() => {
-        console.warn("[Download] upstream stream exceeded 240s; aborting");
+        console.warn("[Download] upstream stream exceeded 90s; aborting");
         void reader.cancel("stream timeout").catch(() => undefined);
         if (!res.writableEnded) res.destroy(new Error("Download stream timed out"));
-      }, 240_000);
+      }, 90_000);
       const onClose = () => {
         void reader.cancel("client disconnected").catch(() => undefined);
       };
