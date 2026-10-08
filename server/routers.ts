@@ -202,7 +202,11 @@ export const appRouter = router({
     }),
     startConversion: publicProcedure.input(z.object({ token: z.string().min(8).max(128), format: z.enum(["mp3", "mp4"]), quality: z.string().max(32) })).mutation(async ({ input }) => {
       const song = await findSongByToken(input.token);
-      if (!song || song.rightsStatus !== "licensed" || !song.providerUrl) throw new TRPCError({ code: "FORBIDDEN", message: "This media does not have an authorized download source." });
+      const sourceUrl = song?.providerUrl?.trim() ?? "";
+      const directSource = /^https:\/\//i.test(sourceUrl) && !/^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\//i.test(sourceUrl);
+      if (!song || song.rightsStatus !== "licensed" || !directSource || !ENV.cloudConvertApiKey) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "This media does not have an authorized direct download source." });
+      }
       try {
         const job = await startAuthorizedConversion(song.providerUrl, input.format, input.quality);
         return { id: job.id, status: job.status, progress: 0, downloadUrl: null, expiresAt: null };
