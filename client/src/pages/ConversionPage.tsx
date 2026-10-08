@@ -2,6 +2,7 @@ import { Download, ExternalLink, FileAudio, FileVideo, Loader2, PlayCircle } fro
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearch } from "wouter";
 import { applySeo, resetSeo } from "@/lib/seo";
+import { trpc } from "@/lib/trpc";
 
 type MediaLink = { url: string; format: "mp3" | "mp4"; quality: string; bitrate?: number; size?: number };
 type MediaInfo = { videoId: string; url: string; title: string; thumbnail: string; durationSeconds: number; audio: MediaLink[]; video: MediaLink[]; authorizedDownload?: boolean };
@@ -25,6 +26,12 @@ export default function ConversionPage() {
   const [loading, setLoading] = useState(Boolean(token));
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState("");
+  const [jobId, setJobId] = useState("");
+  const startConversion = trpc.catalog.startConversion.useMutation();
+  const conversionStatus = trpc.catalog.conversionStatus.useQuery(
+    { jobId },
+    { enabled: Boolean(jobId), refetchInterval: jobId ? 2500 : false },
+  );
 
   useEffect(() => {
     applySeo({
@@ -69,28 +76,41 @@ export default function ConversionPage() {
   }, [links, selectedQuality]);
 
   const beginDownload = async () => {
-    if (!token || !selectedQuality || !authorizedDownload) return;
+    if (!token || !selectedQuality || !authorizedDownload || !links.length || startConversion.isPending) return;
     setDownloading(true);
     setError("");
+    setJobId("");
     try {
-      const query = new URLSearchParams({ d: token, format, quality: selectedQuality });
-      const response = await fetch(`/api/youtube/download?${query.toString()}`);
-      const payload = await response.json();
-      if (!response.ok || !payload.url) throw new Error(payload.error || "لم يتم العثور على رابط التحميل");
+      const job = await startConversion.mutateAsync({ token, format, quality: selectedQuality });
+      setJobId(job.id);
+    } catch (err) {
+      setDownloading(false);
+      setError(err instanceof Error ? err.message : "تعذر بدء التحويل");
+    }
+  };
+
+  useEffect(() => {
+    const status = conversionStatus.data;
+    if (!jobId || !status) return;
+    if (status.status === "finished" && status.downloadUrl) {
       const anchor = document.createElement("a");
-      anchor.href = payload.url;
+      anchor.href = status.downloadUrl;
       anchor.target = "_blank";
       anchor.rel = "noreferrer";
       anchor.download = "";
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "تعذر بدء التحميل");
-    } finally {
       setDownloading(false);
+      setJobId("");
+      return;
     }
-  };
+    if (status.status === "error") {
+      setDownloading(false);
+      setJobId("");
+      setError("فشل تجهيز الملف عبر خدمة التحويل.");
+    }
+  }, [conversionStatus.data, jobId]);
 
   if (!token) return <main className="reference-page mx-auto max-w-[1080px] px-4 py-20 text-center sm:px-8"><p className="serif text-4xl text-[#344d49]">مصدر التحميل غير محدد</p><Link href="/" className="mt-4 inline-block font-bold text-[#527566]">العودة للرئيسية</Link></main>;
   if (loading) return <main dir="rtl" className="reference-page mx-auto max-w-[1080px] px-4 py-20 text-center sm:px-8"><Loader2 className="mx-auto animate-spin" /><p className="mt-4 text-sm text-[#527566]">جاري جلب معلومات الفيديو…</p></main>;
@@ -119,12 +139,13 @@ export default function ConversionPage() {
       </div>
 
       <div className="mt-5 flex flex-wrap gap-3">
-        {authorizedDownload ? <button disabled={!selectedQuality || downloading || !links.length} onClick={beginDownload} className="reference-action"><Download size={16} />{downloading ? "جاري تجهيز التحميل..." : "DOWNLOAD NOW"}</button> : <p className="rounded-xl border border-[#d9dfdc] bg-white px-5 py-3 text-sm text-[#78938a]">خدمة التحميل غير متاحة حالياً لهذا المحتوى.</p>}
+        {authorizedDownload ? <button disabled={!selectedQuality || downloading || !links.length} onClick={beginDownload} className="reference-action"><Download size={16} />{downloading ? "جاري تجهيز الملف..." : "DOWNLOAD NOW"}</button> : <p className="rounded-xl border border-[#d9dfdc] bg-white px-5 py-3 text-sm text-[#78938a]">خدمة التحميل غير متاحة حالياً لهذا المحتوى.</p>}
         <a href={`https://www.youtube.com/watch?v=${encodeURIComponent(info?.videoId || "")}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-[#d9dfdc] bg-white px-5 py-3 text-sm font-bold text-[#527566]"><PlayCircle size={16} /> مشاهدة في YouTube</a>
       </div>
 
       {error ? <p className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</p> : null}
-      <p className="mt-6 rounded-xl border border-[#d9dfdc] bg-white p-4 text-sm leading-6 text-[#78938a]">التحميل يتم عبر خدمة التحويل الخارجية من المصدر المرتبط بهذا المحتوى. استخدم التحميل فقط للمحتوى الذي تملك حق تنزيله أو إعادة استخدامه.</p>
+      {downloading && conversionStatus.data?.progress ? <p className="mt-4 text-sm text-[#527566]">التقدم: {conversionStatus.data.progress}%</p> : null}
+      <p className="mt-6 rounded-xl border border-[#d9dfdc] bg-white p-4 text-sm leading-6 text-[#78938a]">التحميل المرخّص يتم تحويله خارج Vercel، ثم يُفتح رابط مؤقت مباشر للملف في المتصفح. استخدم التحميل فقط للمحتوى الذي تملك حق تنزيله أو إعادة استخدامه.</p>
     </section>
   </main>;
 }
