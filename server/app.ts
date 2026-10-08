@@ -7,7 +7,7 @@ import { makeSlug } from "./catalog";
 import { COOKIE_NAME } from "@shared/const";
 import { ENV } from "./_core/env";
 import { countIndexableKeywords, listSitemapKeywords, countIndexableSongs, listSitemapSongs, countSitemapArtists, listSitemapArtists, countSitemapAlbums, listSitemapAlbums } from "./supabase";
-import { getRapidYouTubeInfo, MediaProviderError, normalizeVideoId, streamRapidYouTubeDownload } from "./rapidapi-youtube";
+import { getRapidYouTubeInfo, MediaProviderError, normalizeVideoId } from "./rapidapi-youtube";
 import { findSongByToken } from "./db";
 
 const PUBLIC_ORIGIN = "https://www.sm3ha.online";
@@ -18,7 +18,6 @@ export function createApp() {
   const app = express();
   const requestWindow = new Map<string, { count: number; resetAt: number }>();
   const adminLoginWindow = new Map<string, { count: number; resetAt: number }>();
-  const downloadWindow = new Map<string, { count: number; resetAt: number }>();
 
   const allowRequest = (window: Map<string, { count: number; resetAt: number }>, key: string, limit: number, windowMs: number) => {
     const now = Date.now();
@@ -151,9 +150,11 @@ export function createApp() {
 
       // Metadata-only catalog rows must never pretend that a download provider is available.
       // A real download is exposed only when the catalog explicitly marks the item licensed.
+      const directSource = typeof song.providerUrl === "string" && /^https:\/\//i.test(song.providerUrl) &&
+        !/^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\//i.test(song.providerUrl);
       const authorizedDownload = Boolean(
-        ENV.rapidApiKey &&
-        videoId &&
+        ENV.cloudConvertApiKey &&
+        directSource &&
         song.rightsStatus === "licensed"
       );
 
@@ -199,80 +200,20 @@ export function createApp() {
     }
   });
 
-  app.get("/api/youtube/download", async (req, res) => {
-    const downloadKey = req.ip || "anonymous";
-    if (!allowRequest(downloadWindow, downloadKey, 3, 10 * 60_000)) {
-      return res.status(429).json({ error: "Download rate limit exceeded. Please wait before starting another download." });
-    }
+  // Media bytes must never pass through the Vercel function. Authorized downloads now use
+  // the async CloudConvert flow and return a temporary external export URL to the browser.
+  app.get("/api/youtube/download", (_req, res) => {
     res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
-    const token = typeof req.query.d === "string" ? req.query.d.trim() : "";
-    const format = req.query.format === "mp4" ? "mp4" : req.query.format === "mp3" ? "mp3" : "";
-    const quality = typeof req.query.quality === "string" ? req.query.quality.slice(0, 32) : "";
-    if (!token || !format || !quality) return res.status(400).json({ error: "Invalid download parameters" });
-    const song = await findSongByToken(token);
-    if (!song || song.status !== "active" || song.rightsStatus !== "licensed" || !song.providerVideoId) {
-      return res.status(403).json({ error: "This media is not licensed for download." });
-    }
-    if (!ENV.rapidApiKey) return res.status(503).json({ error: "Authorized media provider is not configured" });
-    return res.json({ url: `/api/youtube/stream?d=${encodeURIComponent(token)}&format=${format}&quality=${encodeURIComponent(quality)}` });
+    return res.status(410).json({
+      error: "Direct media proxying has been disabled. Use the authorized conversion flow.",
+    });
   });
 
-  app.get("/api/youtube/stream", async (req, res) => {
-    const streamKey = req.ip || "anonymous";
-    if (!allowRequest(downloadWindow, `stream:${streamKey}`, 3, 10 * 60_000)) {
-      return res.status(429).json({ error: "Download rate limit exceeded. Please wait before starting another download." });
-    }
+  app.get("/api/youtube/stream", (_req, res) => {
     res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
-    const token = typeof req.query.d === "string" ? req.query.d.trim() : "";
-    const format = req.query.format === "mp4" ? "mp4" : req.query.format === "mp3" ? "mp3" : "";
-    const quality = typeof req.query.quality === "string" ? req.query.quality.slice(0, 32) : "";
-    if (!token || !format || !quality) return res.status(400).json({ error: "Invalid stream parameters" });
-    const song = await findSongByToken(token);
-    if (!song || song.status !== "active" || song.rightsStatus === "removed" || song.rightsStatus === "demo" || !song.providerVideoId) {
-      return res.status(403).json({ error: "This media is not available for download." });
-    }
-    if (!ENV.rapidApiKey) return res.status(503).json({ error: "RapidAPI is not configured" });
-
-    try {
-      const upstream = await streamRapidYouTubeDownload(song.providerVideoId, format, quality);
-      if (!upstream.ok || !upstream.body) {
-        const message = await upstream.text().catch(() => "");
-        return res.status(502).json({ error: message || `RapidAPI download failed (${upstream.status})` });
-      }
-      res.status(200);
-      res.setHeader("Content-Type", upstream.headers.get("content-type") || (format === "mp3" ? "audio/mpeg" : "video/mp4"));
-      const length = upstream.headers.get("content-length");
-      if (length) res.setHeader("Content-Length", length);
-      const disposition = upstream.headers.get("content-disposition");
-      res.setHeader("Content-Disposition", disposition || `attachment; filename="sm3ha-${song.slug}.${format}"`);
-      const reader = upstream.body.getReader();
-      const streamTimeout = setTimeout(() => {
-        console.warn("[Download] upstream stream exceeded 90s; aborting");
-        void reader.cancel("stream timeout").catch(() => undefined);
-        if (!res.writableEnded) res.destroy(new Error("Download stream timed out"));
-      }, 90_000);
-      const onClose = () => {
-        void reader.cancel("client disconnected").catch(() => undefined);
-      };
-      res.once("close", onClose);
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          if (!res.writableEnded) res.write(Buffer.from(value));
-          else break;
-        }
-      } finally {
-        clearTimeout(streamTimeout);
-        res.off("close", onClose);
-        void reader.cancel().catch(() => undefined);
-      }
-      if (!res.writableEnded) res.end();
-      return;
-    } catch (error) {
-      const status = error instanceof MediaProviderError ? error.status : 502;
-      return res.status(status).json({ error: error instanceof Error ? error.message : "Media provider stream failed" });
-    }
+    return res.status(410).json({
+      error: "Media streaming through this server has been disabled.",
+    });
   });
 
   registerStorageProxy(app);
