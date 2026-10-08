@@ -175,9 +175,30 @@ export function createApp() {
         });
       }
 
+      if (directSource) {
+        return res.json({
+          videoId,
+          url: youtubeUrl,
+          title: song.title,
+          thumbnail,
+          durationSeconds: Number(song.durationSeconds || 0),
+          audio: [
+            { url: "/api/youtube/download", format: "mp3", quality: "128" },
+            { url: "/api/youtube/download", format: "mp3", quality: "192" },
+            { url: "/api/youtube/download", format: "mp3", quality: "320" },
+          ],
+          video: [
+            { url: "/api/youtube/download", format: "mp4", quality: "360p" },
+            { url: "/api/youtube/download", format: "mp4", quality: "720p" },
+          ],
+          authorizedDownload: true,
+          downloadAvailable: true,
+        });
+      }
+
       try {
         const info = await getRapidYouTubeInfo(videoId);
-        return res.json({ ...info, authorizedDownload: true, downloadAvailable: true });
+        return res.json({ ...info, authorizedDownload: false, downloadAvailable: false });
       } catch (error) {
         const status = error instanceof MediaProviderError ? error.status : 502;
         return res.status(status).json({
