@@ -108,7 +108,9 @@ async function renderKeywordShell(req: express.Request, template: string) {
   const artistSummary = artists.length ? ` وتشمل النتائج أعمالاً مرتبطة بـ ${artists.map(escapeHtml).join("، ")}.` : "";
   const summary = `<section class="reference-results-summary" aria-label="نبذة عن النتائج"><p>هذه صفحة نتائج بحث عن «${escapeHtml(resolvedQuery)}» في سمعها. تعرض الصفحة ${songs.length} نتيجة متاحة من فهرس الوسائط، مع اسم العمل والفنان والمدة وروابط المشاهدة والتحميل حسب التوفر.${artistSummary} يمكنك فتح أي نتيجة للوصول إلى صفحة الأغنية ومعلوماتها والنتائج المرتبطة.</p></section>`;
 
-  const relatedRows = await listCatalogKeywords(50);
+  // Supabase can be temporarily unavailable or unconfigured; related links are optional.
+  // Always render the keyword page even when the related-keyword feed returns null.
+  const relatedRows = (await listCatalogKeywords(50)) ?? [];
   const keywordWords = new Set(keyword.toLocaleLowerCase("ar").split(/\s+/).filter(Boolean));
   const relatedHtml = relatedRows
     .filter(item => Boolean(item?.slug) && item.slug !== canonicalSlug && Number(item.result_count ?? 0) > 0 && Boolean(item?.query))
