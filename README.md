@@ -1,10 +1,10 @@
 # NaghmaHub
 
-NaghmaHub is an Arabic-first RTL music discovery experience with a calm pastel editorial interface, database-backed catalog, dynamic SEO-friendly song pages, protected opaque media tokens, an admin CSV preview flow, and a safe demonstration conversion experience.
+Sm3ha is an Arabic-first RTL music discovery experience with a database-backed catalog, SEO-friendly song and keyword pages, protected opaque media tokens, admin catalog tools, and a conversion flow for authorized direct media sources.
 
 ## Product boundaries
 
-The conversion flow is intentionally demonstrative. It does not scrape YouTube, bypass provider protection, or download unauthorized content. Production conversion must be connected only to an authorized/licensed provider. The current demo provider returns short-lived placeholder results and explains the limitation in the UI.
+Downloads are available only when a catalog item is explicitly marked `licensed`, has a direct HTTPS media source that is not a YouTube URL, and `CLOUDCONVERT_API_KEY` is configured server-side. YouTube search is for discovery/metadata only. Metadata-only rows must not be shown as downloadable, and no provider credentials may be sent to the browser. The browser opens the temporary export URL returned by the authorized conversion provider.
 
 ## Stack
 
@@ -54,7 +54,7 @@ This repository is ready for a private GitHub push. Do not commit `.env`, provid
 
 The catalog can use the Supabase project configured for this deployment. The server reads `SUPABASE_URL` and the server-only `SUPABASE_SERVICE_ROLE_KEY` from the managed environment; the service-role key must never be exposed to the browser or committed to GitHub. When these variables are absent, the application falls back to the local Drizzle/demo catalog.
 
-The active Supabase project is `dfocwmbnazuygbazdctn` in `eu-west-2`. The SQL migration in `supabase/0002_import_takedown.sql` adds import batches, import rows, takedown requests, indexes, and public read policies for active catalog records. Catalog reads use Supabase when configured, while admin imports upsert artists and songs and record batch/row outcomes in Supabase. Media remains demonstration-only and produces short-lived signed URLs only for authorized demo files.
+The Supabase project configured in the deployment is selected by `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`. The SQL migration in `supabase/0002_import_takedown.sql` adds import batches, import rows, takedown requests, indexes, and public read policies for active catalog records. Catalog reads use Supabase when configured, while admin imports upsert artists and songs and record batch/row outcomes in Supabase. Media conversion is available only for explicitly licensed records with a direct HTTPS source and a configured CloudConvert API key. Metadata-only YouTube records remain view/search metadata and cannot be converted or downloaded.
 
 For Vercel, configure `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `YOUTUBE_API_KEY` as server-side project environment variables. `YOUTUBE_API_KEY` is consumed only by the protected `/api/trpc/youtube.search` procedure through `server/youtube.ts`; it is never exposed as a `VITE_*` variable. Do not use the service-role key in any `VITE_*` variable. Run `pnpm test`, `pnpm check`, and `pnpm build` before deployment.
 
