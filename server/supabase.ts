@@ -15,7 +15,7 @@ export function getSupabaseAdmin() {
 
 export function hashOpaqueToken(token: string) { return createHash("sha256").update(token).digest("hex"); }
 
-export async function persistImportedRows(rows: Array<{ title: string; artist: string; providerVideoId: string; provider?: string; providerUrl?: string; thumbnailUrl?: string; durationSeconds?: number }>) {
+export async function persistImportedRows(rows: Array<{ title: string; artist: string; providerVideoId: string; provider?: string; providerUrl?: string; rightsStatus?: "licensed" | "metadata_only"; thumbnailUrl?: string; durationSeconds?: number }>) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return { accepted: 0, status: "database_unavailable" as const };
   const { data: batch, error: batchError } = await supabase.from("import_batches").insert({ source: "admin", total_rows: rows.length, status: "completed" }).select("id").single();
@@ -26,7 +26,7 @@ export async function persistImportedRows(rows: Array<{ title: string; artist: s
     const { data: artist, error: artistError } = await supabase.from("artists").upsert({ name: row.artist, slug: artistSlug }, { onConflict: "slug" }).select("id").single();
     if (artistError || !artist) { await supabase.from("import_rows").insert({ batch_id: batch.id, provider_video_id: row.providerVideoId, title: row.title, artist: row.artist, slug: songSlug, status: "failed", error_message: artistError?.message ?? "Artist insert failed" }); continue; }
     const provider = row.provider ?? "youtube";
-    const rightsStatus = row.providerUrl ? "licensed" : "metadata_only";
+    const directSource = /^https:\/\//i.test(row.providerUrl ?? "") && !/^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\//i.test(row.providerUrl ?? ""); const rightsStatus = row.rightsStatus === "licensed" && directSource ? "licensed" : "metadata_only";
     const { error: songError } = await supabase.from("songs").upsert({ title: row.title, normalized_title: normalizeArabic(row.title), slug: songSlug, artist_id: artist.id, provider, provider_video_id: row.providerVideoId, provider_url: row.providerUrl ?? null, thumbnail_url: row.thumbnailUrl ?? null, duration_seconds: row.durationSeconds ?? 0, rights_status: rightsStatus, opaque_token_hash: hashOpaqueToken(token), status: "active" }, { onConflict: "provider,provider_video_id" });
     await supabase.from("import_rows").insert({ batch_id: batch.id, provider_video_id: row.providerVideoId, title: row.title, artist: row.artist, slug: songSlug, status: songError ? "failed" : "accepted", error_message: songError?.message ?? null });
     if (!songError) { accepted += 1; acceptedSlugs.push(songSlug); }
