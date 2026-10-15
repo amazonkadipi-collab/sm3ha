@@ -35,11 +35,12 @@ export async function getUserByOpenId(openId: string) {
 
 const songSelect = "id,title,normalized_title,slug,provider,provider_video_id,provider_url,opaque_token_hash,thumbnail_url,duration_seconds,status,rights_status,created_at,artists(name,slug),albums(title)";
 
-async function supabaseSongs(query?: string, limit = 12, includeRemoved = false) {
+async function supabaseSongs(query?: string, limit = 12, includeRemoved = false, offset = 0) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return null;
-  const safeLimit = Math.min(Math.max(limit, 1), 50);
-  let request = supabase.from("songs").select(songSelect).order("created_at", { ascending: false }).limit(safeLimit);
+  const safeLimit = Math.min(Math.max(Math.floor(limit) || 12, 1), 50);
+  const safeOffset = Math.min(Math.max(Math.floor(offset) || 0, 0), 1_000_000);
+  let request = supabase.from("songs").select(songSelect).order("created_at", { ascending: false }).range(safeOffset, safeOffset + safeLimit - 1);
   if (!includeRemoved) request = request.eq("status", "active");
   request = request.neq("rights_status", "demo");
   if (query?.trim()) {
@@ -72,15 +73,26 @@ export async function findSongsBySlugs(slugs: string[], limit = 20, includeRemov
   return ordered.flatMap(slug => rows.filter(row => row.slug === slug));
 }
 
-export async function findSongs(query?: string, limit = 12, includeRemoved = false) {
-  const supabaseResult = await supabaseSongs(query, limit, includeRemoved);
+export async function findSongs(query?: string, limit = 12, includeRemoved = false, offset = 0) {
+  const supabaseResult = await supabaseSongs(query, limit, includeRemoved, offset);
   if (supabaseResult) return supabaseResult;
   const db = await getDb();
   if (!db) return [];
-  const safeLimit = Math.min(Math.max(limit, 1), 50);
-      if (!query?.trim()) return db.select().from(songs).where(ne(songs.rightsStatus, "demo")).orderBy(desc(songs.isFeatured), desc(songs.createdAt)).limit(safeLimit);
+  const safeLimit = Math.min(Math.max(Math.floor(limit) || 12, 1), 50);
+  const safeOffset = Math.min(Math.max(Math.floor(offset) || 0, 0), 1_000_000);
+  const visibility = includeRemoved
+    ? ne(songs.rightsStatus, "demo")
+    : and(eq(songs.availabilityStatus, "available"), ne(songs.rightsStatus, "demo"));
+  if (!query?.trim()) {
+    return db.select().from(songs).where(visibility)
+      .orderBy(desc(songs.isFeatured), desc(songs.createdAt))
+      .limit(safeLimit).offset(safeOffset);
+  }
   const pattern = `%${query.trim()}%`;
-  return db.select().from(songs).where(and(ne(songs.rightsStatus, "demo"), or(like(songs.title, pattern), like(songs.normalizedTitle, pattern), like(songs.slug, pattern)))).orderBy(desc(songs.isFeatured), desc(songs.createdAt)).limit(safeLimit);
+  return db.select().from(songs)
+    .where(and(visibility, or(like(songs.title, pattern), like(songs.normalizedTitle, pattern), like(songs.slug, pattern))))
+    .orderBy(desc(songs.isFeatured), desc(songs.createdAt))
+    .limit(safeLimit).offset(safeOffset);
 }
 
 export async function findArtistBySlug(slug: string) {
@@ -165,10 +177,12 @@ export async function findSongByToken(token: string) {
   return result[0];
 }
 
-export async function listArtists(limit = 12) {
+export async function listArtists(limit = 12, offset = 0) {
   const supabase = getSupabaseAdmin();
+  const safeLimit = Math.min(Math.max(Math.floor(limit) || 12, 1), 50);
+  const safeOffset = Math.min(Math.max(Math.floor(offset) || 0, 0), 1_000_000);
   if (supabase) {
-    const { data, error } = await supabase.from("artists").select("id,name,slug,image_url,created_at,songs(count)").order("created_at", { ascending: false }).limit(Math.min(limit, 50));
+    const { data, error } = await supabase.from("artists").select("id,name,slug,image_url,created_at,songs(count)").order("created_at", { ascending: false }).range(safeOffset, safeOffset + safeLimit - 1);
     if (!error && data) return data.map((artist: any, index: number) => ({
       id: index + 1,
       name: artist.name,
@@ -183,7 +197,7 @@ export async function listArtists(limit = 12) {
   }
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(artists).orderBy(desc(artists.createdAt)).limit(Math.min(limit, 50));
+  return db.select().from(artists).orderBy(desc(artists.createdAt)).limit(safeLimit).offset(safeOffset);
 }
 
 export async function listAlbums(limit = 12) {

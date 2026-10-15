@@ -16,7 +16,11 @@ import { getYouTubeDurations, getYouTubeEmbedStatus, searchYouTubeVideos } from 
 import { getAuthorizedConversion, getExportUrl, startAuthorizedConversion } from "./cloudconvert";
 import { artists, songs } from "../drizzle/schema";
 
-const paginationInput = z.object({ query: z.string().trim().max(120).optional(), limit: z.number().int().min(1).max(50).default(12) });
+const paginationInput = z.object({
+  query: z.string().trim().max(120).optional(),
+  limit: z.number().int().min(1).max(50).default(12),
+  offset: z.number().int().min(0).max(1_000_000).default(0),
+});
 const importRowInput = z.object({ title: z.string().min(1), artist: z.string().min(1), providerVideoId: z.string().min(1), provider: z.string().max(64).optional(), providerUrl: z.string().url().optional(), rightsStatus: z.enum(["licensed", "metadata_only"]).optional().default("metadata_only"), thumbnailUrl: z.string().url().optional(), durationSeconds: z.number().int().min(0).max(86400).optional() });
 const youtubeResult = (row: Awaited<ReturnType<typeof searchYouTubeVideos>>[number], index: number) => {
   const slug = makeSlug(`${row.artist}-${row.title}`);
@@ -120,7 +124,7 @@ export const appRouter = router({
       }
 
       if (results.length === 0) {
-        const databaseSongs = await findSongs(query, input.limit);
+        const databaseSongs = await findSongs(query, input.limit, false, query ? 0 : input.offset);
         if (databaseSongs.length) {
           results = databaseSongs.map(song => ({ ...song, artist: "", album: "", duration: formatDuration(song.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}` }));
           source = "catalog";
@@ -147,8 +151,33 @@ export const appRouter = router({
       return stored.map(song => ({ ...song, artist: "", album: "", duration: formatDuration(song.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}` }));
     }),
     recentSearches: publicProcedure.input(z.object({ limit: z.number().int().min(1).max(50).default(50) })).query(({ input }) => listRecentSearches(input.limit)),
-    artists: publicProcedure.input(z.object({ limit: z.number().int().min(1).max(20).default(12) })).query(async ({ input }) => {
-      const stored = await listArtists(input.limit);
+    archiveStats: publicProcedure.query(async () => {
+      const supabase = getSupabaseAdmin();
+      if (!supabase) return { songsTotal: 0, activeSongs: 0, removedSongs: 0, licensedDownloads: 0, artists: 0, albums: 0 };
+      const [allSongs, activeSongs, removedSongs, licensedDownloads, artistsCount, albumsCount] = await Promise.all([
+        supabase.from("songs").select("id", { count: "exact", head: true }).neq("rights_status", "demo"),
+        supabase.from("songs").select("id", { count: "exact", head: true }).eq("status", "active").neq("rights_status", "demo"),
+        supabase.from("songs").select("id", { count: "exact", head: true }).eq("status", "removed"),
+        supabase.from("songs").select("id", { count: "exact", head: true }).eq("status", "active").eq("rights_status", "licensed").not("provider_url", "is", null),
+        supabase.from("artists").select("id", { count: "exact", head: true }),
+        supabase.from("albums").select("id", { count: "exact", head: true }),
+      ]);
+      const errors = [allSongs.error, activeSongs.error, removedSongs.error, licensedDownloads.error, artistsCount.error, albumsCount.error].filter(Boolean);
+      if (errors.length) console.warn("[Catalog] archive count query failed:", errors.map((error: any) => error.message).join("; "));
+      return {
+        songsTotal: allSongs.count ?? 0,
+        activeSongs: activeSongs.count ?? 0,
+        removedSongs: removedSongs.count ?? 0,
+        licensedDownloads: licensedDownloads.count ?? 0,
+        artists: artistsCount.count ?? 0,
+        albums: albumsCount.count ?? 0,
+      };
+    }),
+    artists: publicProcedure.input(z.object({
+      limit: z.number().int().min(1).max(50).default(12),
+      offset: z.number().int().min(0).max(1_000_000).default(0),
+    })).query(async ({ input }) => {
+      const stored = await listArtists(input.limit, input.offset);
       if (!stored.length) return [];
       // Keep the archive fast: the old implementation made one extra songs
       // query per artist (20+ round trips). The archive list only needs the
@@ -284,9 +313,16 @@ export const appRouter = router({
       if (!drizzleResult) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Database unavailable" });
       return drizzleResult;
     }),
-    previewImport: adminProcedure.input(z.object({ rows: z.array(z.object({ title: z.string().min(1), artist: z.string().min(1), providerVideoId: z.string().min(1) })).max(1000) })).mutation(({ input }) => {
+    previewImport: adminProcedure.input(z.object({ rows: z.array(importRowInput).max(1000) })).mutation(({ input }) => {
       const seen = new Set<string>();
-      const rows = input.rows.map(row => { const duplicate = seen.has(row.providerVideoId); seen.add(row.providerVideoId); return { ...row, slug: makeSlug(`${row.artist}-${row.title}`), normalizedTitle: normalizeArabic(row.title), duplicate }; });
+      const rows = input.rows.map(row => {
+        const duplicate = seen.has(row.providerVideoId);
+        seen.add(row.providerVideoId);
+        const directSource = /^https:\/\//i.test(row.providerUrl ?? "") &&
+          !/^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\//i.test(row.providerUrl ?? "");
+        const rightsStatus = row.rightsStatus === "licensed" && directSource ? "licensed" as const : "metadata_only" as const;
+        return { ...row, rightsStatus, slug: makeSlug(`${row.artist}-${row.title}`), normalizedTitle: normalizeArabic(row.title), duplicate };
+      });
       return { rows, total: rows.length, duplicates: rows.filter(row => row.duplicate).length };
     }),
     commitImport: adminProcedure.input(z.object({ rows: z.array(importRowInput).max(1000) })).mutation(async ({ input }) => { if (getSupabaseAdmin()) { const result = await persistImportedRows(input.rows); return { ...result, message: `${result.accepted} ligne(s) enregistrée(s) dans Supabase.` }; } const db = await getDb(); if (!db) return { accepted: 0, status: "database_unavailable" as const, message: "Database unavailable; no rows were written." }; let accepted = 0; for (const row of input.rows) { const artistSlug = makeSlug(row.artist); const songSlug = makeSlug(`${row.artist}-${row.title}`); await db.insert(artists).values({ name: row.artist, normalizedName: normalizeArabic(row.artist), slug: artistSlug }).onDuplicateKeyUpdate({ set: { name: row.artist, normalizedName: normalizeArabic(row.artist) } }); const artistRows = await db.select({ id: artists.id }).from(artists).where(eq(artists.slug, artistSlug)).limit(1); const artistId = artistRows[0]?.id; if (!artistId) continue; await db.insert(songs).values({ title: row.title, normalizedTitle: normalizeArabic(row.title), slug: songSlug, artistId, provider: row.provider ?? "youtube", providerVideoId: row.providerVideoId, providerUrl: row.providerUrl, thumbnailUrl: row.thumbnailUrl, durationSeconds: row.durationSeconds, opaqueToken: createOpaqueToken(`${row.providerVideoId}:${songSlug}`), availabilityStatus: "available", rightsStatus: row.rightsStatus === "licensed" && /^https:\/\//i.test(row.providerUrl ?? "") && !/^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\//i.test(row.providerUrl ?? "") ? "licensed" : "metadata_only" }).onDuplicateKeyUpdate({ set: { title: row.title, artistId } }); accepted += 1; } return { accepted, status: "persisted" as const, message: `${accepted} ligne(s) enregistrée(s).` }; }),
