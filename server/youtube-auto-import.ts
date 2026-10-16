@@ -1,5 +1,5 @@
 import { extractYouTubeTitleQueries, getSupabaseAdmin, indexYouTubeTitleQueries, persistImportedRows, upsertCatalogKeyword } from "./supabase";
-import { searchYouTubeVideos, type YouTubeCatalogItem } from "./youtube";
+import { isYouTubeQuotaError, searchYouTubeVideos, type YouTubeCatalogItem } from "./youtube";
 import { recordAnalyticsEvent } from "./admin-observability";
 import { makeSlug } from "./catalog";
 
@@ -51,7 +51,24 @@ export async function runYouTubeAutoImport(): Promise<AutoImportResult> {
   let scanned = 0;
   let newRows: YouTubeCatalogItem[] = [];
   const failures: string[] = [];
-  for (const query of queries) { try { const rows = await searchYouTubeVideos(query, settings.videosPerQuery); scanned += rows.length; newRows.push(...rows); } catch (error) { failures.push(`${query}: ${error instanceof Error ? error.message : "YouTube request failed"}`); } }
+  let attemptedQueries = 0;
+  for (const query of queries) {
+    attemptedQueries += 1;
+    try {
+      const rows = await searchYouTubeVideos(query, settings.videosPerQuery);
+      scanned += rows.length;
+      newRows.push(...rows);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "YouTube request failed";
+      failures.push(`${query}: ${message}`);
+      // Invalid credentials / disabled API / exhausted quota affect every query.
+      // Stop immediately instead of burning the rest of the daily request budget.
+      if (
+        isYouTubeQuotaError(error) ||
+        /API keys are not supported by this API|API key not valid|accessNotConfigured|credentials_missing|unauthenticated|invalid credentials/i.test(message)
+      ) break;
+    }
+  }
   newRows = await filterNewRows(newRows);
   const uniqueRows = Array.from(new Map(newRows.map(row => [row.providerVideoId, row])).values());
   const supabase = getSupabaseAdmin();
@@ -79,7 +96,7 @@ export async function runYouTubeAutoImport(): Promise<AutoImportResult> {
     }
   }
 
-  const result: AutoImportResult = { status: failures.length > 0 && scanned === 0 ? "failed" : "completed", queries: queries.length + titleQueries, scanned: scanned + titleQueryResults, newRows: uniqueRows.length, accepted: persisted.accepted, duplicates: Math.max(0, scanned - uniqueRows.length), failures };
+  const result: AutoImportResult = { status: failures.length > 0 && scanned === 0 ? "failed" : "completed", queries: attemptedQueries + titleQueries, scanned: scanned + titleQueryResults, newRows: uniqueRows.length, accepted: persisted.accepted, duplicates: Math.max(0, scanned - uniqueRows.length), failures };
   void recordAnalyticsEvent({ eventName: "admin_action", path: "/admin/youtube-auto", metadata: { ...result, titleQueries, titleQueryResults, titleQueryPages } });
   return result;
 }
