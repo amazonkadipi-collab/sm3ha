@@ -17,23 +17,166 @@ export function hashOpaqueToken(token: string) { return createHash("sha256").upd
 
 export async function persistImportedRows(rows: Array<{ title: string; artist: string; providerVideoId: string; provider?: string; providerUrl?: string; rightsStatus?: "licensed" | "metadata_only"; thumbnailUrl?: string; durationSeconds?: number }>) {
   const supabase = getSupabaseAdmin();
-  if (!supabase) return { accepted: 0, status: "database_unavailable" as const };
-  const { data: batch, error: batchError } = await supabase.from("import_batches").insert({ source: "admin", total_rows: rows.length, status: "completed" }).select("id").single();
-  if (batchError || !batch) return { accepted: 0, status: "database_error" as const };
-  let accepted = 0; const acceptedSlugs: string[] = [];
+  if (!supabase) return { accepted: 0, acceptedSlugs: [], status: "database_unavailable" as const };
+
+  // Normalize and deduplicate before writing. Search providers can return the
+  // same video more than once, and duplicate slugs would make a whole bulk upsert fail.
+  const uniqueRows: typeof rows = [];
+  const seenProviderIds = new Set<string>();
+  const seenSlugs = new Set<string>();
   for (const row of rows) {
-    const artistSlug = makeSlug(row.artist); const songSlug = makeSlug(`${row.artist}-${row.title}`); const token = createOpaqueToken(`${row.providerVideoId}:${songSlug}`);
-    const { data: artist, error: artistError } = await supabase.from("artists").upsert({ name: row.artist, slug: artistSlug }, { onConflict: "slug" }).select("id").single();
-    if (artistError || !artist) { await supabase.from("import_rows").insert({ batch_id: batch.id, provider_video_id: row.providerVideoId, title: row.title, artist: row.artist, slug: songSlug, status: "failed", error_message: artistError?.message ?? "Artist insert failed" }); continue; }
+    const title = row.title?.trim();
+    const artist = row.artist?.trim();
+    const providerVideoId = row.providerVideoId?.trim();
+    if (!title || !artist || !providerVideoId) continue;
     const provider = row.provider ?? "youtube";
-    const directSource = /^https:\/\//i.test(row.providerUrl ?? "") && !/^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\//i.test(row.providerUrl ?? ""); const rightsStatus = row.rightsStatus === "licensed" && directSource ? "licensed" : "metadata_only";
-    const { error: songError } = await supabase.from("songs").upsert({ title: row.title, normalized_title: normalizeArabic(row.title), slug: songSlug, artist_id: artist.id, provider, provider_video_id: row.providerVideoId, provider_url: row.providerUrl ?? null, thumbnail_url: row.thumbnailUrl ?? null, duration_seconds: row.durationSeconds ?? 0, rights_status: rightsStatus, opaque_token_hash: hashOpaqueToken(token), status: "active" }, { onConflict: "provider,provider_video_id" });
-    await supabase.from("import_rows").insert({ batch_id: batch.id, provider_video_id: row.providerVideoId, title: row.title, artist: row.artist, slug: songSlug, status: songError ? "failed" : "accepted", error_message: songError?.message ?? null });
-    if (!songError) { accepted += 1; acceptedSlugs.push(songSlug); }
+    const slug = makeSlug(`${artist}-${title}`);
+    const videoKey = `${provider}:${providerVideoId}`;
+    if (seenProviderIds.has(videoKey) || seenSlugs.has(slug)) continue;
+    seenProviderIds.add(videoKey);
+    seenSlugs.add(slug);
+    uniqueRows.push({ ...row, title, artist, providerVideoId, provider });
   }
-  await supabase.from("import_batches").update({ accepted_rows: accepted, duplicate_rows: rows.length - accepted }).eq("id", batch.id);
-  if (acceptedSlugs.length) await indexCatalogText(rows.filter(row => acceptedSlugs.includes(makeSlug(`${row.artist}-${row.title}`))));
-  return { accepted, acceptedSlugs, status: "persisted" as const };
+  if (!uniqueRows.length) return { accepted: 0, acceptedSlugs: [], status: "persisted" as const };
+
+  const { data: batch, error: batchError } = await supabase
+    .from("import_batches")
+    .insert({ source: "search", total_rows: rows.length, status: "completed" })
+    .select("id")
+    .single();
+  if (batchError || !batch) {
+    console.warn("[Supabase] import batch create failed:", batchError?.message ?? "Missing batch row");
+    return { accepted: 0, acceptedSlugs: [], status: "database_error" as const };
+  }
+
+  const artistPayload = Array.from(new Map(uniqueRows.map(row => {
+    const slug = makeSlug(row.artist);
+    return [slug, { name: row.artist, slug }];
+  })).values());
+  const artistSlugs = artistPayload.map(row => row.slug);
+
+  const { error: artistUpsertError } = await supabase
+    .from("artists")
+    .upsert(artistPayload, { onConflict: "slug" });
+  if (artistUpsertError) {
+    console.warn("[Supabase] artist bulk upsert failed:", artistUpsertError.message);
+    await supabase.from("import_rows").insert(uniqueRows.map(row => ({
+      batch_id: batch.id, provider_video_id: row.providerVideoId, title: row.title,
+      artist: row.artist, slug: makeSlug(`${row.artist}-${row.title}`),
+      status: "failed", error_message: artistUpsertError.message,
+    })));
+    await supabase.from("import_batches").update({ accepted_rows: 0, duplicate_rows: rows.length }).eq("id", batch.id);
+    return { accepted: 0, acceptedSlugs: [], status: "database_error" as const };
+  }
+
+  const { data: artists, error: artistReadError } = await supabase
+    .from("artists")
+    .select("id,slug")
+    .in("slug", artistSlugs);
+  if (artistReadError) {
+    console.warn("[Supabase] artist lookup after upsert failed:", artistReadError.message);
+    await supabase.from("import_batches").update({ accepted_rows: 0, duplicate_rows: rows.length }).eq("id", batch.id);
+    return { accepted: 0, acceptedSlugs: [], status: "database_error" as const };
+  }
+  const artistIds = new Map((artists ?? []).map((artist: any) => [artist.slug, artist.id]));
+
+  // Never reactivate records that were explicitly removed (for example, after a
+  // takedown). New search results may be catalogued, but removed rows stay removed.
+  const videoIds = uniqueRows.map(row => row.providerVideoId);
+  const { data: priorRows, error: priorReadError } = await supabase
+    .from("songs")
+    .select("provider,provider_video_id,status")
+    .in("provider_video_id", videoIds);
+  if (priorReadError) console.warn("[Supabase] existing media status lookup failed:", priorReadError.message);
+  const removedKeys = new Set((priorRows ?? [])
+    .filter((row: any) => row.status === "removed")
+    .map((row: any) => `${row.provider}:${row.provider_video_id}`));
+
+  const prepared = uniqueRows.flatMap(row => {
+    const provider = row.provider ?? "youtube";
+    const slug = makeSlug(`${row.artist}-${row.title}`);
+    const artistId = artistIds.get(makeSlug(row.artist));
+    if (!artistId || removedKeys.has(`${provider}:${row.providerVideoId}`)) return [];
+    const token = createOpaqueToken(`${row.providerVideoId}:${slug}`);
+    const directSource = /^https:\/\//i.test(row.providerUrl ?? "") &&
+      !/(^|\/\/)(?:www\.)?(?:[a-z0-9-]+\.)*youtube\.com\//i.test(row.providerUrl ?? "") &&
+      !/^(?:https?:\/\/)?(?:www\.)?youtu\.be\//i.test(row.providerUrl ?? "");
+    const rightsStatus = row.rightsStatus === "licensed" && directSource ? "licensed" : "metadata_only";
+    return [{
+      row, provider, slug,
+      payload: {
+        title: row.title,
+        normalized_title: normalizeArabic(row.title),
+        slug,
+        artist_id: artistId,
+        provider,
+        provider_video_id: row.providerVideoId,
+        provider_url: row.providerUrl ?? null,
+        thumbnail_url: row.thumbnailUrl ?? null,
+        duration_seconds: row.durationSeconds ?? 0,
+        rights_status: rightsStatus,
+        opaque_token_hash: hashOpaqueToken(token),
+        status: "active",
+      },
+    }];
+  });
+
+  let savedRows: Array<{ slug: string; provider: string; provider_video_id: string }> = [];
+  let songErrorMessage: string | null = null;
+  if (prepared.length) {
+    const { data, error: songError } = await supabase
+      .from("songs")
+      .upsert(prepared.map(item => item.payload), { onConflict: "provider,provider_video_id" })
+      .select("slug,provider,provider_video_id");
+    if (songError) {
+      songErrorMessage = songError.message;
+      console.warn("[Supabase] songs bulk upsert failed:", songError.message);
+    } else {
+      savedRows = (data ?? []) as typeof savedRows;
+    }
+  }
+
+  const savedKeys = new Set(savedRows.map(row => `${row.provider}:${row.provider_video_id}`));
+  const acceptedRows = prepared.filter(item => savedKeys.has(`${item.provider}:${item.row.providerVideoId}`));
+  const acceptedSlugs = Array.from(new Set(acceptedRows.map(item => item.slug)));
+  const importRows = uniqueRows.map(row => {
+    const provider = row.provider ?? "youtube";
+    const slug = makeSlug(`${row.artist}-${row.title}`);
+    const accepted = acceptedSlugs.includes(slug) && !songErrorMessage;
+    const removed = removedKeys.has(`${provider}:${row.providerVideoId}`);
+    return {
+      batch_id: batch.id,
+      provider_video_id: row.providerVideoId,
+      title: row.title,
+      artist: row.artist,
+      slug,
+      status: accepted ? "accepted" : "failed",
+      error_message: accepted ? null : songErrorMessage ?? (removed ? "Previously removed item preserved" : "Artist mapping or song write failed"),
+    };
+  });
+  const { error: importRowsError } = await supabase.from("import_rows").insert(importRows);
+  if (importRowsError) console.warn("[Supabase] import row audit write failed:", importRowsError.message);
+
+  const accepted = acceptedRows.length;
+  const { error: batchUpdateError } = await supabase.from("import_batches")
+    .update({ accepted_rows: accepted, duplicate_rows: Math.max(0, rows.length - accepted) })
+    .eq("id", batch.id);
+  if (batchUpdateError) console.warn("[Supabase] import batch update failed:", batchUpdateError.message);
+
+  // Keyword enrichment is non-critical to the archive write. Keep it separate so
+  // a slow keyword index never discards the actual persisted search results.
+  if (acceptedRows.length) {
+    const acceptedInput = acceptedRows.map(item => item.row);
+    void indexCatalogText(acceptedInput).catch(error => {
+      console.warn("[Supabase] background catalog indexing failed:", error instanceof Error ? error.message : error);
+    });
+  }
+
+  return {
+    accepted,
+    acceptedSlugs,
+    status: songErrorMessage ? "database_error" as const : "persisted" as const,
+  };
 }
 
 const KEYWORD_STOPWORDS = new Set([
