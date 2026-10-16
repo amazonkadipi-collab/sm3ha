@@ -45,7 +45,9 @@ export async function runYouTubeAutoImport(): Promise<AutoImportResult> {
   if (!settings.enabled) return { status: "disabled", queries: 0, scanned: 0, newRows: 0, accepted: 0, duplicates: 0 };
   if (!process.env.YOUTUBE_API_KEY) return { status: "not_configured", queries: 0, scanned: 0, newRows: 0, accepted: 0, duplicates: 0 };
   const recent = await recentSearchQueries(settings.maxQueries);
-  const queries = Array.from(new Set([...recent, ...settings.queries])).slice(0, settings.maxQueries);
+  // Keep the configured music seed queries first; recent searches are secondary
+  // enrichment and may include non-music or accidental queries.
+  const queries = Array.from(new Set([...settings.queries, ...recent])).slice(0, settings.maxQueries);
   let scanned = 0;
   let newRows: YouTubeCatalogItem[] = [];
   const failures: string[] = [];
