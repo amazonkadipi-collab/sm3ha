@@ -6,19 +6,6 @@ import { workflowLinks } from "@/lib/flow";
 
 const ARABIC = /[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff]/;
 
-const fallbackQueries = [
-  "سمعها تحميل",
-  "تحميل اغاني سمعها",
-  "اغاني",
-  "تنزيل اغاني",
-  "تحميل اغاني Mp3",
-  "تحميل اغاني Mp4",
-  "اغاني Mp3 Mp4",
-  "تحميل اغاني عربية",
-  "تحميل موسيقى",
-  "اغاني جديدة",
-];
-
 export default function Home() {
   const [, navigate] = useLocation();
   const [query, setQuery] = useState("");
@@ -36,12 +23,7 @@ export default function Home() {
           .filter(item => item.label && item.slug && ARABIC.test(item.label))
       : [];
 
-    // Never render an empty Home feed just because the catalog request is
-    // still pending. This also prevents the old "جارٍ تحميل عمليات البحث…"
-    // state from becoming a permanent screen on a slow Supabase connection.
-    const fallback = fallbackQueries.map(label => ({ label, slug: label }));
-    const merged = [...stored, ...fallback];
-    const unique = Array.from(new Map(merged.map(item => [item.slug, item])).values());
+    const unique = Array.from(new Map(stored.map(item => [item.slug, item])).values());
     return unique.slice(0, 50).map((item, index) => ({ ...item, index }));
   }, [keywordData]);
 
