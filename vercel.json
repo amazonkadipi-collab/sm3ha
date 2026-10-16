@@ -7,9 +7,6 @@
     "api/[...path].ts": {
       "includeFiles": "public/**",
       "maxDuration": 240
-    },
-    "api/cron/youtube-auto.ts": {
-      "maxDuration": 240
     }
   },
   "crons": [
