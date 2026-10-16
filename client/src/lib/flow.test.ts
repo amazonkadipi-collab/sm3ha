@@ -12,6 +12,6 @@ describe("reference workflow links", () => {
     expect(keyword).toBe("/s/%D8%B1%D8%A7%D9%8A");
     expect(song).toBe("/s/%D9%82%D9%88%D9%84%D9%88%D8%A7-%D9%84%D9%87%D8%A7");
     expect(media).toBe("/media?d=token%2F32");
-    expect(conversion).toBe("/videos_dl?v=youtube-id");
+    expect(conversion).toBe("/videos_dl?d=youtube-id");
   });
 });
