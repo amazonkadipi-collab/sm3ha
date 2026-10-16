@@ -91,21 +91,26 @@ export const appRouter = router({
         try {
           const youtubeRows = await searchYouTubeVideos(query, input.limit);
           if (youtubeRows.length) {
-            // Return results immediately; catalog persistence/indexing runs in the
-            // background so slow Supabase writes never block the user's results.
+            // Return only after the core catalog write is complete. On serverless
+            // deployments, fire-and-forget writes can be terminated after the response,
+            // which leaves search results visible but never adds them to the archive.
             results = youtubeRows.map(youtubeResult);
             source = "youtube";
-            void (async () => {
-              try {
-                const persisted = await persistImportedRows(youtubeRows);
-                if (persisted.status === "persisted" && persisted.acceptedSlugs?.length) {
-                  await upsertCatalogKeyword(query, persisted.acceptedSlugs, "youtube-search", true);
-                }
-                await indexYouTubeTitleQueries(youtubeRows);
-              } catch (persistError) {
-                console.warn("[YouTube] background catalog persistence failed:", persistError instanceof Error ? persistError.message : persistError);
+            try {
+              const persisted = await persistImportedRows(youtubeRows);
+              if (persisted.status === "persisted" && persisted.acceptedSlugs?.length) {
+                await upsertCatalogKeyword(query, persisted.acceptedSlugs, "youtube-search", true);
+              } else {
+                console.warn("[YouTube] search results were returned but not persisted:", persisted.status);
               }
-            })();
+              // Query/title enrichment may be slower than the primary archive write;
+              // it must never block or replace the already-persisted song records.
+              void indexYouTubeTitleQueries(youtubeRows).catch(indexError => {
+                console.warn("[YouTube] title keyword indexing failed:", indexError instanceof Error ? indexError.message : indexError);
+              });
+            } catch (persistError) {
+              console.warn("[YouTube] catalog persistence failed:", persistError instanceof Error ? persistError.message : persistError);
+            }
           }
         } catch (error) {
           console.warn("[YouTube] public search failed; trying cached catalog:", error instanceof Error ? error.message : error);
@@ -131,7 +136,7 @@ export const appRouter = router({
         }
       }
 
-      if (query && results.length) {
+      if (query && results.length && source !== "youtube") {
         void upsertCatalogKeyword(
           query,
           results.map(result => result.slug).filter(Boolean),
