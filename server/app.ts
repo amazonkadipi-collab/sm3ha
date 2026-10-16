@@ -1,4 +1,5 @@
 import express from "express";
+import { timingSafeEqual } from "node:crypto";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerStorageProxy } from "./_core/storageProxy";
 import { appRouter } from "./routers";
@@ -9,6 +10,7 @@ import { ENV } from "./_core/env";
 import { countIndexableKeywords, listSitemapKeywords, countIndexableSongs, listSitemapSongs, countSitemapArtists, listSitemapArtists, countSitemapAlbums, listSitemapAlbums } from "./supabase";
 import { getRapidYouTubeInfo, MediaProviderError, normalizeVideoId } from "./rapidapi-youtube";
 import { findSongByToken } from "./db";
+import { runYouTubeAutoImport } from "./youtube-auto-import";
 
 const PUBLIC_ORIGIN = "https://www.sm3ha.online";
 const xmlEscape = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;").replace(/'/g, "&apos;");
@@ -50,6 +52,36 @@ export function createApp() {
 
   app.use(express.json({ limit: "2mb" }));
   app.use(express.urlencoded({ limit: "1mb", extended: true }));
+  
+  // Vercel Cron invokes this through the bundled catch-all function. Keeping the
+  // handler in the Express bundle avoids Node ESM import failures from a separate
+  // unbundled TypeScript serverless entrypoint.
+  app.all("/api/cron/youtube-auto", async (req, res) => {
+    res.setHeader("Cache-Control", "no-store, max-age=0");
+    res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
+    if (req.method !== "GET" && req.method !== "POST") {
+      return res.status(405).json({ error: "Method not allowed" });
+    }
+    const secret = process.env.CRON_SECRET?.trim();
+    if (!secret) return res.status(503).json({ error: "CRON_SECRET is not configured" });
+    const expected = Buffer.from(`Bearer ${secret}`);
+    const supplied = Buffer.from(String(req.headers.authorization ?? ""));
+    const authorized = expected.length === supplied.length && timingSafeEqual(expected, supplied);
+    if (!authorized) return res.status(401).json({ error: "Unauthorized" });
+
+    try {
+      const result = await runYouTubeAutoImport();
+      console.info("[YouTube auto-import] completed", {
+        status: result.status, queries: result.queries, scanned: result.scanned,
+        newRows: result.newRows, accepted: result.accepted, duplicates: result.duplicates,
+      });
+      return res.status(result.status === "failed" || result.status === "not_configured" ? 502 : 200).json(result);
+    } catch (error) {
+      console.error("[YouTube auto-import] failed:", error);
+      return res.status(500).json({ error: error instanceof Error ? error.message : "Auto-import failed" });
+    }
+  });
+
 
   // Canonical search flow: turn /search?q=... into the indexable keyword route.
   app.get("/search", (req, res, next) => {
