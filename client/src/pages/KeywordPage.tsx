@@ -104,7 +104,7 @@ export default function KeywordPage() {
           <div className="reference-media-thumb reference-media-thumb-area">{song.thumbnailUrl ? <img src={song.thumbnailUrl} alt={visibleTitle} title={visibleTitle} loading="lazy" /> : <span><Youtube size={20} /></span>}</div>
           <div className="min-w-0 reference-media-copy"><h2>{visibleTitle}</h2><p><Youtube size={13} /> مدة الفيديو: {song.duration}</p></div>
           <div className="reference-media-actions reference-media-actions-area">
-            <a href={workflowLinks.conversion(song.opaqueToken)} className="reference-action"><Download size={15} /> تحميل</a>
+            {song.rightsStatus === "licensed" ? <a href={workflowLinks.conversion(song.opaqueToken)} className="reference-action"><Download size={15} /> تحميل</a> : <span className="reference-action cursor-not-allowed opacity-60" aria-disabled="true" title="لا يوجد مصدر تحميل مصرح به لهذا المحتوى">التحميل غير متاح</span>}
             {isPlaying ? <button type="button" className="reference-watch" aria-pressed="true" onClick={() => { setActiveVideoId(null); window.history.replaceState(null, "", window.location.pathname + window.location.search); }}><Square size={14} /> إيقاف</button> : <a href={`#${encodeURIComponent(song.providerVideoId)}`} className="reference-watch" aria-label={`مشاهدة ${visibleTitle}`} onClick={() => setActiveVideoId(song.providerVideoId)}><Play size={14} /> مشاهدة</a>}
           </div>
           {isPlaying && song.providerVideoId && <div ref={playerRef} className="reference-inline-player" aria-label={`مشاهدة ${visibleTitle} داخل سمعها`}>
