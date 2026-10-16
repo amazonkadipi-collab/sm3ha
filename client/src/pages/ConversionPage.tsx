@@ -30,7 +30,7 @@ export default function ConversionPage() {
   const startConversion = trpc.catalog.startConversion.useMutation();
   const conversionStatus = trpc.catalog.conversionStatus.useQuery(
     { jobId },
-    { enabled: Boolean(jobId), refetchInterval: jobId ? 2500 : false },
+    { enabled: Boolean(jobId), refetchInterval: (query) => query.state.data?.downloadUrl ? false : 2500 },
   );
 
   useEffect(() => {
@@ -93,16 +93,9 @@ export default function ConversionPage() {
     const status = conversionStatus.data;
     if (!jobId || !status) return;
     if (status.status === "finished" && status.downloadUrl) {
-      const anchor = document.createElement("a");
-      anchor.href = status.downloadUrl;
-      anchor.target = "_blank";
-      anchor.rel = "noreferrer";
-      anchor.download = "";
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
+      // Keep the export URL visible for a user-initiated click. Browsers may
+      // block an automatic new-tab/download triggered after async polling.
       setDownloading(false);
-      setJobId("");
       return;
     }
     if (status.status === "error") {
@@ -139,7 +132,17 @@ export default function ConversionPage() {
       </div>
 
       <div className="mt-5 flex flex-wrap gap-3">
-        {authorizedDownload ? <button disabled={!selectedQuality || downloading || !links.length} onClick={beginDownload} className="reference-action"><Download size={16} />{downloading ? "جاري تجهيز الملف..." : "DOWNLOAD NOW"}</button> : <p className="rounded-xl border border-[#d9dfdc] bg-white px-5 py-3 text-sm text-[#78938a]">خدمة التحميل غير متاحة حالياً لهذا المحتوى.</p>}
+        {conversionStatus.data?.downloadUrl ? (
+          <a href={conversionStatus.data.downloadUrl} target="_blank" rel="noreferrer" className="reference-action">
+            <Download size={16} /> تحميل الملف الجاهز
+          </a>
+        ) : authorizedDownload ? (
+          <button disabled={!selectedQuality || downloading || !links.length || startConversion.isPending} onClick={beginDownload} className="reference-action">
+            <Download size={16} />{downloading || startConversion.isPending ? "جاري تجهيز الملف..." : "تجهيز التحميل"}
+          </button>
+        ) : (
+          <p className="rounded-xl border border-[#d9dfdc] bg-white px-5 py-3 text-sm text-[#78938a]">خدمة التحميل غير متاحة حالياً لهذا المحتوى.</p>
+        )}
         <a href={`https://www.youtube.com/watch?v=${encodeURIComponent(info?.videoId || "")}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-[#d9dfdc] bg-white px-5 py-3 text-sm font-bold text-[#527566]"><PlayCircle size={16} /> مشاهدة في YouTube</a>
       </div>
 
