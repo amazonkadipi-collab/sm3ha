@@ -107,7 +107,7 @@ export const appRouter = router({
             try {
               const persisted = await persistImportedRows(youtubeRows);
               if (persisted.status === "persisted" && persisted.acceptedSlugs?.length) {
-                await upsertCatalogKeyword(query, persisted.acceptedSlugs, "youtube-search", true);
+                await upsertCatalogKeyword(searchQuery, persisted.acceptedSlugs, "youtube-search", true);
               } else {
                 console.warn("[YouTube] search results were returned but not persisted:", persisted.status);
               }
@@ -126,7 +126,7 @@ export const appRouter = router({
       }
 
       if (results.length === 0 && query) {
-        const keyword = await findCatalogKeyword(makeSlug(query));
+        const keyword = await findCatalogKeyword(makeSlug(searchQuery));
         if (keyword?.result_slugs?.length) {
           const cachedSongs = await findSongsBySlugs(keyword.result_slugs, input.limit);
           if (cachedSongs.length) {
