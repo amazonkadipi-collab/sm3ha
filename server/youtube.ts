@@ -49,7 +49,7 @@ function requireApiKeys() {
 async function youtubeGet<T>(resource: string, params: Record<string, string>, apiKey: string) {
   const query = new URLSearchParams({ ...params, key: apiKey });
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 3500);
+  const timeout = setTimeout(() => controller.abort(), 8000);
   let response: Response;
   try {
     response = await fetch(`${YOUTUBE_API}/${resource}?${query}`, { signal: controller.signal });
