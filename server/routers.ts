@@ -64,7 +64,7 @@ export const appRouter = router({
       // "تحميل", "تنزيل", MP3/MP4 appended to the actual song title. Those
       // utility words should not be sent as part of the provider/catalog query.
       const searchQuery = query
-        ?.split(/\\s+/)
+        ?.split(/\s+/)
         .filter(word => !/^(?:تحميل|تنزيل|download|mp3|mp4)$/i.test(word))
         .join(" ")
         .trim() || query;
