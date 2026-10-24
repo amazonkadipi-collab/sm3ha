@@ -228,7 +228,7 @@ async function saveKeyword(supabase: SupabaseClient, query: string, resultSlugs:
   const now = new Date().toISOString();
   const { error } = await supabase.from("catalog_keywords").upsert({
     query: normalizedQuery, slug, title: `تحميل ${normalizedQuery} Mp3 Mp4`, language: "ar", source: existing?.source ?? source,
-    result_count: mergedSlugs.length, result_slugs: mergedSlugs, indexable: countSearch || mergedSlugs.length > 0,
+    result_count: mergedSlugs.length, result_slugs: mergedSlugs, indexable: mergedSlugs.length > 0,
     search_count: searchCount, last_searched_at: countSearch ? now : undefined, updated_at: now, status: "active"
   }, { onConflict: "slug" });
   if (error) { console.warn("[Supabase] keyword upsert failed:", error.message); return false; }
