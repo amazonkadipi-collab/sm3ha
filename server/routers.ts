@@ -60,6 +60,14 @@ export const appRouter = router({
     }),
     search: publicProcedure.input(paginationInput).query(async ({ ctx, input }) => {
       const query = input.query?.trim();
+      // Match the legacy v1 search behavior: users commonly search with
+      // "تحميل", "تنزيل", MP3/MP4 appended to the actual song title. Those
+      // utility words should not be sent as part of the provider/catalog query.
+      const searchQuery = query
+        ?.replace(/^(?:تحميل|تنزيل|download|mp3|mp4)\\s*/i, "")
+        .replace(/\\b(?:mp3|mp4|تحميل|تنزيل|download)\\b/gi, " ")
+        .replace(/\\s+/g, " ")
+        .trim() || query;
       let source = "none";
       let results: ReturnType<typeof youtubeResult>[] | Awaited<ReturnType<typeof findSongs>> = [];
 
@@ -67,7 +75,7 @@ export const appRouter = router({
       // Home -> /s/{keyword} fast for previously indexed phrases and avoids
       // leaving the user on a long loading state while an external API responds.
       if (query) {
-        const keyword = await findCatalogKeyword(makeSlug(query));
+        const keyword = await findCatalogKeyword(makeSlug(searchQuery));
         if (keyword?.result_slugs?.length) {
           const cachedSongs = await findSongsBySlugs(keyword.result_slugs, input.limit);
           if (cachedSongs.length) {
@@ -89,7 +97,7 @@ export const appRouter = router({
       // the indexed catalog did not already have usable results.
       if (results.length === 0 && query && ENV.youtubeApiKey) {
         try {
-          const youtubeRows = await searchYouTubeVideos(query, input.limit);
+          const youtubeRows = await searchYouTubeVideos(searchQuery, input.limit);
           if (youtubeRows.length) {
             // Return only after the core catalog write is complete. On serverless
             // deployments, fire-and-forget writes can be terminated after the response,
@@ -129,7 +137,7 @@ export const appRouter = router({
       }
 
       if (results.length === 0) {
-        const databaseSongs = await findSongs(query, input.limit, false, query ? 0 : input.offset);
+        const databaseSongs = await findSongs(searchQuery, input.limit, false, query ? 0 : input.offset);
         if (databaseSongs.length) {
           results = databaseSongs.map(song => ({ ...song, artist: "", album: "", duration: formatDuration(song.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}` }));
           source = "catalog";
@@ -138,7 +146,7 @@ export const appRouter = router({
 
       if (query && results.length && source !== "youtube") {
         void upsertCatalogKeyword(
-          query,
+          searchQuery,
           results.map(result => result.slug).filter(Boolean),
           source,
           source === "youtube"
