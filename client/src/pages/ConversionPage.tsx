@@ -91,19 +91,30 @@ export default function ConversionPage() {
 
   useEffect(() => {
     const status = conversionStatus.data;
-    if (!jobId || !status) return;
+    if (!jobId) return;
+
+    // A failed status request must stop polling too; otherwise the UI can stay
+    // in "preparing" forever while React Query retries every few seconds.
+    if (conversionStatus.isError) {
+      setDownloading(false);
+      setJobId("");
+      setError("تعذر التحقق من حالة التحويل. حاول بدء التحميل من جديد.");
+      return;
+    }
+
+    if (!status) return;
     if (status.status === "finished" && status.downloadUrl) {
       // Keep the export URL visible for a user-initiated click. Browsers may
       // block an automatic new-tab/download triggered after async polling.
       setDownloading(false);
       return;
     }
-    if (status.status === "error") {
+    if (status.status === "error" || status.status === "failed") {
       setDownloading(false);
       setJobId("");
       setError("فشل تجهيز الملف عبر خدمة التحويل.");
     }
-  }, [conversionStatus.data, jobId]);
+  }, [conversionStatus.data, conversionStatus.isError, jobId]);
 
   if (!token) return <main className="reference-page mx-auto max-w-[1080px] px-4 py-20 text-center sm:px-8"><p className="serif text-4xl text-[#344d49]">مصدر التحميل غير محدد</p><Link href="/" className="mt-4 inline-block font-bold text-[#527566]">العودة للرئيسية</Link></main>;
   if (loading) return <main dir="rtl" className="reference-page mx-auto max-w-[1080px] px-4 py-20 text-center sm:px-8"><Loader2 className="mx-auto animate-spin" /><p className="mt-4 text-sm text-[#527566]">جاري جلب معلومات الفيديو…</p></main>;
