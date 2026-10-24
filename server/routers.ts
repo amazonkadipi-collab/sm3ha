@@ -64,9 +64,9 @@ export const appRouter = router({
       // "تحميل", "تنزيل", MP3/MP4 appended to the actual song title. Those
       // utility words should not be sent as part of the provider/catalog query.
       const searchQuery = query
-        ?.replace(/^(?:تحميل|تنزيل|download|mp3|mp4)\s*/i, "")
-        .replace(/\b(?:mp3|mp4|تحميل|تنزيل|download)\b/gi, " ")
-        .replace(/\s+/g, " ")
+        ?.split(/\\s+/)
+        .filter(word => !/^(?:تحميل|تنزيل|download|mp3|mp4)$/i.test(word))
+        .join(" ")
         .trim() || query;
       let source = "none";
       let results: ReturnType<typeof youtubeResult>[] | Awaited<ReturnType<typeof findSongs>> = [];
