@@ -3,7 +3,7 @@ import { drizzle } from "drizzle-orm/mysql2";
 import { albums, artists, InsertUser, songs, users } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 import { getSupabaseAdmin, hashOpaqueToken, mapSupabaseSong } from "./supabase";
-import { isLikelyMusicTitle } from "./catalog";
+import { isLikelyMusicTitle, normalizeArabic } from "./catalog";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -35,21 +35,57 @@ export async function getUserByOpenId(openId: string) {
 
 const songSelect = "id,title,normalized_title,slug,provider,provider_video_id,provider_url,opaque_token_hash,thumbnail_url,duration_seconds,status,rights_status,created_at,artists(name,slug),albums(title)";
 
+function searchTokens(query: string) {
+  return Array.from(new Set(
+    normalizeArabic(query)
+      .replace(/[^a-z0-9\u0600-\u06FF\s]/gi, " ")
+      .split(/\s+/)
+      .map(token => token.trim())
+      .filter(token => token.length >= 2 && token.length <= 80)
+  )).slice(0, 8);
+}
+
+function rankSearchRows<T extends { title?: string; artist?: string; slug?: string }>(rows: T[], query: string) {
+  const normalizedQuery = normalizeArabic(query).replace(/\s+/g, " ").trim();
+  const tokens = searchTokens(query);
+  const score = (row: T) => {
+    const title = normalizeArabic(String(row.title ?? ""));
+    const haystack = normalizeArabic([row.title, row.artist, row.slug].filter(Boolean).join(" "));
+    const matched = tokens.filter(token => haystack.includes(token)).length;
+    const titleMatched = tokens.filter(token => title.includes(token)).length;
+    return matched * 4 + titleMatched * 3 + (normalizedQuery && haystack.includes(normalizedQuery) ? 8 : 0) +
+      (normalizedQuery && title.startsWith(normalizedQuery) ? 4 : 0);
+  };
+  return rows.sort((a, b) => score(b) - score(a));
+}
+
 async function supabaseSongs(query?: string, limit = 12, includeRemoved = false, offset = 0) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return null;
   const safeLimit = Math.min(Math.max(Math.floor(limit) || 12, 1), 50);
   const safeOffset = Math.min(Math.max(Math.floor(offset) || 0, 0), 1_000_000);
-  let request = supabase.from("songs").select(songSelect).order("created_at", { ascending: false }).range(safeOffset, safeOffset + safeLimit - 1);
+  let request = supabase.from("songs").select(songSelect).order("created_at", { ascending: false });
   if (!includeRemoved) request = request.eq("status", "active");
   request = request.neq("rights_status", "demo");
   if (query?.trim()) {
-    const term = query.trim().replace(/[%,()]/g, " ");
-    request = request.or(`title.ilike.%${term}%,normalized_title.ilike.%${term}%,slug.ilike.%${term}%`);
+    const terms = searchTokens(query);
+    if (!terms.length) return [];
+    const clauses = terms.flatMap(term => [
+      `title.ilike.%${term}%`,
+      `normalized_title.ilike.%${term}%`,
+      `slug.ilike.%${term}%`,
+    ]);
+    // Search each meaningful token, then rank by how many query terms match.
+    // This is closer to legacy query-first search than requiring the full phrase.
+    request = request.or(clauses.join(",")).limit(Math.min(200, Math.max(50, safeLimit * 8)));
+  } else {
+    request = request.range(safeOffset, safeOffset + safeLimit - 1);
   }
   const { data, error } = await request;
   if (error) { console.warn("[Supabase] songs query failed:", error.message); return []; }
-  return (data ?? []).map(mapSupabaseSong);
+  const rows = (data ?? []).map(mapSupabaseSong);
+  if (query?.trim()) return rankSearchRows(rows, query).slice(safeOffset, safeOffset + safeLimit);
+  return rows;
 }
 
 export async function findSongsBySlugs(slugs: string[], limit = 20, includeRemoved = false) {
@@ -88,11 +124,19 @@ export async function findSongs(query?: string, limit = 12, includeRemoved = fal
       .orderBy(desc(songs.isFeatured), desc(songs.createdAt))
       .limit(safeLimit).offset(safeOffset);
   }
-  const pattern = `%${query.trim()}%`;
-  return db.select().from(songs)
-    .where(and(visibility, or(like(songs.title, pattern), like(songs.normalizedTitle, pattern), like(songs.slug, pattern))))
+  const terms = searchTokens(query);
+  if (!terms.length) return [];
+  const conditions = terms.flatMap(term => [
+    like(songs.title, `%${term}%`),
+    like(songs.normalizedTitle, `%${term}%`),
+    like(songs.slug, `%${term}%`),
+  ]);
+  const candidates = await db.select().from(songs)
+    .where(and(visibility, or(...conditions)))
     .orderBy(desc(songs.isFeatured), desc(songs.createdAt))
-    .limit(safeLimit).offset(safeOffset);
+    .limit(Math.min(200, Math.max(50, safeLimit * 8)));
+  return rankSearchRows(candidates, query)
+    .slice(safeOffset, safeOffset + safeLimit);
 }
 
 export async function findArtistBySlug(slug: string) {

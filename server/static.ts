@@ -80,6 +80,22 @@ async function renderKeywordShell(req: express.Request, template: string) {
     }
   }
 
+  // If the keyword cache and external provider only supplied a few rows,
+  // supplement them from the ranked local catalog before deciding whether the
+  // archive is useful. This also keeps SSR and the client search API consistent.
+  if (rawSongs.length < 20) {
+    try {
+      const catalogRows = await findSongs(searchQuery, 20);
+      const seenSlugs = new Set(rawSongs.map(song => song.slug));
+      rawSongs = [
+        ...rawSongs,
+        ...catalogRows.filter(song => !seenSlugs.has(song.slug)),
+      ].slice(0, 20);
+    } catch (error) {
+      console.warn("[SEO] catalog search fallback failed:", error instanceof Error ? error.message : error);
+    }
+  }
+
   const songs = rawSongs.slice(0, 20);
 
 
