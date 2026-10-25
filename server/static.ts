@@ -388,7 +388,9 @@ export function serveStatic(app: express.Express) {
           };
           const currentSlug = decodeSlug(String(req.params[0] || "").split("/").filter(Boolean).pop() || "");
           const canonicalSlug = decodeSlug(canonicalUrl.pathname.split("/").filter(Boolean).pop() || "");
-          if (currentSlug !== canonicalSlug || requestUrl.search) {
+          // Compare normalized slugs rather than raw URL path encodings. This
+          // prevents a canonical Arabic slug from redirecting to itself forever.
+          if (makeSlug(currentSlug) !== makeSlug(canonicalSlug)) {
             return res.redirect(301, canonicalUrl.toString());
           }
         } catch {
