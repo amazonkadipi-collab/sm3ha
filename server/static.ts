@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { findCatalogKeyword, listCatalogKeywords, persistImportedRows, upsertCatalogKeyword } from "./supabase";
 import { ENV } from "./_core/env";
+import { listRecentSearches } from "./admin-observability";
 import { searchYouTubeVideos } from "./youtube";
 import { formatDuration, isLikelyMusicTitle, makeSlug } from "./catalog";
 import { findAlbumBySlug, findArtistBySlug, findSongBySlug, findSongs, findSongsBySlugs, listArtists } from "./db";
@@ -246,12 +247,90 @@ async function renderArtistsArchiveShell(req: express.Request, template: string)
   return { status: 200, html };
 }
 
+
+async function renderTrendingShell(req: express.Request, template: string) {
+  const [recent, stored] = await Promise.all([
+    listRecentSearches(100),
+    listCatalogKeywords(100),
+  ]);
+  const candidates = [
+    ...recent.map((row: any) => ({ query: String(row.query ?? "").trim(), slug: makeSlug(String(row.query ?? "")) })),
+    ...(stored ?? []).map((row: any) => ({ query: String(row.query ?? "").trim(), slug: String(row.slug ?? makeSlug(String(row.query ?? "")) })),
+  ];
+  const seen = new Set<string>();
+  const items = candidates.filter(item => {
+    const key = item.slug.toLocaleLowerCase();
+    if (!item.query || !item.slug || seen.has(key) || item.query.length > 120) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 100);
+  const title = "أكثر عمليات البحث شيوعاً | سمعها";
+  const description = "اكتشف عمليات البحث الموسيقية الشائعة والحديثة في سمعها، وافتح صفحات نتائج مستقلة لكل كلمة بحث.";
+  const canonical = absoluteUrl(req, "/trending");
+  const links = items.map((item, index) =>
+    '<article class="reference-media-row"><div class="reference-media-copy"><h2><a href="/s/' +
+    encodeURIComponent(item.slug) + '">' + escapeHtml(item.query) +
+    '</a></h2><p>بحث شائع رقم ' + (index + 1) + '</p></div></article>'
+  ).join("");
+  const content = '<main dir="rtl" class="reference-page mx-auto max-w-[1080px] px-4 pb-12 pt-4 sm:px-8"><a href="/" class="reference-back">الرئيسية</a><section class="reference-page-head"><div><span>سمعها</span><h1>' +
+    escapeHtml(title) + '</h1><p>' + escapeHtml(description) +
+    '</p></div></section><section class="reference-results" aria-label="عمليات البحث الشائعة">' +
+    (links || '<p>مازال ما تجمعوش عمليات بحث كافية. جرب البحث عن أغنية أو فنان.</p>') +
+    '</section></main>';
+  const jsonLd = JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: title,
+    description,
+    url: canonical,
+    mainEntity: {
+      "@type": "ItemList",
+      itemListElement: items.map((item, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        name: item.query,
+        url: absoluteUrl(req, "/s/" + encodeURIComponent(item.slug)),
+      })),
+    },
+  }).replace(/</g, "\\u003c");
+  const html = template
+    .replace(/<html[^>]*>/i, '<html lang="ar" dir="rtl">')
+    .replace(/<title>[^<]*<\/title>/i, '<title>' + escapeHtml(title) + '</title>')
+    .replace(/<meta name="description" content="[^"]*"/i, '<meta name="description" content="' + escapeHtml(description) + '"')
+    .replace(/<meta name="robots" content="[^"]*"/i, '<meta name="robots" content="index,follow"')
+    .replace(/<meta property="og:title" content="[^"]*"/i, '<meta property="og:title" content="' + escapeHtml(title) + '"')
+    .replace(/<meta property="og:description" content="[^"]*"/i, '<meta property="og:description" content="' + escapeHtml(description) + '"')
+    .replace(/<meta property="og:url" content="[^"]*"/i, '<meta property="og:url" content="' + escapeHtml(canonical) + '"')
+    .replace(/<link rel="canonical"[^>]*>/i, '<link rel="canonical" href="' + escapeHtml(canonical) + '">')
+    .replace("</head>", '<script type="application/ld+json" data-sm3ha-seo="true">' + jsonLd + '</script></head>')
+    .replace('<div id="root"></div>', '<div id="root">' + content + '</div>');
+  return { status: 200, html };
+}
+
 export function serveStatic(app: express.Express) {
   const publicPath = path.resolve(process.cwd(), "public");
   if (!fs.existsSync(publicPath)) console.error(`Could not find static directory: ${publicPath}`);
 
   app.use(express.static(publicPath));
 
+
+  app.get("/trending", async (req, res, next) => {
+    try {
+      const template = await fs.promises.readFile(path.join(publicPath, "index.html"), "utf-8");
+      const rendered = await renderTrendingShell(req, template);
+      res.setHeader("X-Robots-Tag", "index, follow");
+      return res.status(200).type("html").send(rendered.html);
+    } catch (error) {
+      console.warn("[SEO] trending archive render failed:", error);
+      return next(error);
+    }
+  });
+
+  app.get("/s2/*", (req, res) => {
+    const rawSlug = String(req.params[0] || "").replace(/^\/+|\/+$/g, "");
+    if (!rawSlug) return res.redirect(301, "/trending");
+    return res.redirect(301, "/s/" + rawSlug);
+  });
 
   app.get("/artists", async (req, res, next) => {
     try {
