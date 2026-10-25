@@ -74,7 +74,7 @@ export default function KeywordPage() {
       title: `تحميل ${keyword} Mp3 Mp4 سمعها`,
       description: hasResults ? `نتائج ${keyword} في سمعها. إبحث واستكشف الأغاني والفيديوهات المتاحة.` : `نتائج ${keyword} في سمعها.`,
       path: `/s/${encodeURIComponent(slug)}`,
-      noindex: false,
+      noindex: !hasResults,
     });
     return resetSeo;
   }, [keyword, slug, hasResults, isLoading, isError]);
