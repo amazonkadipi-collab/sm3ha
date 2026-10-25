@@ -46,6 +46,7 @@ export default function KeywordPage() {
   );
   const playerRef = useRef<HTMLDivElement | null>(null);
   const hasResults = !isLoading && !isError && data.length > 0;
+  const hasIndexableResults = !isLoading && !isError && data.length >= 3;
   const relatedKeywords = useMemo(() => {
     const family = keywordFamily(keyword);
     return keywordLinks
@@ -74,10 +75,10 @@ export default function KeywordPage() {
       title: `تحميل ${keyword} Mp3 Mp4 سمعها`,
       description: hasResults ? `نتائج ${keyword} في سمعها. إبحث واستكشف الأغاني والفيديوهات المتاحة.` : `نتائج ${keyword} في سمعها.`,
       path: `/s/${encodeURIComponent(slug)}`,
-      noindex: !hasResults,
+      noindex: !hasIndexableResults,
     });
     return resetSeo;
-  }, [keyword, slug, hasResults, isLoading, isError]);
+  }, [keyword, slug, hasIndexableResults, hasResults, isLoading, isError]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
