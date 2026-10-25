@@ -92,19 +92,19 @@ export async function getAnalyticsSummary(days: number) {
 export async function listRecentSearches(limit = 50) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return [];
-  const { data, error } = await supabase.from("search_logs").select("query,created_at").order("created_at", { ascending: false }).limit(clampLimit(limit, 50));
+  const { data, error } = await supabase.from("search_logs").select("query,result_count,created_at").gte("result_count", 3).order("created_at", { ascending: false }).limit(clampLimit(limit, 50));
   if (error) {
     console.warn("[SearchLogs] recent searches failed:", error.message);
     return [];
   }
   const seen = new Set<string>();
-  return (data ?? []).filter((row: { query: string | null; created_at: string }) => {
+  return (data ?? []).filter((row: { query: string | null; result_count: number | null; created_at: string }) => {
     const query = String(row.query ?? "").trim();
     const key = query.toLocaleLowerCase();
-    if (!query || seen.has(key)) return false;
+    if (!query || Number(row.result_count ?? 0) < 3 || seen.has(key)) return false;
     seen.add(key);
     return true;
-  }).map((row: { query: string | null; created_at: string }) => ({ query: String(row.query).trim(), createdAt: row.created_at }));
+  }).map((row: { query: string | null; result_count: number | null; created_at: string }) => ({ query: String(row.query).trim(), resultCount: Number(row.result_count ?? 0), createdAt: row.created_at }));
 }
 
 export async function listSearchLogs(input: { query?: string; limit: number; offset: number }) {
