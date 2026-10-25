@@ -252,7 +252,7 @@ class SDKServer {
     } as GetUserInfoWithJwtResponse;
   }
 
-  async authenticateRequest(req: Pick<Request, "headers">): Promise<AuthenticatedUser> {
+  async authenticateRequest(req: { headers: { cookie?: string; authorization?: string } }): Promise<AuthenticatedUser> {
     const cookies = this.parseCookies(req.headers.cookie);
     const cookieToken = cookies.get(COOKIE_NAME);
 
