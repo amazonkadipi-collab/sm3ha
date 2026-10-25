@@ -48,15 +48,27 @@ function searchTokens(query: string) {
 function rankSearchRows<T extends { title?: string; artist?: string; slug?: string }>(rows: T[], query: string) {
   const normalizedQuery = normalizeArabic(query).replace(/\s+/g, " ").trim();
   const tokens = searchTokens(query);
-  const score = (row: T) => {
+  const words = (value: unknown) => normalizeArabic(String(value ?? ""))
+    .replace(/[^a-z0-9\u0600-\u06FF]+/gi, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+  const scored = rows.map(row => {
     const title = normalizeArabic(String(row.title ?? ""));
-    const haystack = normalizeArabic([row.title, row.artist, row.slug].filter(Boolean).join(" "));
-    const matched = tokens.filter(token => haystack.includes(token)).length;
-    const titleMatched = tokens.filter(token => title.includes(token)).length;
-    return matched * 4 + titleMatched * 3 + (normalizedQuery && haystack.includes(normalizedQuery) ? 8 : 0) +
+    const titleWords = new Set(words(row.title));
+    const haystackWords = new Set(words([row.title, row.artist, row.slug].filter(Boolean).join(" ")));
+    const matched = tokens.filter(token => haystackWords.has(token)).length;
+    const titleMatched = tokens.filter(token => titleWords.has(token)).length;
+    const score = matched * 10 + titleMatched * 5 +
+      (normalizedQuery && normalizeArabic([row.title, row.artist, row.slug].filter(Boolean).join(" ")).includes(normalizedQuery) ? 8 : 0) +
       (normalizedQuery && title.startsWith(normalizedQuery) ? 4 : 0);
-  };
-  return rows.sort((a, b) => score(b) - score(a));
+    return { row, matched, score };
+  });
+  // Prefer rows containing every search term. Only broaden to partial-token
+  // matches when the catalog has no full-term match, avoiding substring noise
+  // such as "عايزني" being treated as a match for "يزن".
+  const fullMatches = scored.filter(item => tokens.length > 0 && item.matched === tokens.length);
+  const relevant = fullMatches.length ? fullMatches : scored.filter(item => item.matched > 0);
+  return relevant.sort((a, b) => b.score - a.score).map(item => item.row);
 }
 
 async function supabaseSongs(query?: string, limit = 12, includeRemoved = false, offset = 0) {
