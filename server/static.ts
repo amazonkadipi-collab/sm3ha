@@ -129,7 +129,7 @@ async function renderKeywordShell(req: express.Request, template: string) {
     isPartOf: { "@type": "WebSite", name: "سمعها", url: absoluteUrl(req, "/") },
   }).replace(/</g, "\\u003c");
 
-  const indexable = songs.length > 0;
+  const indexable = songs.length >= 3;
   const html = template
     .replace(/<html[^>]*>/i, '<html lang="ar" dir="rtl">')
     .replace(/<title>[^<]*<\/title>/i, `<title>${escapeHtml(title)}</title>`)
