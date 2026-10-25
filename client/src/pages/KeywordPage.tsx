@@ -36,6 +36,7 @@ export default function KeywordPage() {
   const [, navigate] = useLocation();
   const slug = params?.slug ?? "";
   const keyword = useMemo(() => decodeURIComponent(slug).replace(/-/g, " ").trim(), [slug]);
+  const canonicalKeyword = useMemo(() => keyword.split(/\s+/).filter(word => !/^(?:تحميل|تنزيل|download|mp3|mp4)$/i.test(word)).join(" ").trim() || keyword, [keyword]);
   const [query, setQuery] = useState("");
   const { data = [], isLoading, isError } = trpc.catalog.search.useQuery({ query: keyword, limit: 10 }, { enabled: Boolean(keyword), retry: false, staleTime: 30_000 });
   const { data: keywordLinks = [] } = trpc.catalog.keywords.useQuery({ limit: 50 }, { retry: 1, staleTime: 60_000 });
@@ -72,13 +73,13 @@ export default function KeywordPage() {
   }, [activeVideoId]);
   useEffect(() => {
     applySeo({
-      title: `نتائج ${keyword} Mp3 Mp4 | سمعها`,
-      description: hasResults ? `نتائج ${keyword} في سمعها. إبحث واستكشف الأغاني والفيديوهات المتاحة.` : `نتائج ${keyword} في سمعها.`,
-      path: `/s/${encodeURIComponent(slug)}`,
+      title: `نتائج ${canonicalKeyword} Mp3 Mp4 | سمعها`,
+      description: hasResults ? `نتائج ${canonicalKeyword} في سمعها. إبحث واستكشف الأغاني والفيديوهات المتاحة.` : `نتائج ${canonicalKeyword} في سمعها.`,
+      path: workflowLinks.keyword(canonicalKeyword),
       noindex: !hasIndexableResults,
     });
     return resetSeo;
-  }, [keyword, slug, hasIndexableResults, hasResults, isLoading, isError]);
+  }, [keyword, canonicalKeyword, slug, hasIndexableResults, hasResults, isLoading, isError]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
