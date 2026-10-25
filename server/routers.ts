@@ -65,7 +65,7 @@ export const appRouter = router({
       // utility words should not be sent as part of the provider/catalog query.
       const searchQuery = query
         ?.split(/\s+/)
-        .filter(word => !/^(?:تحميل|تنزيل|download|mp3|mp4)$/i.test(word))
+        .filter(word => !/^(?:تحميل|تنزيل|download|mp3|mp4|اغاني|أغاني|اغنية|أغنية)$/i.test(word))
         .join(" ")
         .trim() || query;
       let source = "none";
@@ -95,15 +95,21 @@ export const appRouter = router({
 
       // Match v1-style behavior for a new query: search YouTube only when
       // the indexed catalog did not already have usable results.
-      if (results.length === 0 && query && ENV.youtubeApiKey) {
+      if (results.length < input.limit && query && ENV.youtubeApiKey) {
         try {
           const youtubeRows = await searchYouTubeVideos(searchQuery, input.limit);
           if (youtubeRows.length) {
             // Return only after the core catalog write is complete. On serverless
             // deployments, fire-and-forget writes can be terminated after the response,
             // which leaves search results visible but never adds them to the archive.
-            results = youtubeRows.map(youtubeResult);
-            source = "youtube";
+            const existingResults = results as Array<{ slug: string; providerVideoId: string }>;
+            const existingSlugs = new Set(existingResults.map(result => result.slug));
+            const existingVideoIds = new Set(existingResults.map(result => result.providerVideoId));
+            const freshResults = youtubeRows
+              .map(youtubeResult)
+              .filter(result => !existingSlugs.has(result.slug) && !existingVideoIds.has(result.providerVideoId));
+            results = [...existingResults, ...freshResults].slice(0, input.limit) as typeof results;
+            source = existingResults.length ? "mixed" : "youtube";
             try {
               const persisted = await persistImportedRows(youtubeRows);
               if (persisted.status === "persisted" && persisted.acceptedSlugs?.length) {
