@@ -135,7 +135,7 @@ export async function findSongs(query?: string, limit = 12, includeRemoved = fal
     .where(and(visibility, or(...conditions)))
     .orderBy(desc(songs.isFeatured), desc(songs.createdAt))
     .limit(Math.min(200, Math.max(50, safeLimit * 8)));
-  return rankSearchRows(candidates as Array<{ title?: string; artist?: string; slug?: string }>, query)
+  return rankSearchRows(candidates, query)
     .slice(safeOffset, safeOffset + safeLimit);
 }
 
