@@ -326,10 +326,10 @@ export function serveStatic(app: express.Express) {
     }
   });
 
-  app.get("/s2/*", (req, res) => {
-    const rawSlug = String(req.params[0] || "").replace(/^\/+|\/+$/g, "");
-    if (!rawSlug) return res.redirect(301, "/trending");
-    return res.redirect(301, "/s/" + rawSlug);
+  app.get("/s2/:slug", (req, res) => {
+    const slug = String(req.params.slug || "").trim();
+    if (!slug) return res.redirect(301, "/trending");
+    return res.redirect(301, "/s/" + encodeURIComponent(slug));
   });
 
   app.get("/artists", async (req, res, next) => {
