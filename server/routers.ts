@@ -169,17 +169,29 @@ export const appRouter = router({
       }
 
       if (query && results.length && source !== "youtube") {
-        void upsertCatalogKeyword(
-          searchQuery,
-          results.map(result => result.slug).filter(Boolean),
-          source,
-          source === "youtube"
-        );
+        try {
+          // Persist the query/result relationship before the serverless request exits.
+          await upsertCatalogKeyword(
+            searchQuery,
+            results.map(result => result.slug).filter(Boolean),
+            source,
+            false
+          );
+        } catch (error) {
+          console.warn("[Search] keyword archive persistence failed:", error instanceof Error ? error.message : error);
+        }
       }
       if (query) {
         const forwarded = String(ctx.req.headers["x-forwarded-for"] ?? ctx.req.socket.remoteAddress ?? "").split(",")[0].trim();
-        void recordSearchLog({ query, path: "/search", resultCount: results.length, hashedIp: forwarded ? hashRequestValue(forwarded) : undefined, userAgent: String(ctx.req.headers["user-agent"] ?? "") });
-        void recordAnalyticsEvent({ eventName: "search", path: "/search", query, metadata: { resultCount: results.length, source } });
+        // Recent-search/trending pages depend on these records; fire-and-forget writes
+        // can be dropped when a serverless response finishes.
+        const writes = await Promise.allSettled([
+          recordSearchLog({ query, path: "/search", resultCount: results.length, hashedIp: forwarded ? hashRequestValue(forwarded) : undefined, userAgent: String(ctx.req.headers["user-agent"] ?? "") }),
+          recordAnalyticsEvent({ eventName: "search", path: "/search", query, metadata: { resultCount: results.length, source } }),
+        ]);
+        for (const write of writes) {
+          if (write.status === "rejected") console.warn("[Search] analytics persistence failed:", write.reason);
+        }
       }
       return results;
     }),
