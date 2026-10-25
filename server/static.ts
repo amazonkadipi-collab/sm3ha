@@ -132,11 +132,12 @@ async function renderKeywordShell(req: express.Request, template: string) {
     isPartOf: { "@type": "WebSite", name: "سمعها", url: absoluteUrl(req, "/") },
   }).replace(/</g, "\\u003c");
 
+  const indexable = songs.length > 0;
   const html = template
     .replace(/<html[^>]*>/i, '<html lang="ar" dir="rtl">')
     .replace(/<title>[^<]*<\/title>/i, `<title>${escapeHtml(title)}</title>`)
     .replace(/<meta name="description" content="[^"]*"/i, `<meta name="description" content="${escapeHtml(description)}"`)
-    .replace(/<meta name="robots" content="[^"]*"/i, '<meta name="robots" content="index,follow"')
+    .replace(/<meta name="robots" content="[^"]*"/i, `<meta name="robots" content="${indexable ? "index,follow" : "noindex,follow"}"`)
     .replace(/<meta property="og:title" content="[^"]*"/i, `<meta property="og:title" content="${escapeHtml(title)}"`)
     .replace(/<meta property="og:description" content="[^"]*"/i, `<meta property="og:description" content="${escapeHtml(description)}"`)
     .replace(/<meta property="og:type" content="[^"]*"/i, '<meta property="og:type" content="website"')
@@ -145,10 +146,10 @@ async function renderKeywordShell(req: express.Request, template: string) {
     .replace(/<meta name="twitter:title" content="[^"]*"/i, `<meta name="twitter:title" content="${escapeHtml(title)}"`)
     .replace(/<meta name="twitter:description" content="[^"]*"/i, `<meta name="twitter:description" content="${escapeHtml(description)}"` )
     .replace(/<link rel="canonical"[^>]*>/i, `<link rel="canonical" href="${escapeHtml(canonical)}">`)
-    .replace("</head>", `<script type="application/ld+json" data-sm3ha-seo="true">${jsonLd}</script></head>`)
+    .replace("</head>", `${indexable ? `<script type="application/ld+json" data-sm3ha-seo="true">${jsonLd}</script>` : ""}</head>`)
     .replace('<div id="root"></div>', `<div id="root">${content}</div>`);
 
-  return { status: 200, html };
+  return { status: 200, html, indexable };
 }
 
 async function renderEntityShell(req: express.Request, template: string, kind: "song" | "artist" | "album") {
@@ -271,7 +272,7 @@ export function serveStatic(app: express.Express) {
         res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
         return res.status(404).send(rendered.html);
       }
-      res.setHeader("X-Robots-Tag", "index, follow");
+      res.setHeader("X-Robots-Tag", rendered.indexable === false ? "noindex, follow" : "index, follow");
       return res.status(rendered.status).type("html").send(rendered.html);
     } catch (error) {
       console.warn("[SEO] keyword server render failed:", error);
