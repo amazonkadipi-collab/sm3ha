@@ -175,7 +175,7 @@ export const appRouter = router({
             searchQuery,
             results.map(result => result.slug).filter(Boolean),
             source,
-            false
+            true
           );
         } catch (error) {
           console.warn("[Search] keyword archive persistence failed:", error instanceof Error ? error.message : error);
