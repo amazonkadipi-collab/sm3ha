@@ -38,15 +38,15 @@ const songSelect = "id,title,normalized_title,slug,provider,provider_video_id,pr
 function searchTokens(query: string) {
   return Array.from(new Set(
     normalizeArabic(query)
-      .replace(/[^a-z0-9\\u0600-\\u06FF\\s]/gi, " ")
-      .split(/\\s+/)
+      .replace(/[^a-z0-9\u0600-\u06FF\s]/gi, " ")
+      .split(/\s+/)
       .map(token => token.trim())
       .filter(token => token.length >= 2 && token.length <= 80)
   )).slice(0, 8);
 }
 
 function rankSearchRows<T extends { title?: string; artist?: string; slug?: string }>(rows: T[], query: string) {
-  const normalizedQuery = normalizeArabic(query).replace(/\\s+/g, " ").trim();
+  const normalizedQuery = normalizeArabic(query).replace(/\s+/g, " ").trim();
   const tokens = searchTokens(query);
   const score = (row: T) => {
     const title = normalizeArabic(String(row.title ?? ""));
