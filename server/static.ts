@@ -305,8 +305,8 @@ export function serveStatic(app: express.Express) {
           const canonicalUrl = new URL(canonicalMatch[1], PUBLIC_ORIGIN);
           const requestUrl = new URL(req.originalUrl, PUBLIC_ORIGIN);
           const decodePath = (value: string) => {
-            try { return decodeURIComponent(value).replace(/\\/+$/, "") || "/"; }
-            catch { return value.replace(/\\/+$/, "") || "/"; }
+            try { return decodeURIComponent(value).replace(/\/+$/, "") || "/"; }
+            catch { return value.replace(/\/+$/, "") || "/"; }
           };
           if (decodePath(requestUrl.pathname) !== decodePath(canonicalUrl.pathname) || requestUrl.search) {
             return res.redirect(301, canonicalUrl.toString());
