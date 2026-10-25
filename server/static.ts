@@ -7,7 +7,7 @@ import { searchYouTubeVideos } from "./youtube";
 import { formatDuration, isLikelyMusicTitle, makeSlug } from "./catalog";
 import { findAlbumBySlug, findArtistBySlug, findSongBySlug, findSongs, findSongsBySlugs, listArtists } from "./db";
 
-const PUBLIC_ORIGIN = "https://www.sm3ha.online";
+const PUBLIC_ORIGIN = "https://sm3ha.online";
 
 const escapeHtml = (value: string) => value
   .replace(/&/g, "&amp;")
@@ -16,10 +16,7 @@ const escapeHtml = (value: string) => value
   .replace(/"/g, "&quot;")
   .replace(/'/g, "&#39;");
 
-const getOrigin = (_req: express.Request) => {
-  const configured = process.env.PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
-  return configured || PUBLIC_ORIGIN;
-};
+const getOrigin = (_req: express.Request) => PUBLIC_ORIGIN;
 
 const absoluteUrl = (req: express.Request, pathname: string) =>
   new URL(pathname, getOrigin(req)).toString();
