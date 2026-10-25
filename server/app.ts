@@ -103,7 +103,7 @@ export function createApp() {
 
   app.get("/sitemap.xml", async (req, res) => {
     const origin = getOrigin(req);
-    const pageSize = 5000;
+    const pageSize = 1000;
     const [keywords, songs, artists, albums] = await Promise.all([
       countIndexableKeywords(), countIndexableSongs(), countSitemapArtists(), countSitemapAlbums()
     ]);
@@ -128,14 +128,14 @@ export function createApp() {
     const page = req.params.page ? Number(req.params.page) : 1;
     if (!Number.isInteger(page) || page < 1) return res.status(404).type("text/plain").send("Not found");
     const origin = getOrigin(req);
-    const offset = (page - 1) * 5000;
+    const offset = (page - 1) * 1000;
     const rows = kind === "keywords"
-      ? await listSitemapKeywords(offset, 5000)
+      ? await listSitemapKeywords(offset, 1000)
       : kind === "songs"
-        ? await listSitemapSongs(offset, 5000)
+        ? await listSitemapSongs(offset, 1000)
         : kind === "artists"
-          ? await listSitemapArtists(offset, 5000)
-          : await listSitemapAlbums(offset, 5000);
+          ? await listSitemapArtists(offset, 1000)
+          : await listSitemapAlbums(offset, 1000);
     if (!rows.length) return res.status(404).type("text/plain").send("Not found");
     const prefix = kind === "keywords" ? "/s/" : kind === "songs" ? "/song/" : kind === "artists" ? "/artists/" : "/album/";
     const body = rows.map((row: any) => {
