@@ -142,11 +142,29 @@ export const appRouter = router({
         }
       }
 
-      if (results.length === 0) {
-        const databaseSongs = await findSongs(searchQuery, input.limit, false, query ? 0 : input.offset);
+      // Always supplement partial provider/cache results with ranked catalog matches.
+      // The old v1-style experience is a useful number of relevant results, not a
+      // page that stops at one or two rows just because an external provider timed out.
+      if (results.length < input.limit) {
+        const databaseSongs = await findSongs(searchQuery, Math.min(50, Math.max(input.limit * 2, input.limit)), false, query ? 0 : input.offset);
         if (databaseSongs.length) {
-          results = databaseSongs.map(song => ({ ...song, artist: "", album: "", duration: formatDuration(song.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}` }));
-          source = "catalog";
+          const mappedSongs = databaseSongs.map(song => ({
+            ...song,
+            artist: "",
+            album: "",
+            duration: formatDuration(song.durationSeconds ?? 0),
+            mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}`,
+          }));
+          const existing = results as Array<{ slug: string; providerVideoId: string }>;
+          const seenSlugs = new Set(existing.map(song => song.slug));
+          const seenVideoIds = new Set(existing.map(song => song.providerVideoId));
+          const additions = mappedSongs.filter(song =>
+            !seenSlugs.has(song.slug) && !seenVideoIds.has(song.providerVideoId)
+          );
+          if (additions.length) {
+            results = [...existing, ...additions].slice(0, input.limit) as typeof results;
+            source = existing.length ? "mixed" : "catalog";
+          }
         }
       }
 
