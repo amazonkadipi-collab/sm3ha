@@ -105,7 +105,7 @@ export async function findArtistBySlug(slug: string) {
         slug: artist.slug,
         name: artist.name,
         imageUrl: artist.image_url ?? null,
-        songs: (rows ?? []).map(mapSupabaseSong).filter(song => isLikelyMusicTitle(song.title, song.artist)),
+        songs: (rows ?? []).map(mapSupabaseSong).filter((song: ReturnType<typeof mapSupabaseSong>) => isLikelyMusicTitle(song.title, song.artist)),
       };
     }
     if (error) console.warn("[Supabase] artist lookup failed:", error.message);
