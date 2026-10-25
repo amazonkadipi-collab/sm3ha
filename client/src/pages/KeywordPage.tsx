@@ -72,7 +72,7 @@ export default function KeywordPage() {
   }, [activeVideoId]);
   useEffect(() => {
     applySeo({
-      title: `تحميل ${keyword} Mp3 Mp4 سمعها`,
+      title: `نتائج ${keyword} Mp3 Mp4 | سمعها`,
       description: hasResults ? `نتائج ${keyword} في سمعها. إبحث واستكشف الأغاني والفيديوهات المتاحة.` : `نتائج ${keyword} في سمعها.`,
       path: `/s/${encodeURIComponent(slug)}`,
       noindex: !hasIndexableResults,
@@ -92,7 +92,7 @@ export default function KeywordPage() {
         <input value={query} onChange={event => setQuery(event.target.value)} placeholder="إبحث عن اغنية او البوم او فنان" aria-label="إبحث عن اغنية او البوم او فنان" />
         <button type="submit">بحث</button>
       </form>
-      <h1>تحميل {keyword} Mp3 Mp4 سمعها</h1>
+      <h1>نتائج {keyword} Mp3 Mp4 | سمعها</h1>
     </section>
     <section className="reference-results" aria-label={`نتائج ${keyword}`}>
       {isLoading && <div className="reference-empty">جارٍ تجهيز النتائج…</div>}
