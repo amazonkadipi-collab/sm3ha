@@ -24,7 +24,7 @@ function upsertCanonical(url: string) {
 }
 
 export function applySeo(input: { title: string; description: string; path: string; type?: "website" | "music.song"; noindex?: boolean; image?: string }) {
-  const origin = window.location.origin;
+  const origin = "https://sm3ha.online";
   const canonical = new URL(input.path, origin).toString();
   document.title = input.title;
   upsertMeta("name", "description", input.description);
