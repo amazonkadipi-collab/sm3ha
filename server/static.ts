@@ -255,7 +255,7 @@ async function renderTrendingShell(req: express.Request, template: string) {
   ]);
   const candidates = [
     ...recent.map((row: any) => ({ query: String(row.query ?? "").trim(), slug: makeSlug(String(row.query ?? "")) })),
-    ...(stored ?? []).map((row: any) => ({ query: String(row.query ?? "").trim(), slug: String(row.slug ?? makeSlug(String(row.query ?? "")) })),
+    ...(stored ?? []).map((row: any) => ({ query: String(row.query ?? "").trim(), slug: String(row.slug ?? makeSlug(String(row.query ?? ""))) })),
   ];
   const seen = new Set<string>();
   const items = candidates.filter(item => {
