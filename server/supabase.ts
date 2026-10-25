@@ -302,9 +302,11 @@ export async function findCatalogKeyword(slug: string) {
   if (error) { console.warn("[Supabase] keyword lookup failed:", error.message); return null; } return data;
 }
 
-export async function listSitemapKeywords(offset = 0, limit = 45000) {
+export async function listSitemapKeywords(offset = 0, limit = 1000) {
   const supabase = getSupabaseAdmin(); if (!supabase) return [];
-  const { data, error } = await supabase.from("catalog_keywords").select("slug,updated_at").eq("status", "active").eq("indexable", true).order("updated_at", { ascending: false }).range(offset, offset + limit - 1);
+  const safeLimit = Math.min(Math.max(Math.trunc(limit), 1), 1000);
+  const safeOffset = Math.max(Math.trunc(offset), 0);
+  const { data, error } = await supabase.from("catalog_keywords").select("slug,updated_at").eq("status", "active").eq("indexable", true).order("updated_at", { ascending: false }).range(safeOffset, safeOffset + safeLimit - 1);
   if (error) { console.warn("[Supabase] sitemap keyword query failed:", error.message); return []; } return data ?? [];
 }
 
@@ -322,15 +324,17 @@ export function mapSupabaseSong(row: any): CatalogSong {
   return { id: Number(String(row.id).replace(/\D/g, "").slice(-9) || 0), title: row.title, artist: row.artist?.name ?? row.artist_name ?? "", artistSlug: row.artist?.slug ?? row.artist_slug ?? "artist", album: row.album?.title ?? row.album_title ?? "", slug: row.slug, providerVideoId: row.provider_video_id, opaqueToken: row.opaque_token ?? row.opaqueToken ?? createOpaqueToken(`${row.provider_video_id}:${row.slug}`), providerUrl: row.provider_url ?? row.providerUrl ?? undefined, thumbnailUrl: row.thumbnail_url ?? "", durationSeconds: row.duration_seconds ?? 0, isFeatured: Boolean(row.is_featured), rightsStatus: row.rights_status === "licensed" ? "licensed" : row.rights_status === "metadata_only" ? "metadata_only" : "removed", availabilityStatus: row.status === "removed" ? "removed" : "available" };
 }
 
-export async function listSitemapSongs(offset = 0, limit = 45000) {
+export async function listSitemapSongs(offset = 0, limit = 1000) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return [];
+  const safeLimit = Math.min(Math.max(Math.trunc(limit), 1), 1000);
+  const safeOffset = Math.max(Math.trunc(offset), 0);
   const { data, error } = await supabase.from("songs")
     .select("slug,title,updated_at,created_at,rights_status,artist:artists(name)")
     .eq("status", "active")
     .neq("rights_status", "demo")
     .order("updated_at", { ascending: false })
-    .range(offset, offset + Math.min(limit, 45000) - 1);
+    .range(safeOffset, safeOffset + safeLimit - 1);
   if (error) { console.warn("[Supabase] sitemap song query failed:", error.message); return []; }
   return (data ?? []).filter((row: any) => isLikelyMusicTitle(row.title ?? "", row.artist?.name ?? ""));
 }
@@ -338,24 +342,35 @@ export async function listSitemapSongs(offset = 0, limit = 45000) {
 export async function countIndexableSongs() {
   const supabase = getSupabaseAdmin();
   if (!supabase) return 0;
-  const { data, error } = await supabase.from("songs")
-    .select("id,title,artist:artists(name)")
-    .eq("status", "active")
-    .neq("rights_status", "demo")
-    .range(0, 44999);
-  if (error) { console.warn("[Supabase] song count failed:", error.message); return 0; }
-  return (data ?? []).filter((row: any) => isLikelyMusicTitle(row.title ?? "", row.artist?.name ?? "")).length;
+  let offset = 0;
+  let total = 0;
+  while (true) {
+    const { data, error } = await supabase.from("songs")
+      .select("id,title,artist:artists(name)")
+      .eq("status", "active")
+      .neq("rights_status", "demo")
+      .order("updated_at", { ascending: false })
+      .range(offset, offset + 999);
+    if (error) { console.warn("[Supabase] song count failed:", error.message); return total; }
+    const rows = data ?? [];
+    total += rows.filter((row: any) => isLikelyMusicTitle(row.title ?? "", row.artist?.name ?? "")).length;
+    if (rows.length < 1000) break;
+    offset += rows.length;
+  }
+  return total;
 }
 
-export async function listSitemapArtists(offset = 0, limit = 45000) {
+export async function listSitemapArtists(offset = 0, limit = 1000) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return [];
+  const safeLimit = Math.min(Math.max(Math.trunc(limit), 1), 1000);
+  const safeOffset = Math.max(Math.trunc(offset), 0);
   const { data, error } = await supabase.from("artists")
     .select("slug,created_at,name,songs!inner(status,rights_status,title)")
     .eq("songs.status", "active")
     .neq("songs.rights_status", "demo")
     .order("created_at", { ascending: false })
-    .range(offset, offset + Math.min(limit, 45000) - 1);
+    .range(safeOffset, safeOffset + safeLimit - 1);
   if (error) { console.warn("[Supabase] sitemap artist query failed:", error.message); return []; }
   return (data ?? []).filter((row: any) =>
     Array.isArray(row.songs) && row.songs.some((song: any) => isLikelyMusicTitle(song.title ?? "", row.name ?? ""))
@@ -365,24 +380,35 @@ export async function listSitemapArtists(offset = 0, limit = 45000) {
 export async function countSitemapArtists() {
   const supabase = getSupabaseAdmin();
   if (!supabase) return 0;
-  const { data, error } = await supabase.from("artists")
-    .select("id,name,songs!inner(status,rights_status,title)")
-    .eq("songs.status", "active")
-    .neq("songs.rights_status", "demo")
-    .range(0, 44999);
-  if (error) { console.warn("[Supabase] artist count failed:", error.message); return 0; }
-  return (data ?? []).filter((row: any) =>
-    Array.isArray(row.songs) && row.songs.some((song: any) => isLikelyMusicTitle(song.title ?? "", row.name ?? ""))
-  ).length;
+  let offset = 0;
+  let total = 0;
+  while (true) {
+    const { data, error } = await supabase.from("artists")
+      .select("id,name,songs!inner(status,rights_status,title)")
+      .eq("songs.status", "active")
+      .neq("songs.rights_status", "demo")
+      .order("created_at", { ascending: false })
+      .range(offset, offset + 999);
+    if (error) { console.warn("[Supabase] artist count failed:", error.message); return total; }
+    const rows = data ?? [];
+    total += rows.filter((row: any) =>
+      Array.isArray(row.songs) && row.songs.some((song: any) => isLikelyMusicTitle(song.title ?? "", row.name ?? ""))
+    ).length;
+    if (rows.length < 1000) break;
+    offset += rows.length;
+  }
+  return total;
 }
 
-export async function listSitemapAlbums(offset = 0, limit = 45000) {
+export async function listSitemapAlbums(offset = 0, limit = 1000) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return [];
+  const safeLimit = Math.min(Math.max(Math.trunc(limit), 1), 1000);
+  const safeOffset = Math.max(Math.trunc(offset), 0);
   const { data, error } = await supabase.from("albums")
     .select("slug,created_at")
     .order("created_at", { ascending: false })
-    .range(offset, offset + limit - 1);
+    .range(safeOffset, safeOffset + safeLimit - 1);
   if (error) { console.warn("[Supabase] sitemap album query failed:", error.message); return []; }
   return data ?? [];
 }
@@ -390,9 +416,8 @@ export async function listSitemapAlbums(offset = 0, limit = 45000) {
 export async function countSitemapAlbums() {
   const supabase = getSupabaseAdmin();
   if (!supabase) return 0;
-  const { data, error } = await supabase.from("albums")
-    .select("id")
-    .range(0, 44999);
+  const { count, error } = await supabase.from("albums")
+    .select("id", { count: "exact", head: true });
   if (error) { console.warn("[Supabase] album count failed:", error.message); return 0; }
-  return data?.length ?? 0;
+  return count ?? 0;
 }
