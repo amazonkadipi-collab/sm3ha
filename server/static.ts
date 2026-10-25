@@ -383,11 +383,9 @@ export function serveStatic(app: express.Express) {
         try {
           const canonicalUrl = new URL(canonicalMatch[1], PUBLIC_ORIGIN);
           const requestUrl = new URL(req.originalUrl, PUBLIC_ORIGIN);
-          const decodePath = (value: string) => {
-            try { return decodeURIComponent(value).replace(/\/+$/, "") || "/"; }
-            catch { return value.replace(/\/+$/, "") || "/"; }
-          };
-          if (decodePath(requestUrl.pathname) !== decodePath(canonicalUrl.pathname) || requestUrl.search) {
+          const normalizePath = (value: string) =>
+            value.replace(/%[0-9a-f]{2}/gi, escape => escape.toUpperCase()).replace(/\/+$/, "") || "/";
+          if (normalizePath(requestUrl.pathname) !== normalizePath(canonicalUrl.pathname) || requestUrl.search) {
             return res.redirect(301, canonicalUrl.toString());
           }
         } catch {
