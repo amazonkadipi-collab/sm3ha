@@ -296,6 +296,26 @@ export function serveStatic(app: express.Express) {
         res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
         return res.status(404).send(rendered.html);
       }
+
+      // Redirect keyword aliases to the canonical archive URL instead of
+      // serving duplicate HTML under multiple slugs or query-string variants.
+      const canonicalMatch = rendered.html.match(/<link rel="canonical" href="([^"]+)">/i);
+      if (canonicalMatch?.[1]) {
+        try {
+          const canonicalUrl = new URL(canonicalMatch[1], PUBLIC_ORIGIN);
+          const requestUrl = new URL(req.originalUrl, PUBLIC_ORIGIN);
+          const decodePath = (value: string) => {
+            try { return decodeURIComponent(value).replace(/\/+$/, "") || "/"; }
+            catch { return value.replace(/\/+$/, "") || "/"; }
+          };
+          if (decodePath(requestUrl.pathname) !== decodePath(canonicalUrl.pathname) || requestUrl.search) {
+            return res.redirect(301, canonicalUrl.toString());
+          }
+        } catch {
+          // If URL parsing fails, continue with the already-rendered page.
+        }
+      }
+
       res.setHeader("X-Robots-Tag", rendered.indexable === false ? "noindex, follow" : "index, follow");
       return res.status(rendered.status).type("html").send(rendered.html);
     } catch (error) {
