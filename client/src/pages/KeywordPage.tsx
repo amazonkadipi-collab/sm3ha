@@ -36,7 +36,7 @@ export default function KeywordPage() {
   const [, navigate] = useLocation();
   const slug = params?.slug ?? "";
   const keyword = useMemo(() => decodeURIComponent(slug).replace(/-/g, " ").trim(), [slug]);
-  const canonicalKeyword = useMemo(() => keyword.split(/\s+/).filter(word => !/^(?:تحميل|تنزيل|download|mp3|mp4)$/i.test(word)).join(" ").trim() || keyword, [keyword]);
+  const canonicalKeyword = useMemo(() => keyword.split(/\s+/).filter(word => !/^(?:تحميل|تنزيل|download|mp3|mp4|اغاني|أغاني|اغنية|أغنية)$/i.test(word)).join(" ").trim() || keyword, [keyword]);
   const [query, setQuery] = useState("");
   const { data = [], isLoading, isError } = trpc.catalog.search.useQuery({ query: keyword, limit: 10 }, { enabled: Boolean(keyword), retry: false, staleTime: 30_000 });
   const { data: keywordLinks = [] } = trpc.catalog.keywords.useQuery({ limit: 50 }, { retry: 1, staleTime: 60_000 });
