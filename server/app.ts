@@ -12,9 +12,9 @@ import { getRapidYouTubeInfo, MediaProviderError, normalizeVideoId } from "./rap
 import { findSongByToken } from "./db";
 import { runYouTubeAutoImport } from "./youtube-auto-import";
 
-const PUBLIC_ORIGIN = "https://www.sm3ha.online";
+const PUBLIC_ORIGIN = "https://sm3ha.online";
 const xmlEscape = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;").replace(/'/g, "&apos;");
-const getOrigin = (req: express.Request) => process.env.PUBLIC_SITE_URL?.trim().replace(/\/$/, "") || PUBLIC_ORIGIN;
+const getOrigin = (_req: express.Request) => PUBLIC_ORIGIN;
 
 export function createApp() {
   const app = express();
