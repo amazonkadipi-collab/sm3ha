@@ -98,7 +98,7 @@ export async function listRecentSearches(limit = 50) {
     return [];
   }
   const seen = new Set<string>();
-  return (data ?? []).filter(row => {
+  return (data ?? []).filter((row: { query: string | null; created_at: string }) => {
     const query = String(row.query ?? "").trim();
     const key = query.toLocaleLowerCase();
     if (!query || seen.has(key)) return false;
