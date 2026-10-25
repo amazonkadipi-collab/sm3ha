@@ -46,17 +46,20 @@ async function renderKeywordShell(req: express.Request, template: string) {
   const keyword = slug.replace(/-/g, " ").trim();
   if (!keyword || keyword.length > 120) return { status: 404, html: renderNotFoundShell(req, template).html };
 
-  // Match the v1 /s/* behavior: any meaningful query can resolve on first visit.
-  const record = await findCatalogKeyword(slug);
+  // Keep server-rendered archives aligned with API search normalization.
+  const searchQuery = keyword.split(/\s+/).filter(word => !/^(?:تحميل|تنزيل|download|mp3|mp4)$/i.test(word)).join(" ").trim() || keyword;
+
+  // Prefer the normalized cache, then fall back to the literal URL slug.
+  const record = await findCatalogKeyword(makeSlug(searchQuery)) ?? await findCatalogKeyword(slug);
   let rawSongs = record?.result_slugs?.length
     ? await findSongsBySlugs(record.result_slugs, 20)
-    : await findSongs(keyword, 20);
+    : await findSongs(searchQuery, 20);
 
   // Match v1-style result depth: keep existing archive results, then fill the
   // page with fresh real provider metadata until we have up to 20 unique rows.
   if (rawSongs.length < 20 && ENV.youtubeApiKey) {
     try {
-      const youtubeRows = await searchYouTubeVideos(keyword, 20);
+      const youtubeRows = await searchYouTubeVideos(searchQuery, 20);
       if (youtubeRows.length) {
         const persisted = await persistImportedRows(youtubeRows);
         const candidateSlugs = Array.from(new Set([
@@ -69,7 +72,7 @@ async function renderKeywordShell(req: express.Request, template: string) {
         const seen = new Set(rawSongs.map(song => song.slug));
         rawSongs = [...rawSongs, ...importedRows.filter(song => !seen.has(song.slug))].slice(0, 20);
         if (rawSongs.length) {
-          await upsertCatalogKeyword(keyword, rawSongs.map(song => song.slug), "youtube-search", true);
+          await upsertCatalogKeyword(searchQuery, rawSongs.map(song => song.slug), "youtube-search", true);
         }
       }
     } catch (error) {
@@ -80,14 +83,16 @@ async function renderKeywordShell(req: express.Request, template: string) {
   const songs = rawSongs.slice(0, 20);
 
 
-  const canonicalSlug = record?.slug || makeSlug(keyword);
-  const resolvedQuery = record?.query || keyword;
-  if (!record?.result_slugs?.length) {
-    await upsertCatalogKeyword(keyword, songs.map(song => song.slug), "search", true);
+  const canonicalSlug = record?.slug || makeSlug(searchQuery);
+  const resolvedQuery = record?.query || searchQuery;
+  if (!record?.result_slugs?.length && songs.length) {
+    await upsertCatalogKeyword(searchQuery, songs.map(song => song.slug), "search", true);
   }
 
-  const title = `تحميل ${resolvedQuery} Mp3 Mp4 سمعها`;
-  const description = `نتائج ${resolvedQuery} في سمعها. إبحث واستكشف الأغاني والفيديوهات المتاحة.`;
+  const title = `نتائج ${resolvedQuery} Mp3 Mp4 | سمعها`;
+  const description = songs.length
+    ? `استكشف ${resolvedQuery} في سمعها. تعرض الصفحة ${songs.length} نتيجة مع معلومات العمل والفنان والمدة وروابط المصدر المتاحة.`
+    : `ابحث عن ${resolvedQuery} في سمعها واستكشف النتائج الموسيقية المتاحة.`;
   const canonical = absoluteUrl(req, `/s/${encodeURIComponent(canonicalSlug)}`);
 
   const resultHtml = songs.map(song => {
@@ -98,12 +103,15 @@ async function renderKeywordShell(req: express.Request, template: string) {
       ? `<img src="${escapeHtml(song.thumbnailUrl)}" alt="${songTitle}" loading="lazy">`
       : `<span aria-hidden="true">♫</span>`;
     const watchUrl = `https://www.youtube.com/watch?v=${encodeURIComponent(song.providerVideoId)}`;
-    return `<article class="reference-media-row"><div class="reference-media-thumb reference-media-thumb-area">${thumb}</div><div class="reference-media-copy"><h2><a href="/song/${encodeURIComponent(song.slug)}">${songTitle}</a></h2><p>${artist}</p><p>▶ مدة الفيديو: ${duration}</p></div><div class="reference-media-actions reference-media-actions-area"><a class="reference-action" href="/media?d=${encodeURIComponent(song.opaqueToken)}">تحميل</a><a class="reference-watch" href="${watchUrl}" target="_blank" rel="noreferrer">مشاهدة</a></div></article>`;
+    const downloadAction = song.rightsStatus === "licensed"
+      ? `<a class="reference-action" href="/media?d=${encodeURIComponent(song.opaqueToken)}">خيارات التحميل</a>`
+      : `<span class="reference-action" aria-disabled="true" title="لا يوجد مصدر تحميل مصرح به لهذا المحتوى">التحميل غير متاح</span>`;
+    return `<article class="reference-media-row"><div class="reference-media-thumb reference-media-thumb-area">${thumb}</div><div class="reference-media-copy"><h2><a href="/song/${encodeURIComponent(song.slug)}">${songTitle}</a></h2><p>${artist}</p><p>▶ مدة الفيديو: ${duration}</p></div><div class="reference-media-actions reference-media-actions-area">${downloadAction}<a class="reference-watch" href="${watchUrl}" target="_blank" rel="noreferrer">مشاهدة</a></div></article>`;
   }).join("");
 
   const artists = Array.from(new Set(songs.map(song => song.artist).filter(Boolean))).slice(0, 8);
   const artistSummary = artists.length ? ` وتشمل النتائج أعمالاً مرتبطة بـ ${artists.map(escapeHtml).join("، ")}.` : "";
-  const summary = `<section class="reference-results-summary" aria-label="نبذة عن النتائج"><p>هذه صفحة نتائج بحث عن «${escapeHtml(resolvedQuery)}» في سمعها. تعرض الصفحة ${songs.length} نتيجة متاحة من فهرس الوسائط، مع اسم العمل والفنان والمدة وروابط المشاهدة والتحميل حسب التوفر.${artistSummary} يمكنك فتح أي نتيجة للوصول إلى صفحة الأغنية ومعلوماتها والنتائج المرتبطة.</p></section>`;
+  const summary = `<section class="reference-results-summary" aria-label="نبذة عن النتائج"><p>هذه صفحة نتائج بحث عن «${escapeHtml(resolvedQuery)}» في سمعها. تعرض الصفحة ${songs.length} نتيجة من فهرس الوسائط، مع اسم العمل والفنان والمدة وروابط المصدر المتاحة. التحميل يظهر فقط للمحتوى الذي يتوفر له مصدر مصرح به.${artistSummary} يمكنك فتح أي نتيجة للوصول إلى صفحة الأغنية ومعلوماتها والنتائج المرتبطة.</p></section>`;
 
   // Supabase can be temporarily unavailable or unconfigured; related links are optional.
   // Always render the keyword page even when the related-keyword feed returns null.
@@ -165,11 +173,14 @@ async function renderEntityShell(req: express.Request, template: string, kind: "
   if (kind === "song") {
     const song = await findSongBySlug(slug) as any;
     if (!song || !isLikelyMusicTitle(song.title, song.artist ?? "")) return { status: 404, html: template };
-    title = `${song.title} Mp3 - تحميل واستماع | سمعها`;
+    title = `${song.title} Mp3 - استماع ومعلومات | سمعها`;
     description = `استمع واكتشف ${song.title} على سمعها. معلومات الأغنية ونتائج موسيقية مرتبطة.`;
     canonical = absoluteUrl(req, `/song/${encodeURIComponent(song.slug)}`);
     const artistLink = song.artistSlug ? `<a href="/artists/${encodeURIComponent(song.artistSlug)}">${escapeHtml(song.artist || "الفنان")}</a>` : "";
-    content = `<main dir="rtl" class="reference-page mx-auto max-w-[1080px] px-4 pb-12 pt-4 sm:px-8"><a href="/" class="reference-back">الرئيسية</a><section class="reference-page-head"><div><span>سمعها</span><h1>${escapeHtml(song.title)}</h1><p>${artistLink}</p></div></section><section class="reference-results"><article class="reference-media-row"><div class="reference-media-thumb reference-media-thumb-area">${song.thumbnailUrl ? `<img src="${escapeHtml(song.thumbnailUrl)}" alt="${escapeHtml(song.title)}" loading="lazy">` : "<span aria-hidden=\"true\">♫</span>"}</div><div class="reference-media-copy"><h2>${escapeHtml(song.title)}</h2><p>مدة الفيديو: ${escapeHtml(formatDuration(song.durationSeconds ?? 0))}</p></div><div class="reference-media-actions reference-media-actions-area"><a class="reference-action" href="/media?d=${encodeURIComponent(song.opaqueToken)}">تحميل</a><a class="reference-watch" href="https://www.youtube.com/watch?v=${encodeURIComponent(song.providerVideoId)}" target="_blank" rel="noreferrer">مشاهدة</a></div></article></section></main>`;
+    const songDownloadAction = song.rightsStatus === "licensed"
+      ? `<a class="reference-action" href="/media?d=${encodeURIComponent(song.opaqueToken)}">خيارات التحميل</a>`
+      : `<span class="reference-action" aria-disabled="true" title="لا يوجد مصدر تحميل مصرح به لهذا المحتوى">التحميل غير متاح</span>`;
+    content = `<main dir="rtl" class="reference-page mx-auto max-w-[1080px] px-4 pb-12 pt-4 sm:px-8"><a href="/" class="reference-back">الرئيسية</a><section class="reference-page-head"><div><span>سمعها</span><h1>${escapeHtml(song.title)}</h1><p>${artistLink}</p></div></section><section class="reference-results"><article class="reference-media-row"><div class="reference-media-thumb reference-media-thumb-area">${song.thumbnailUrl ? `<img src="${escapeHtml(song.thumbnailUrl)}" alt="${escapeHtml(song.title)}" loading="lazy">` : "<span aria-hidden=\"true\">♫</span>"}</div><div class="reference-media-copy"><h2>${escapeHtml(song.title)}</h2><p>مدة الفيديو: ${escapeHtml(formatDuration(song.durationSeconds ?? 0))}</p></div><div class="reference-media-actions reference-media-actions-area">${songDownloadAction}<a class="reference-watch" href="https://www.youtube.com/watch?v=${encodeURIComponent(song.providerVideoId)}" target="_blank" rel="noreferrer">مشاهدة</a></div></article></section></main>`;
     jsonLd = { "@context": "https://schema.org", "@type": "MusicRecording", name: song.title, url: canonical, image: song.thumbnailUrl || undefined, duration: song.durationSeconds ? `PT${Math.floor(song.durationSeconds / 60)}M${song.durationSeconds % 60}S` : undefined, byArtist: song.artist ? { "@type": "MusicGroup", name: song.artist, url: song.artistSlug ? absoluteUrl(req, `/artists/${encodeURIComponent(song.artistSlug)}`) : undefined } : undefined };
   } else if (kind === "artist") {
     const artist = await findArtistBySlug(slug) as any;
