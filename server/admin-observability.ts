@@ -104,7 +104,7 @@ export async function listRecentSearches(limit = 50) {
     if (!query || seen.has(key)) return false;
     seen.add(key);
     return true;
-  }).map(row => ({ query: String(row.query).trim(), createdAt: row.created_at }));
+  }).map((row: { query: string | null; created_at: string }) => ({ query: String(row.query).trim(), createdAt: row.created_at }));
 }
 
 export async function listSearchLogs(input: { query?: string; limit: number; offset: number }) {
