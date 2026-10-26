@@ -24,7 +24,7 @@ export default function SearchPage() {
       title: `نتائج البحث عن ${initial} — سمعها`,
       description: `نتائج البحث عن ${initial} من الأغاني والموسيقى العربية في سمعها.`,
       path: `/search?q=${encodeURIComponent(initial)}`,
-      robots: "noindex,follow",
+      noindex: true,
     });
     return resetSeo;
   }, [initial, navigate]);
