@@ -8,7 +8,10 @@ export const ENV = {
   isProduction: process.env.NODE_ENV === "production",
   forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
-  youtubeApiKey: process.env.YOUTUBE_API_KEY ?? "",
+  // Use the first configured key as the feature-availability flag too. The
+  // YouTube client supports three keys, so a secondary-only configuration must
+  // still enable search and duration repair in callers.
+  youtubeApiKey: process.env.YOUTUBE_API_KEY || process.env.YOUTUBE_API_KEY_2 || process.env.YOUTUBE_API_KEY_3 || "",
   youtubeApiKeys: [process.env.YOUTUBE_API_KEY, process.env.YOUTUBE_API_KEY_2, process.env.YOUTUBE_API_KEY_3].filter((key): key is string => Boolean(key)),
   rapidApiKey: process.env.RAPIDAPI_KEY ?? "",
   rapidApiHost: process.env.RAPIDAPI_HOST ?? "youtube-to-mp4-mp3.p.rapidapi.com",
