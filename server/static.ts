@@ -6,7 +6,7 @@ import { ENV } from "./_core/env";
 import { listRecentSearches } from "./admin-observability";
 import { searchYouTubeVideos } from "./youtube";
 import { formatDuration, isLikelyMusicTitle, makeSlug, normalizeArabic } from "./catalog";
-import { findAlbumBySlug, findArtistBySlug, findSongBySlug, findSongs, findSongsBySlugs, listArtists } from "./db";
+import { findAlbumBySlug, findArtistBySlug, findSongBySlug, findSongByToken, findSongs, findSongsBySlugs, listArtists } from "./db";
 
 const PUBLIC_ORIGIN = "https://sm3ha.online";
 
@@ -35,6 +35,40 @@ function renderNotFoundShell(req: express.Request, template: string) {
     .replace(/<script type="application\/ld\+json" data-sm3ha-seo="true">[\s\S]*?<\/script>/gi, "")
     .replace('<div id="root"></div>', '<div id="root"><main dir="rtl" class="reference-page mx-auto max-w-[1080px] px-4 pb-12 pt-4 sm:px-8"><a href="/" class="reference-back">الرئيسية</a><h1>الصفحة غير موجودة</h1><p>هذه الصفحة غير متاحة.</p></main></div>');
   return { status: 404, html };
+}
+
+async function renderMediaShell(req: express.Request, template: string) {
+  const token = typeof req.query.d === "string" ? req.query.d.trim() : "";
+  if (!token || token.length > 128) return renderNotFoundShell(req, template);
+
+  const song = await findSongByToken(token);
+  if (!song) return renderNotFoundShell(req, template);
+
+  const sourceUrl = song.providerUrl?.trim() ?? "";
+  const directSource = /^https:\/\//i.test(sourceUrl) &&
+    !/^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\//i.test(sourceUrl);
+  const sourceAvailable = Boolean(song.rightsStatus === "licensed" && directSource && ENV.cloudConvertApiKey);
+  const title = `تحميل ${song.title} Mp3 Mp4 — سمعها`;
+  const description = sourceAvailable
+    ? `خيارات التحميل المصرح بها لـ${song.title} بصيغ MP3 وMP4.`
+    : `معلومات المصدر والمشاهدة لـ${song.title}. التحميل غير متاح لهذا المصدر حالياً.`;
+  const canonical = absoluteUrl(req, `/media?d=${encodeURIComponent(token)}`);
+  const watchUrl = `https://www.youtube.com/watch?v=${encodeURIComponent(song.providerVideoId)}`;
+  const actions = sourceAvailable
+    ? `<a class="reference-v1-button" href="/videos_dl?d=${encodeURIComponent(token)}">DOWNLOAD NOW</a><a class="reference-v1-button" href="/videos_dl?d=${encodeURIComponent(token)}">تحميل مباشر</a>`
+    : `<a class="reference-v1-button" href="${escapeHtml(watchUrl)}" target="_blank" rel="noreferrer">مشاهدة المصدر</a>`;
+  const quality = sourceAvailable ? "MP3@128 kbps - MP4@360p/720p" : "غير متاحة حالياً";
+  const content = `<main dir="rtl" class="reference-page mx-auto max-w-[1080px] px-4 pb-12 pt-4 sm:px-8"><a href="/" class="reference-back">الرئيسية</a><section class="reference-download-card"><h1>تحميل الملف</h1><ul class="reference-v1-meta"><li><strong>كود الملف:</strong> <code dir="ltr">${escapeHtml(song.providerVideoId)}</code></li><li><strong>المدة:</strong> ${escapeHtml(formatDuration(song.durationSeconds ?? 0))}</li><li><strong>الكوالتي:</strong> ${quality}</li></ul><div class="reference-v1-downloads">${actions}</div><section class="reference-v1-article"><h2>${sourceAvailable ? "خيارات التحميل المتاحة" : "حالة التحميل"}</h2><p>${sourceAvailable ? "التحميل متاح فقط من المصدر المصرح به." : "لا يوجد حالياً مصدر تحميل مصرح به لهذا المحتوى. يمكن فتح المصدر الخارجي للمشاهدة."}</p></section><section class="reference-v1-disclaimer" aria-label="إخلاء مسؤولية"><p>حقوق المحتوى: التحميل متاح فقط للمصادر المصرح بها في فهرس سمعها؛ أما المصادر الخارجية فتُفتح للمشاهدة فقط.</p></section></section></main>`;
+  const html = template
+    .replace(/<html[^>]*>/i, '<html lang="ar" dir="rtl">')
+    .replace(/<title>[^<]*<\/title>/i, `<title>${escapeHtml(title)}</title>`)
+    .replace(/<meta name="description" content="[^"]*"/i, `<meta name="description" content="${escapeHtml(description)}"`)
+    .replace(/<meta name="robots" content="[^"]*"/i, '<meta name="robots" content="noindex,nofollow,noarchive"')
+    .replace(/<meta property="og:title" content="[^"]*"/i, `<meta property="og:title" content="${escapeHtml(title)}"`)
+    .replace(/<meta property="og:description" content="[^"]*"/i, `<meta property="og:description" content="${escapeHtml(description)}"`)
+    .replace(/<link rel="canonical"[^>]*>/i, `<link rel="canonical" href="${escapeHtml(canonical)}">`)
+    .replace('<div id="root"></div>', `<div id="root">${content}</div>`);
+  return { status: 200, html };
 }
 
 async function renderKeywordShell(req: express.Request, template: string) {
@@ -351,6 +385,17 @@ export function serveStatic(app: express.Express) {
 
   app.use(express.static(publicPath));
 
+  app.get("/media", async (req, res, next) => {
+    try {
+      const template = await fs.promises.readFile(path.join(publicPath, "index.html"), "utf-8");
+      const rendered = await renderMediaShell(req, template);
+      res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
+      return res.status(rendered.status).type("html").send(rendered.html);
+    } catch (error) {
+      console.warn("[SEO] media page render failed:", error);
+      return next(error);
+    }
+  });
 
   app.get("/trending", async (req, res, next) => {
     try {
