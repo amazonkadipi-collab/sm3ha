@@ -119,16 +119,16 @@ async function renderKeywordShell(req: express.Request, template: string) {
   const genericArchiveTokens = new Set(["تحميل", "تنزيل", "download", "mp3", "mp4", "اغاني", "اغنية"]);
   const strictArchiveTokens = Array.from(new Set(
     normalizeArabic(searchQuery)
-      .replace(/[^a-z0-9\\u0600-\\u06FF\\s]/gi, " ")
-      .split(/\\s+/)
+      .replace(/[^a-z0-9\u0600-\u06FF\s]/gi, " ")
+      .split(/\s+/)
       .filter(token => token.length >= 2 && !genericArchiveTokens.has(token))
   ));
   if (strictArchiveTokens.length > 1) {
     rawSongs = rawSongs.filter(song => {
       const searchableWords = new Set(
         normalizeArabic([song.title, song.artist, song.slug].filter(Boolean).join(" "))
-          .replace(/[^a-z0-9\\u0600-\\u06FF\\s]/gi, " ")
-          .split(/\\s+/)
+          .replace(/[^a-z0-9\u0600-\u06FF\s]/gi, " ")
+          .split(/\s+/)
           .filter(Boolean)
       );
       return strictArchiveTokens.every(token => searchableWords.has(token));
