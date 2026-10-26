@@ -48,7 +48,10 @@ async function renderKeywordShell(req: express.Request, template: string) {
   if (!keyword || keyword.length > 120) return { status: 404, html: renderNotFoundShell(req, template).html };
 
   // Keep server-rendered archives aligned with API search normalization.
-  const searchQuery = keyword.split(/\s+/).filter(word => !/^(?:تحميل|تنزيل|download|mp3|mp4|اغاني|أغاني|اغنية|أغنية)$/i.test(word)).join(" ").trim() || keyword;
+  // Strip download/format modifiers but keep music-intent words such as
+  // "اغاني" and "اغنية"; otherwise "تنزيل اغاني" falls back to the unnormalized
+  // phrase and can miss the broad legacy archive.
+  const searchQuery = keyword.split(/\s+/).filter(word => !/^(?:تحميل|تنزيل|download|mp3|mp4)$/i.test(word)).join(" ").trim() || keyword;
 
   // Prefer the normalized cache, then fall back to the literal URL slug.
   const record = await findCatalogKeyword(makeSlug(searchQuery)) ?? await findCatalogKeyword(slug);
