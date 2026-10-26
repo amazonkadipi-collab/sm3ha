@@ -454,7 +454,13 @@ export function serveStatic(app: express.Express) {
           // Compare normalized slugs rather than raw URL path encodings. This
           // prevents a canonical Arabic slug from redirecting to itself forever.
           if (makeSlug(currentSlug) !== makeSlug(canonicalSlug)) {
-            return res.redirect(301, canonicalUrl.toString());
+            // Redirect with an origin-relative, URL-serialized path. This avoids
+            // forwarding arbitrary host/header characters and keeps Location ASCII
+            // even when the requested archive slug contains non-Latin characters.
+            const safeLocation = `${canonicalUrl.pathname}${canonicalUrl.search}`;
+            if (!/[\\r\\n\\0-\\x1f\\x7f]/.test(safeLocation)) {
+              return res.redirect(301, safeLocation);
+            }
           }
         } catch {
           // If URL parsing fails, continue with the already-rendered page.
