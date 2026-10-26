@@ -65,7 +65,7 @@ export const appRouter = router({
       // utility words should not be sent as part of the provider/catalog query.
       const searchQuery = query
         ?.split(/\s+/)
-        .filter(word => !/^(?:تحميل|تنزيل|download|mp3|mp4|اغاني|أغاني|اغنية|أغنية)$/i.test(word))
+        .filter(word => !/^(?:تحميل|تنزيل|download|mp3|mp4)$/i.test(word))
         .join(" ")
         .trim() || query;
       let source = "none";
