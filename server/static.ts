@@ -419,6 +419,20 @@ export function serveStatic(app: express.Express) {
   app.use(express.static(publicPath));
 
 
+  // Render /search on the server so the archive has real result links and
+  // route-specific metadata even when crawlers do not execute client JavaScript.
+  app.get("/search", async (req, res, next) => {
+    try {
+      const template = await fs.promises.readFile(path.join(publicPath, "index.html"), "utf-8");
+      const rendered = await renderSearchArchiveShell(req, template);
+      res.setHeader("X-Robots-Tag", rendered.robots.replace(",", ", "));
+      return res.status(rendered.status).type("html").send(rendered.html);
+    } catch (error) {
+      console.warn("[SEO] search archive render failed:", error);
+      return next(error);
+    }
+  });
+
   app.get("/trending", async (req, res, next) => {
     try {
       const template = await fs.promises.readFile(path.join(publicPath, "index.html"), "utf-8");
