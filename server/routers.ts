@@ -119,9 +119,14 @@ export const appRouter = router({
               }
               // Query/title enrichment may be slower than the primary archive write;
               // it must never block or replace the already-persisted song records.
-              void indexYouTubeTitleQueries(youtubeRows).catch(indexError => {
+              // Await archive indexing before the serverless request ends. Fire-and-forget
+              // writes can be terminated after the response, leaving songs imported
+              // without their title-derived archive keywords.
+              try {
+                await indexYouTubeTitleQueries(youtubeRows);
+              } catch (indexError) {
                 console.warn("[YouTube] title keyword indexing failed:", indexError instanceof Error ? indexError.message : indexError);
-              });
+              }
             } catch (persistError) {
               console.warn("[YouTube] catalog persistence failed:", persistError instanceof Error ? persistError.message : persistError);
             }
