@@ -58,7 +58,6 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         <Link href="/" className="reference-top-logo" aria-label="سمعها - الرئيسية">سمعها</Link>
         <nav className="reference-top-nav" aria-label="التنقل الرئيسي">
           <Link href="/" className="reference-top-link">الرئيسية</Link>
-          <Link href="/search" className="reference-top-link">الأرشيف</Link>
           <Link href="/trending" className="reference-top-link">جديد البحث</Link>
         </nav>
       </div>
