@@ -38,7 +38,7 @@ function renderNotFoundShell(req: express.Request, template: string) {
 }
 
 async function renderKeywordShell(req: express.Request, template: string) {
-  const rawSlug = String(req.params[0] || "").replace(/^\/+|\/+$/g, "");
+  const rawSlug = String(req.params[0] || req.params.slug || "").replace(/^\\/+|\\/+$/g, "");
   if (!rawSlug) return null;
 
   let slug = rawSlug;
@@ -364,10 +364,23 @@ export function serveStatic(app: express.Express) {
     }
   });
 
-  app.get("/s2/:slug", (req, res) => {
-    const slug = String(req.params.slug || "").trim();
-    if (!slug) return res.redirect(301, "/trending");
-    return res.redirect(301, "/s/" + encodeURIComponent(slug));
+  // Keep legacy /s2/:slug archive URLs functional with server-rendered results.
+  // /s/ remains canonical, while existing /s2/ links now receive actual HTML.
+  app.get("/s2/:slug", async (req, res, next) => {
+    try {
+      const template = await fs.promises.readFile(path.join(publicPath, "index.html"), "utf-8");
+      const rendered = await renderKeywordShell(req, template);
+      if (!rendered) return next();
+      if (rendered.status === 404) {
+        res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
+        return res.status(404).type("html").send(rendered.html);
+      }
+      res.setHeader("X-Robots-Tag", rendered.indexable === false ? "noindex, follow" : "index, follow");
+      return res.status(rendered.status).type("html").send(rendered.html);
+    } catch (error) {
+      console.warn("[SEO] legacy /s2 archive render failed:", error);
+      return next(error);
+    }
   });
 
   app.get("/artists", async (req, res, next) => {
