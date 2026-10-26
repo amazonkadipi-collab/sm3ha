@@ -65,7 +65,7 @@ export const appRouter = router({
       // utility words should not be sent as part of the provider/catalog query.
       const searchQuery = query
         ?.split(/\s+/)
-        .filter(word => !/^(?:تحميل|تنزيل|download|mp3|mp4|اغاني|أغاني|اغنية|أغنية)$/i.test(word))
+        .filter(word => !/^(?:تحميل|تنزيل|download|mp3|mp4)$/i.test(word))
         .join(" ")
         .trim() || query;
       let source = "none";
@@ -86,7 +86,7 @@ export const appRouter = router({
             }
             results = cachedSongs.map(song => {
               const durationSeconds = song.durationSeconds > 0 ? song.durationSeconds : (repairedDurations.get(song.providerVideoId) ?? 0);
-              return { ...song, durationSeconds, artist: "", album: "", duration: durationSeconds > 0 ? formatDuration(durationSeconds) : "—", mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}` };
+              return { ...song, durationSeconds, duration: durationSeconds > 0 ? formatDuration(durationSeconds) : "—", mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}` };
             });
             source = "keyword";
           }
@@ -119,9 +119,14 @@ export const appRouter = router({
               }
               // Query/title enrichment may be slower than the primary archive write;
               // it must never block or replace the already-persisted song records.
-              void indexYouTubeTitleQueries(youtubeRows).catch(indexError => {
+              // Await archive indexing before the serverless request ends. Fire-and-forget
+              // writes can be terminated after the response, leaving songs imported
+              // without their title-derived archive keywords.
+              try {
+                await indexYouTubeTitleQueries(youtubeRows);
+              } catch (indexError) {
                 console.warn("[YouTube] title keyword indexing failed:", indexError instanceof Error ? indexError.message : indexError);
-              });
+              }
             } catch (persistError) {
               console.warn("[YouTube] catalog persistence failed:", persistError instanceof Error ? persistError.message : persistError);
             }
@@ -136,7 +141,7 @@ export const appRouter = router({
         if (keyword?.result_slugs?.length) {
           const cachedSongs = await findSongsBySlugs(keyword.result_slugs, input.limit);
           if (cachedSongs.length) {
-            results = cachedSongs.map(song => ({ ...song, artist: "", album: "", duration: formatDuration(song.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}` }));
+            results = cachedSongs.map(song => ({ ...song, duration: formatDuration(song.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}` }));
             source = "keyword";
           }
         }
@@ -150,8 +155,6 @@ export const appRouter = router({
         if (databaseSongs.length) {
           const mappedSongs = databaseSongs.map(song => ({
             ...song,
-            artist: "",
-            album: "",
             duration: formatDuration(song.durationSeconds ?? 0),
             mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}`,
           }));
@@ -197,7 +200,7 @@ export const appRouter = router({
     }),
     trending: publicProcedure.input(z.object({ limit: z.number().int().min(1).max(20).default(6) })).query(async ({ input }) => {
       const stored = await findSongs(undefined, input.limit);
-      return stored.map(song => ({ ...song, artist: "", album: "", duration: formatDuration(song.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}` }));
+      return stored.map(song => ({ ...song, duration: formatDuration(song.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}` }));
     }),
     recentSearches: publicProcedure.input(z.object({ limit: z.number().int().min(1).max(50).default(50) })).query(({ input }) => listRecentSearches(input.limit)),
     archiveStats: publicProcedure.query(async () => {
@@ -256,7 +259,7 @@ export const appRouter = router({
     }),
     songBySlug: publicProcedure.input(z.object({ slug: z.string().min(1).max(255) })).query(async ({ input }) => {
       const dbSong = await findSongBySlug(input.slug);
-      if (dbSong && isLikelyMusicTitle(dbSong.title, dbSong.artist)) return { ...dbSong, artist: "", album: "", duration: formatDuration(dbSong.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(dbSong.opaqueToken)}` };
+      if (dbSong && isLikelyMusicTitle(dbSong.title, dbSong.artist)) return { ...dbSong, duration: formatDuration(dbSong.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(dbSong.opaqueToken)}` };
       if (ENV.youtubeApiKey) {
         try {
           const youtubeRows = await searchYouTubeVideos(input.slug.replace(/-/g, " "), 10);
@@ -264,7 +267,7 @@ export const appRouter = router({
           if (match) {
             await persistImportedRows([match]);
             const persisted = await findSongBySlug(makeSlug(`${match.artist}-${match.title}`));
-            if (persisted) return { ...persisted, artist: "", album: "", duration: formatDuration(persisted.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(persisted.opaqueToken)}` };
+            if (persisted) return { ...persisted, duration: formatDuration(persisted.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(persisted.opaqueToken)}` };
           }
         } catch (error) {
           console.warn("[YouTube] slug materialization failed:", error instanceof Error ? error.message : error);
@@ -274,7 +277,7 @@ export const appRouter = router({
     }),
     mediaByToken: publicProcedure.input(z.object({ token: z.string().min(8).max(128) })).query(async ({ input }) => {
       const dbSong = await findSongByToken(input.token);
-      const song = dbSong ? { ...dbSong, artist: "", album: "", duration: formatDuration(dbSong.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(dbSong.opaqueToken)}` } : undefined;
+      const song = dbSong ? { ...dbSong, duration: formatDuration(dbSong.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(dbSong.opaqueToken)}` } : undefined;
       if (!song) throw new TRPCError({ code: "NOT_FOUND", message: "Media token not found" });
       const sourceUrl = song.providerUrl?.trim() ?? "";
       const directSource = /^https:\/\//i.test(sourceUrl) &&

@@ -72,7 +72,7 @@ async function renderMediaShell(req: express.Request, template: string) {
 }
 
 async function renderKeywordShell(req: express.Request, template: string) {
-  const rawSlug = String(req.params[0] || "").replace(/^\/+|\/+$/g, "");
+  const rawSlug = String(req.params[0] || req.params.slug || "").replace(/^\/+|\/+$/g, "");
   if (!rawSlug) return null;
 
   let slug = rawSlug;
@@ -82,13 +82,21 @@ async function renderKeywordShell(req: express.Request, template: string) {
   if (!keyword || keyword.length > 120) return { status: 404, html: renderNotFoundShell(req, template).html };
 
   // Keep server-rendered archives aligned with API search normalization.
-  const searchQuery = keyword.split(/\s+/).filter(word => !/^(?:تحميل|تنزيل|download|mp3|mp4|اغاني|أغاني|اغنية|أغنية)$/i.test(word)).join(" ").trim() || keyword;
+  // Strip download/format modifiers but keep music-intent words such as
+  // "اغاني" and "اغنية"; otherwise "تنزيل اغاني" falls back to the unnormalized
+  // phrase and can miss the broad legacy archive.
+  const searchQuery = keyword.split(/\s+/).filter(word => !/^(?:تحميل|تنزيل|download|mp3|mp4)$/i.test(word)).join(" ").trim() || keyword;
 
   // Prefer the normalized cache, then fall back to the literal URL slug.
   const record = await findCatalogKeyword(makeSlug(searchQuery)) ?? await findCatalogKeyword(slug);
+  // A keyword row can contain stale/deleted slugs. If none resolve, fall
+  // back to the live ranked catalog instead of rendering a false empty archive.
   let rawSongs = record?.result_slugs?.length
     ? await findSongsBySlugs(record.result_slugs, 20)
-    : await findSongs(searchQuery, 20);
+    : [];
+  if (!rawSongs.length) {
+    rawSongs = await findSongs(searchQuery, 20);
+  }
 
   // Match v1-style result depth: keep existing archive results, then fill the
   // page with fresh real provider metadata until we have up to 20 unique rows.
@@ -108,7 +116,9 @@ async function renderKeywordShell(req: express.Request, template: string) {
       const relevantYoutubeRows = meaningfulTokens.length
         ? youtubeRows.filter(row => {
             const haystack = normalizeArabic([row.title, row.artist, row.slug].filter(Boolean).join(" "));
-            return meaningfulTokens.every(token => haystack.includes(token));
+            // Legacy keyword search is query-first and commonly returns partial-token
+            // matches. Requiring every token here was over-filtering Arabic titles.
+            return meaningfulTokens.some(token => haystack.includes(token));
           })
         : youtubeRows;
       if (relevantYoutubeRows.length) {
@@ -165,7 +175,9 @@ async function renderKeywordShell(req: express.Request, template: string) {
           .split(/\s+/)
           .filter(Boolean)
       );
-      return strictArchiveTokens.every(token => searchableWords.has(token));
+      // Keep any meaningful term match, like the ranked catalog search, rather
+      // than dropping otherwise relevant results because a title omits one query word.
+      return strictArchiveTokens.some(token => searchableWords.has(token));
     });
   }
 
@@ -379,6 +391,61 @@ async function renderTrendingShell(req: express.Request, template: string) {
   return { status: 200, html };
 }
 
+async function renderSearchArchiveShell(req: express.Request, template: string) {
+  const rawQuery = typeof req.query.q === "string" ? req.query.q.trim().slice(0, 120) : "";
+  const parsedPage = Number.parseInt(typeof req.query.page === "string" ? req.query.page : "0", 10);
+  const page = Number.isFinite(parsedPage) ? Math.min(50_000, Math.max(0, parsedPage)) : 0;
+  const isArchive = !rawQuery;
+  const songs = await findSongs(rawQuery || undefined, isArchive ? 21 : 10, false, isArchive ? page * 20 : 0);
+  const visibleSongs = isArchive ? songs.slice(0, 20) : songs;
+  const hasNext = isArchive && songs.length > 20;
+  const title = isArchive ? "الأرشيف الموسيقي | سمعها" : `نتائج البحث عن ${rawQuery} | سمعها`;
+  const description = isArchive
+    ? "تصفح أرشيف سمعها الموسيقي، واكتشف الأغاني والفنانين المسجلين في الكتالوج."
+    : `نتائج البحث عن ${rawQuery} من الأغاني والموسيقى في سمعها.`;
+  const canonicalPath = isArchive ? (page ? `/search?page=${page}` : "/search") : "/search";
+  const canonical = absoluteUrl(req, canonicalPath);
+  const rows = visibleSongs.map((song: any) =>
+    '<article class="reference-media-row"><div class="reference-media-thumb reference-media-thumb-area">' +
+    (song.thumbnailUrl ? '<img src="' + escapeHtml(song.thumbnailUrl) + '" alt="' + escapeHtml(song.title) + '" loading="lazy">' : '<span aria-hidden="true">♫</span>') +
+    '</div><div class="reference-media-copy"><h2><a href="/song/' + encodeURIComponent(song.slug) + '">' + escapeHtml(song.title) +
+    '</a></h2><p>' + escapeHtml(song.artist || "الفنان غير محدد") + ' · ' + escapeHtml(formatDuration(song.durationSeconds ?? 0)) + '</p></div></article>'
+  ).join("");
+  const paging = isArchive
+    ? '<nav aria-label="التنقل بين صفحات الأرشيف" class="mt-7 flex items-center justify-between gap-3">' +
+      (page > 0 ? '<a href="' + (page === 1 ? '/search' : '/search?page=' + (page - 1)) + '">السابق</a>' : '<span></span>') +
+      '<span>صفحة ' + (page + 1) + '</span>' +
+      (hasNext ? '<a href="/search?page=' + (page + 1) + '">التالي</a>' : '') + '</nav>'
+    : "";
+  const content = '<main dir="rtl" class="reference-page mx-auto max-w-[1080px] px-4 pb-12 pt-8 sm:px-8">' +
+    '<a href="/" class="reference-back">العودة للرئيسية</a><section class="reference-page-head"><div><span>' +
+    (isArchive ? 'أرشيف سمعها' : 'البحث') + '</span><h1>' + escapeHtml(title) + '</h1><p>' + escapeHtml(description) +
+    '</p></div><form action="/search" method="get" class="reference-search reference-search-small" role="search">' +
+    '<input name="q" value="' + escapeHtml(rawQuery) + '" placeholder="ابحث عن أغنية أو فنان" aria-label="ابحث عن أغنية أو فنان">' +
+    '<button type="submit">بحث</button></form></section><section class="reference-results"><div class="reference-results-title">' +
+    (isArchive ? 'مقاطع الأرشيف — الصفحة ' + (page + 1) : 'نتائج البحث') + '</div>' +
+    (rows || '<p class="reference-empty">' + (isArchive ? 'لا توجد نتائج في هذه الصفحة.' : 'لم يتم العثور على نتائج مناسبة.') + '</p>') +
+    '</section>' + paging + '</main>';
+  const robots = isArchive ? (visibleSongs.length ? "index,follow" : "noindex,follow") : "noindex,follow";
+  const jsonLd = JSON.stringify({
+    "@context": "https://schema.org", "@type": "CollectionPage", name: title, description, url: canonical,
+    mainEntity: { "@type": "ItemList", itemListElement: visibleSongs.map((song: any, index: number) => ({
+      "@type": "ListItem", position: index + 1, name: song.title, url: absoluteUrl(req, "/song/" + encodeURIComponent(song.slug))
+    })) }
+  }).replace(/</g, "\\u003c");
+  const html = template
+    .replace(/<html[^>]*>/i, '<html lang="ar" dir="rtl">')
+    .replace(/<title>[^<]*<\/title>/i, '<title>' + escapeHtml(title) + '</title>')
+    .replace(/<meta name="description" content="[^"]*"/i, '<meta name="description" content="' + escapeHtml(description) + '"')
+    .replace(/<meta name="robots" content="[^"]*"/i, '<meta name="robots" content="' + robots + '"')
+    .replace(/<meta property="og:title" content="[^"]*"/i, '<meta property="og:title" content="' + escapeHtml(title) + '"')
+    .replace(/<meta property="og:description" content="[^"]*"/i, '<meta property="og:description" content="' + escapeHtml(description) + '"')
+    .replace(/<link rel="canonical"[^>]*>/i, '<link rel="canonical" href="' + escapeHtml(canonical) + '">')
+    .replace("</head>", '<script type="application/ld+json" data-sm3ha-seo="true">' + jsonLd + '</script></head>')
+    .replace('<div id="root"></div>', '<div id="root">' + content + '</div>');
+  return { status: 200, html, robots };
+}
+
 export function serveStatic(app: express.Express) {
   const publicPath = path.resolve(process.cwd(), "public");
   if (!fs.existsSync(publicPath)) console.error(`Could not find static directory: ${publicPath}`);
@@ -397,6 +464,24 @@ export function serveStatic(app: express.Express) {
     }
   });
 
+  // Render /search on the server so the archive has real result links and
+  // route-specific metadata even when crawlers do not execute client JavaScript.
+  app.get("/search", async (req, res, next) => {
+    const searchQuery = typeof req.query.q === "string" ? req.query.q.trim() : "";
+    // SM3HA follows the legacy query-first flow: /search is for actual searches,
+    // not a public archive landing page. Keep old /search bookmarks harmless.
+    if (!searchQuery) return res.redirect(301, "/");
+    try {
+      const template = await fs.promises.readFile(path.join(publicPath, "index.html"), "utf-8");
+      const rendered = await renderSearchArchiveShell(req, template);
+      res.setHeader("X-Robots-Tag", rendered.robots.replace(",", ", "));
+      return res.status(rendered.status).type("html").send(rendered.html);
+    } catch (error) {
+      console.warn("[SEO] search archive render failed:", error);
+      return next(error);
+    }
+  });
+
   app.get("/trending", async (req, res, next) => {
     try {
       const template = await fs.promises.readFile(path.join(publicPath, "index.html"), "utf-8");
@@ -409,10 +494,23 @@ export function serveStatic(app: express.Express) {
     }
   });
 
-  app.get("/s2/:slug", (req, res) => {
-    const slug = String(req.params.slug || "").trim();
-    if (!slug) return res.redirect(301, "/trending");
-    return res.redirect(301, "/s/" + encodeURIComponent(slug));
+  // Keep legacy /s2/:slug archive URLs functional with server-rendered results.
+  // /s/ remains canonical, while existing /s2/ links now receive actual HTML.
+  app.get("/s2/:slug", async (req, res, next) => {
+    try {
+      const template = await fs.promises.readFile(path.join(publicPath, "index.html"), "utf-8");
+      const rendered = await renderKeywordShell(req, template);
+      if (!rendered) return next();
+      if (rendered.status === 404) {
+        res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
+        return res.status(404).type("html").send(rendered.html);
+      }
+      res.setHeader("X-Robots-Tag", rendered.indexable === false ? "noindex, follow" : "index, follow");
+      return res.status(rendered.status).type("html").send(rendered.html);
+    } catch (error) {
+      console.warn("[SEO] legacy /s2 archive render failed:", error);
+      return next(error);
+    }
   });
 
   app.get("/artists", async (req, res, next) => {
@@ -474,7 +572,13 @@ export function serveStatic(app: express.Express) {
           // Compare normalized slugs rather than raw URL path encodings. This
           // prevents a canonical Arabic slug from redirecting to itself forever.
           if (makeSlug(currentSlug) !== makeSlug(canonicalSlug)) {
-            return res.redirect(301, canonicalUrl.toString());
+            // Redirect with an origin-relative, URL-serialized path. This avoids
+            // forwarding arbitrary host/header characters and keeps Location ASCII
+            // even when the requested archive slug contains non-Latin characters.
+            const safeLocation = `${canonicalUrl.pathname}${canonicalUrl.search}`;
+            if (!/[\\r\\n\\0-\\x1f\\x7f]/.test(safeLocation)) {
+              return res.redirect(301, safeLocation);
+            }
           }
         } catch {
           // If URL parsing fails, continue with the already-rendered page.

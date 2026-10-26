@@ -90,7 +90,8 @@ export async function runYouTubeAutoImport(): Promise<AutoImportResult> {
         const saved = await upsertCatalogKeyword(candidate, slugs, "youtube-title-search", false);
         if (saved) titleQueryPages += 1;
       }
-      void indexYouTubeTitleQueries(rows);
+      // Persist title-derived keyword archives before the cron invocation exits.
+      await indexYouTubeTitleQueries(rows);
     } catch (error) {
       failures.push(`title:${candidate}: ${error instanceof Error ? error.message : "YouTube request failed"}`);
     }

@@ -33,7 +33,7 @@ export async function getUserByOpenId(openId: string) {
   return result[0];
 }
 
-const songSelect = "id,title,normalized_title,slug,provider,provider_video_id,provider_url,opaque_token_hash,thumbnail_url,duration_seconds,status,rights_status,created_at,artists(name,slug),albums(title)";
+const songSelect = "id,title,normalized_title,slug,provider,provider_video_id,provider_url,opaque_token_hash,thumbnail_url,duration_seconds,status,rights_status,created_at,artist:artists(name,slug),album:albums(title)";
 
 function searchTokens(query: string) {
   return Array.from(new Set(
