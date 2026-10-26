@@ -422,6 +422,10 @@ export function serveStatic(app: express.Express) {
   // Render /search on the server so the archive has real result links and
   // route-specific metadata even when crawlers do not execute client JavaScript.
   app.get("/search", async (req, res, next) => {
+    const searchQuery = typeof req.query.q === "string" ? req.query.q.trim() : "";
+    // SM3HA follows the legacy query-first flow: /search is for actual searches,
+    // not a public archive landing page. Keep old /search bookmarks harmless.
+    if (!searchQuery) return res.redirect(301, "/");
     try {
       const template = await fs.promises.readFile(path.join(publicPath, "index.html"), "utf-8");
       const rendered = await renderSearchArchiveShell(req, template);
