@@ -38,7 +38,7 @@ function renderNotFoundShell(req: express.Request, template: string) {
 }
 
 async function renderKeywordShell(req: express.Request, template: string) {
-  const rawSlug = String(req.params[0] || req.params.slug || "").replace(/^\\/+|\\/+$/g, "");
+  const rawSlug = String(req.params[0] || req.params.slug || "").replace(/^\/+|\/+$/g, "");
   if (!rawSlug) return null;
 
   let slug = rawSlug;
