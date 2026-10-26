@@ -22,13 +22,17 @@ export default function SearchPage() {
   const { data: stats } = trpc.catalog.archiveStats.useQuery(undefined, { staleTime: 5 * 60_000 });
 
   useEffect(() => {
+    if (!initial) {
+      navigate("/");
+      return;
+    }
     applySeo({
       title: initial ? `نتائج البحث عن ${initial} — سمعها` : "الأرشيف الموسيقي | سمعها",
       description: initial ? `نتائج البحث عن ${initial} من الأغاني والموسيقى العربية في سمعها.` : "تصفح الأغاني المسجلة في أرشيف سمعها وابحث عن العناوين والفنانين.",
       path: initial ? `/search?q=${encodeURIComponent(initial)}` : (page ? `/search?page=${page}` : "/search"),
     });
     return resetSeo;
-  }, [initial, page]);
+  }, [initial, page, navigate]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
