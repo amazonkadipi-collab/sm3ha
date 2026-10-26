@@ -55,9 +55,14 @@ async function renderKeywordShell(req: express.Request, template: string) {
 
   // Prefer the normalized cache, then fall back to the literal URL slug.
   const record = await findCatalogKeyword(makeSlug(searchQuery)) ?? await findCatalogKeyword(slug);
+  // A keyword row can contain stale/deleted slugs. If none resolve, fall
+  // back to the live ranked catalog instead of rendering a false empty archive.
   let rawSongs = record?.result_slugs?.length
     ? await findSongsBySlugs(record.result_slugs, 20)
-    : await findSongs(searchQuery, 20);
+    : [];
+  if (!rawSongs.length) {
+    rawSongs = await findSongs(searchQuery, 20);
+  }
 
   // Match v1-style result depth: keep existing archive results, then fill the
   // page with fresh real provider metadata until we have up to 20 unique rows.
