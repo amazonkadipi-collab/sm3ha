@@ -74,7 +74,9 @@ async function renderKeywordShell(req: express.Request, template: string) {
       const relevantYoutubeRows = meaningfulTokens.length
         ? youtubeRows.filter(row => {
             const haystack = normalizeArabic([row.title, row.artist, row.slug].filter(Boolean).join(" "));
-            return meaningfulTokens.every(token => haystack.includes(token));
+            // Legacy keyword search is query-first and commonly returns partial-token
+            // matches. Requiring every token here was over-filtering Arabic titles.
+            return meaningfulTokens.some(token => haystack.includes(token));
           })
         : youtubeRows;
       if (relevantYoutubeRows.length) {
@@ -131,7 +133,9 @@ async function renderKeywordShell(req: express.Request, template: string) {
           .split(/\s+/)
           .filter(Boolean)
       );
-      return strictArchiveTokens.every(token => searchableWords.has(token));
+      // Keep any meaningful term match, like the ranked catalog search, rather
+      // than dropping otherwise relevant results because a title omits one query word.
+      return strictArchiveTokens.some(token => searchableWords.has(token));
     });
   }
 
