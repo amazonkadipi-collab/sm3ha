@@ -5,7 +5,7 @@ import { findCatalogKeyword, listCatalogKeywords, persistImportedRows, upsertCat
 import { ENV } from "./_core/env";
 import { listRecentSearches } from "./admin-observability";
 import { searchYouTubeVideos } from "./youtube";
-import { formatDuration, isLikelyMusicTitle, makeSlug } from "./catalog";
+import { formatDuration, isLikelyMusicTitle, makeSlug, normalizeArabic } from "./catalog";
 import { findAlbumBySlug, findArtistBySlug, findSongBySlug, findSongs, findSongsBySlugs, listArtists } from "./db";
 
 const PUBLIC_ORIGIN = "https://sm3ha.online";
@@ -61,11 +61,27 @@ async function renderKeywordShell(req: express.Request, template: string) {
   if (rawSongs.length < 20 && ENV.youtubeApiKey) {
     try {
       const youtubeRows = await searchYouTubeVideos(searchQuery, 20);
-      if (youtubeRows.length) {
-        const persisted = await persistImportedRows(youtubeRows);
+      // Provider search can return loosely related videos. For artist/title
+      // queries, only persist and append rows that contain every meaningful
+      // query token in their title or artist; generic archive terms stay broad.
+      const genericTerms = new Set(["تحميل", "تنزيل", "download", "mp3", "mp4", "اغاني", "اغنية"]);
+      const meaningfulTokens = Array.from(new Set(
+        normalizeArabic(searchQuery)
+          .replace(/[^a-z0-9\u0600-\u06FF\s]/gi, " ")
+          .split(/\s+/)
+          .filter(token => token.length >= 2 && !genericTerms.has(token))
+      ));
+      const relevantYoutubeRows = meaningfulTokens.length
+        ? youtubeRows.filter(row => {
+            const haystack = normalizeArabic([row.title, row.artist, row.slug].filter(Boolean).join(" "));
+            return meaningfulTokens.every(token => haystack.includes(token));
+          })
+        : youtubeRows;
+      if (relevantYoutubeRows.length) {
+        const persisted = await persistImportedRows(relevantYoutubeRows);
         const candidateSlugs = Array.from(new Set([
           ...(persisted.acceptedSlugs ?? []),
-          ...youtubeRows.map(row => row.slug),
+          ...relevantYoutubeRows.map(row => row.slug),
         ]));
         const importedRows = candidateSlugs.length
           ? await findSongsBySlugs(candidateSlugs, 20)
