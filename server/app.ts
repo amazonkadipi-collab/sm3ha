@@ -7,7 +7,7 @@ import { createContext } from "./_core/context";
 import { makeSlug } from "./catalog";
 import { COOKIE_NAME } from "@shared/const";
 import { ENV } from "./_core/env";
-import { countIndexableKeywords, listSitemapKeywords, countIndexableSongs, listSitemapSongs, countSitemapArtists, listSitemapArtists, countSitemapAlbums, listSitemapAlbums } from "./supabase";
+import { countIndexableKeywords, listSitemapKeywords } from "./supabase";
 import { getRapidYouTubeInfo, MediaProviderError, normalizeVideoId } from "./rapidapi-youtube";
 import { findSongByToken } from "./db";
 import { runYouTubeAutoImport } from "./youtube-auto-import";
@@ -104,15 +104,10 @@ export function createApp() {
   app.get("/sitemap.xml", async (req, res) => {
     const origin = getOrigin(req);
     const pageSize = 1000;
-    const [keywords, songs, artists, albums] = await Promise.all([
-      countIndexableKeywords(), countIndexableSongs(), countSitemapArtists(), countSitemapAlbums()
-    ]);
+    const keywords = await countIndexableKeywords();
     const groups = [
-      { name: "static", count: 4 },
+      { name: "static", count: 3 },
       { name: "keywords", count: keywords },
-      { name: "songs", count: songs },
-      { name: "artists", count: artists },
-      { name: "albums", count: albums },
     ].filter(group => group.count > 0);
     const entries = groups.flatMap(group => {
       const pages = Math.ceil(group.count / pageSize);
@@ -124,43 +119,29 @@ export function createApp() {
     return res.type("application/xml").send(`<?xml version="1.0" encoding="UTF-8"?><sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${entries}</sitemapindex>`);
   });
 
-  const sendEntitySitemap = async (req: express.Request, res: express.Response, kind: "keywords" | "songs" | "artists" | "albums") => {
+  const sendKeywordSitemap = async (req: express.Request, res: express.Response) => {
     const page = req.params.page ? Number(req.params.page) : 1;
     if (!Number.isInteger(page) || page < 1) return res.status(404).type("text/plain").send("Not found");
     const origin = getOrigin(req);
-    const offset = (page - 1) * 1000;
-    const rows = kind === "keywords"
-      ? await listSitemapKeywords(offset, 1000)
-      : kind === "songs"
-        ? await listSitemapSongs(offset, 1000)
-        : kind === "artists"
-          ? await listSitemapArtists(offset, 1000)
-          : await listSitemapAlbums(offset, 1000);
+    const rows = await listSitemapKeywords((page - 1) * 1000, 1000);
     if (!rows.length) return res.status(404).type("text/plain").send("Not found");
-    const prefix = kind === "keywords" ? "/s/" : kind === "songs" ? "/song/" : kind === "artists" ? "/artists/" : "/album/";
     const body = rows.map((row: any) => {
       const lastmod = row.updated_at ?? row.created_at;
       const mod = lastmod ? `<lastmod>${new Date(lastmod).toISOString()}</lastmod>` : "";
-      return `<url><loc>${xmlEscape(`${origin}${prefix}${encodeURIComponent(row.slug)}`)}</loc>${mod}</url>`;
+      return `<url><loc>${xmlEscape(`${origin}/s/${encodeURIComponent(row.slug)}`)}</loc>${mod}</url>`;
     }).join("");
     return res.type("application/xml").send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>`);
   };
 
   app.get("/sitemap-static.xml", (req, res) => {
     const origin = getOrigin(req);
-    const urls = ["/", "/artists", "/albums", "/trending"];
+    const urls = ["/", "/trending"];
     const body = urls.map(path => `<url><loc>${xmlEscape(`${origin}${path}`)}</loc></url>`).join("");
     return res.type("application/xml").send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>`);
   });
 
-  app.get("/sitemap-keywords.xml", (req, res) => sendEntitySitemap(req, res, "keywords"));
-  app.get("/sitemap-keywords-:page.xml", (req, res) => sendEntitySitemap(req, res, "keywords"));
-  app.get("/sitemap-songs.xml", (req, res) => sendEntitySitemap(req, res, "songs"));
-  app.get("/sitemap-songs-:page.xml", (req, res) => sendEntitySitemap(req, res, "songs"));
-  app.get("/sitemap-artists.xml", (req, res) => sendEntitySitemap(req, res, "artists"));
-  app.get("/sitemap-artists-:page.xml", (req, res) => sendEntitySitemap(req, res, "artists"));
-  app.get("/sitemap-albums.xml", (req, res) => sendEntitySitemap(req, res, "albums"));
-  app.get("/sitemap-albums-:page.xml", (req, res) => sendEntitySitemap(req, res, "albums"));
+  app.get("/sitemap-keywords.xml", (req, res) => sendKeywordSitemap(req, res));
+  app.get("/sitemap-keywords-:page.xml", (req, res) => sendKeywordSitemap(req, res));
 
   // Workflow endpoints must not be indexed as content pages.
   app.get("/media", (_req, res, next) => { res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive"); next(); });
