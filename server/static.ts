@@ -195,12 +195,12 @@ async function renderKeywordShell(req: express.Request, template: string) {
     const downloadAction = song.rightsStatus === "licensed"
       ? `<a class="reference-action" href="/media?d=${encodeURIComponent(song.opaqueToken)}">خيارات التحميل</a>`
       : `<span class="reference-action" aria-disabled="true" title="لا يوجد مصدر تحميل مصرح به لهذا المحتوى">التحميل غير متاح</span>`;
-    return `<article class="reference-media-row"><div class="reference-media-thumb reference-media-thumb-area">${thumb}</div><div class="reference-media-copy"><h2><a href="/song/${encodeURIComponent(song.slug)}">${songTitle}</a></h2><p>${artist}</p><p>▶ مدة الفيديو: ${duration}</p></div><div class="reference-media-actions reference-media-actions-area">${downloadAction}<a class="reference-watch" href="${watchUrl}" target="_blank" rel="noreferrer">مشاهدة</a></div></article>`;
+    return `<article class="reference-media-row"><div class="reference-media-thumb reference-media-thumb-area">${thumb}</div><div class="reference-media-copy"><h2><a href="/media?d=${encodeURIComponent(song.opaqueToken)}">${songTitle}</a></h2><p>${artist}</p><p>▶ مدة الفيديو: ${duration}</p></div><div class="reference-media-actions reference-media-actions-area">${downloadAction}<a class="reference-watch" href="${watchUrl}" target="_blank" rel="noreferrer">مشاهدة</a></div></article>`;
   }).join("");
 
   const artists = Array.from(new Set(songs.map(song => song.artist).filter(Boolean))).slice(0, 8);
   const artistSummary = artists.length ? ` وتشمل النتائج أعمالاً مرتبطة بـ ${artists.map(escapeHtml).join("، ")}.` : "";
-  const summary = `<section class="reference-results-summary" aria-label="نبذة عن النتائج"><p>هذه صفحة نتائج بحث عن «${escapeHtml(resolvedQuery)}» في سمعها. تعرض الصفحة ${songs.length} نتيجة من فهرس الوسائط، مع اسم العمل والفنان والمدة وروابط المصدر المتاحة. التحميل يظهر فقط للمحتوى الذي يتوفر له مصدر مصرح به.${artistSummary} يمكنك فتح أي نتيجة للوصول إلى صفحة الأغنية ومعلوماتها والنتائج المرتبطة.</p></section>`;
+  const summary = `<section class="reference-results-summary" aria-label="نبذة عن النتائج"><p>هذه صفحة نتائج بحث عن «${escapeHtml(resolvedQuery)}» في سمعها. تعرض الصفحة ${songs.length} نتيجة من فهرس الوسائط، مع اسم العمل والفنان والمدة وروابط المصدر المتاحة. التحميل يظهر فقط للمحتوى الذي يتوفر له مصدر مصرح به.${artistSummary} يمكنك فتح أي نتيجة للوصول إلى صفحة المصدر ومعلوماته والنتائج المرتبطة.</p></section>`;
 
   // Supabase can be temporarily unavailable or unconfigured; related links are optional.
   // Always render the keyword page even when the related-keyword feed returns null.
@@ -277,7 +277,7 @@ async function renderEntityShell(req: express.Request, template: string, kind: "
     title = `اغاني ${artist.name} Mp3 - تحميل واستماع | سمعها`;
     description = `استكشف أغاني ${artist.name} واستمع إلى النتائج المتاحة عبر سمعها.`;
     canonical = absoluteUrl(req, `/artists/${encodeURIComponent(artist.slug)}`);
-    const songs = artist.songs.slice(0, 20).map(song => `<article class="reference-media-row"><div class="reference-media-copy"><h2><a href="/song/${encodeURIComponent(song.slug)}">${escapeHtml(song.title)}</a></h2><p>مدة الفيديو: ${escapeHtml(formatDuration(song.durationSeconds ?? 0))}</p></div></article>`).join("");
+    const songs = artist.songs.slice(0, 20).map(song => `<article class="reference-media-row"><div class="reference-media-copy"><h2><a href="/media?d=${encodeURIComponent(song.opaqueToken)}">${escapeHtml(song.title)}</a></h2><p>مدة الفيديو: ${escapeHtml(formatDuration(song.durationSeconds ?? 0))}</p></div></article>`).join("");
     content = `<main dir="rtl" class="reference-page mx-auto max-w-[1080px] px-4 pb-12 pt-4 sm:px-8"><a href="/" class="reference-back">الرئيسية</a><section class="reference-page-head"><div><span>الفنان</span><h1>${escapeHtml(artist.name)}</h1><p>أغاني الفنان المتاحة في سمعها</p></div></section><section class="reference-results" aria-label="أغاني الفنان">${songs}</section></main>`;
     jsonLd = { "@context": "https://schema.org", "@type": "MusicGroup", name: artist.name, url: canonical, image: artist.imageUrl || undefined };
   } else {
@@ -286,7 +286,7 @@ async function renderEntityShell(req: express.Request, template: string, kind: "
     title = `البوم ${album.title} - اغاني Mp3 | سمعها`;
     description = `استكشف ألبوم ${album.title} والأغاني المتاحة عبر سمعها.`;
     canonical = absoluteUrl(req, `/album/${encodeURIComponent(album.slug)}`);
-    const songs = album.songs.slice(0, 50).map(song => `<article class="reference-media-row"><div class="reference-media-copy"><h2><a href="/song/${encodeURIComponent(song.slug)}">${escapeHtml(song.title)}</a></h2><p>مدة الفيديو: ${escapeHtml(formatDuration(song.durationSeconds ?? 0))}</p></div></article>`).join("");
+    const songs = album.songs.slice(0, 50).map(song => `<article class="reference-media-row"><div class="reference-media-copy"><h2><a href="/media?d=${encodeURIComponent(song.opaqueToken)}">${escapeHtml(song.title)}</a></h2><p>مدة الفيديو: ${escapeHtml(formatDuration(song.durationSeconds ?? 0))}</p></div></article>`).join("");
     content = `<main dir="rtl" class="reference-page mx-auto max-w-[1080px] px-4 pb-12 pt-4 sm:px-8"><a href="/" class="reference-back">الرئيسية</a><section class="reference-page-head"><div><span>الألبوم</span><h1>${escapeHtml(album.title)}</h1><p>الأغاني المتاحة في هذا الألبوم</p></div></section><section class="reference-results" aria-label="أغاني الألبوم">${songs}</section></main>`;
     jsonLd = { "@context": "https://schema.org", "@type": "MusicAlbum", name: album.title, url: canonical, image: album.imageUrl || undefined };
   }
