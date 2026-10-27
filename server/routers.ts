@@ -146,8 +146,6 @@ export const appRouter = router({
         if (databaseSongs.length) {
           const mappedSongs = databaseSongs.map(song => ({
             ...song,
-            artist: "",
-            album: "",
             duration: formatDuration(song.durationSeconds ?? 0),
             mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}`,
           }));
