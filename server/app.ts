@@ -106,7 +106,7 @@ export function createApp() {
     const pageSize = 1000;
     const keywords = await countIndexableKeywords();
     const groups = [
-      { name: "static", count: 3 },
+      { name: "static", count: 2 },
       { name: "keywords", count: keywords },
     ].filter(group => group.count > 0);
     const entries = groups.flatMap(group => {
