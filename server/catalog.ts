@@ -37,8 +37,8 @@ const SEARCH_RELEVANCE_GENERIC_TERMS = new Set(["تحميل", "تنزيل", "dow
 export function isRelevantSearchResult(query: string, title: string, artist = "", slug = "") {
   const meaningfulTokens = Array.from(new Set(
     normalizeArabic(normalizeSearchQuery(query))
-      .replace(/[^a-z0-9\\u0600-\\u06FF\\s]/gi, " ")
-      .split(/\\s+/)
+      .replace(/[^a-z0-9\u0600-\u06FF\s]/gi, " ")
+      .split(/\s+/)
       .filter(token => token.length >= 2 && !SEARCH_RELEVANCE_GENERIC_TERMS.has(token))
   ));
   // Generic/category searches should stay broad. For multi-word named queries,
@@ -46,8 +46,8 @@ export function isRelevantSearchResult(query: string, title: string, artist = ""
   if (meaningfulTokens.length <= 1) return true;
   const searchableWords = new Set(
     normalizeArabic([title, artist, slug].filter(Boolean).join(" "))
-      .replace(/[^a-z0-9\\u0600-\\u06FF\\s]/gi, " ")
-      .split(/\\s+/)
+      .replace(/[^a-z0-9\u0600-\u06FF\s]/gi, " ")
+      .split(/\s+/)
       .filter(Boolean)
   );
   return meaningfulTokens.every(token => searchableWords.has(token));
