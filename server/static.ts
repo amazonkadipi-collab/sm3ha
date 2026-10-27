@@ -169,6 +169,32 @@ async function renderKeywordShell(req: express.Request, template: string) {
     });
   }
 
+  // For one-word artist searches, preserve archive depth but put exact artist
+  // matches before looser title/hashtag matches. Filtering every row here would
+  // shrink useful single-word archives too aggressively.
+  const rankingQuery = normalizeArabic(searchQuery).replace(/[^a-z0-9\u0600-\u06FF\s]/gi, " ").replace(/\s+/g, " ").trim();
+  const rankingTokens = rankingQuery.split(" ").filter(token => token.length >= 2 && !genericArchiveTokens.has(token));
+  if (rankingTokens.length === 1) {
+    rawSongs = rawSongs
+      .map((song, index) => {
+        const title = normalizeArabic(song.title || "");
+        const artist = normalizeArabic(song.artist || "");
+        const slug = normalizeArabic(song.slug || "").replace(/-/g, " ");
+        const token = rankingTokens[0];
+        const artistWords = artist.split(/\s+/);
+        const titleWords = title.replace(/[^a-z0-9\u0600-\u06FF\s]/gi, " ").split(/\s+/);
+        const score =
+          (artist === rankingQuery ? 100 : 0) +
+          (artistWords.includes(token) ? 60 : 0) +
+          (title === rankingQuery ? 45 : 0) +
+          (titleWords.includes(token) ? 25 : 0) +
+          (slug.split(/\s+/).includes(token) ? 10 : 0);
+        return { song, index, score };
+      })
+      .sort((a, b) => b.score - a.score || a.index - b.index)
+      .map(item => item.song);
+  }
+
   const songs = rawSongs.slice(0, 20);
 
 
