@@ -93,7 +93,20 @@ export const appRouter = router({
       // the indexed catalog did not already have usable results.
       if (results.length < input.limit && query && ENV.youtubeApiKey) {
         try {
-          const youtubeRows = await searchYouTubeVideos(searchQuery, input.limit);
+          const providerRows = await searchYouTubeVideos(searchQuery, input.limit);
+          const genericTerms = new Set(["تحميل", "تنزيل", "download", "mp3", "mp4", "اغاني", "اغنيه", "موسيقى", "music", "songs", "song"]);
+          const meaningfulTokens = Array.from(new Set(
+            normalizeArabic(searchQuery)
+              .replace(/[^a-z0-9\\u0600-\\u06FF\\s]/gi, " ")
+              .split(/\\s+/)
+              .filter(token => token.length >= 2 && !genericTerms.has(token))
+          ));
+          const youtubeRows = providerRows.filter(row => {
+            if (!isLikelyMusicTitle(row.title, row.artist ?? "")) return false;
+            if (!meaningfulTokens.length) return true;
+            const haystack = normalizeArabic([row.title, row.artist, row.slug].filter(Boolean).join(" "));
+            return meaningfulTokens.every(token => haystack.includes(token));
+          });
           if (youtubeRows.length) {
             // Return only after the core catalog write is complete. On serverless
             // deployments, fire-and-forget writes can be terminated after the response,
