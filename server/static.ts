@@ -5,7 +5,7 @@ import { findCatalogKeyword, listCatalogKeywords, persistImportedRows, upsertCat
 import { ENV } from "./_core/env";
 import { listRecentSearches } from "./admin-observability";
 import { searchYouTubeVideos } from "./youtube";
-import { formatDuration, isLikelyMusicTitle, makeSlug, normalizeArabic } from "./catalog";
+import { formatDuration, isLikelyMusicTitle, makeSlug, normalizeArabic, normalizeSearchQuery } from "./catalog";
 import { findAlbumBySlug, findArtistBySlug, findSongBySlug, findSongByToken, findSongs, findSongsBySlugs, listArtists } from "./db";
 
 const PUBLIC_ORIGIN = "https://sm3ha.online";
@@ -82,7 +82,7 @@ async function renderKeywordShell(req: express.Request, template: string) {
   if (!keyword || keyword.length > 120) return { status: 404, html: renderNotFoundShell(req, template).html };
 
   // Keep server-rendered archives aligned with API search normalization.
-  const searchQuery = keyword.split(/\s+/).filter(word => !/^(?:تحميل|تنزيل|download|mp3|mp4|اغاني|أغاني|اغنية|أغنية)$/i.test(word)).join(" ").trim() || keyword;
+  const searchQuery = normalizeSearchQuery(keyword) || keyword;
 
   // Prefer the normalized cache, then fall back to the literal URL slug.
   const record = await findCatalogKeyword(makeSlug(searchQuery)) ?? await findCatalogKeyword(slug);
