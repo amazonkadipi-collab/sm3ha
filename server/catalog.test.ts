@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createOpaqueToken, makeSlug, normalizeArabic, normalizeSearchQuery } from "./catalog";
+import { createOpaqueToken, isRelevantSearchResult, makeSlug, normalizeArabic, normalizeSearchQuery } from "./catalog";
 
 describe("catalog utilities", () => {
   it("normalizes common Arabic variants", () => {
@@ -33,6 +33,15 @@ describe("v1-style search archive normalization", () => {
 
   it("normalizes Arabic hamza variants before creating an archive slug", () => {
     expect(makeSlug(normalizeSearchQuery("تنزيل أغاني إيمان"))).toBe("ايمان");
+  });
+
+  it("filters stale cached results that do not match a multi-word artist query", () => {
+    expect(isRelevantSearchResult("تحميل اغاني عمرو دياب", "يا أنا يا لأ", "عمرو دياب", "عمرو-دياب-يا-انا")).toBe(true);
+    expect(isRelevantSearchResult("تحميل اغاني عمرو دياب", "نمبر وان", "محمد رمضان", "محمد-رمضان-نمبر-وان")).toBe(false);
+  });
+
+  it("keeps generic music archives broad", () => {
+    expect(isRelevantSearchResult("تحميل اغاني", "أغنية جديدة", "فنان", "اغنيه-جديده")).toBe(true);
   });
 
   it("does not erase a specific query when it already contains no utility words", () => {
