@@ -45,7 +45,10 @@ export function isLikelyMusicTitle(title: string, artist = "") {
     /\bmovie\s*202\d\b/, /\bfilm\s*202\d\b/, /\bmafia\s*movie\b/,
     /\bmy\s+(white|babysitter)\b/, /\bhorror\s+movies?\b/, /\bthe\s+last\s+don\b/,
     /(?:^|\s)(?:فيلم|افلام|أفلام|مسلسل|مسلسلات|حلقة|الحلقه|بودكاست|دروس|كورس|ديناصورات|حيوانات|مباراة|مباريات|تمثيلية|تمثيليه|سهرات|اذاعة|إذاعة)(?:\s|$)/,
-    /(?:شرح|طريقة)\s+(?:تحميل|تنزيل)\s+(?:اغاني|فيديو|فيديوهات|الموسيقى|موسيقي)/
+    /(?:شرح|طريقة|طريقه|كيفية|كيفيه|برنامج)\s+(?:تحميل|تنزيل|تحويل)\s+(?:اغاني|اغنيه|الاغاني|فيديو|فيديوهات|الموسيقى|موسيقي|mp3)/i,
+    /(?:تحميل|تنزيل)\s+(?:اغاني|اغنيه|الاغاني)\s+(?:من\s+)?(?:برنامج|جوجل|كروم|متصفح|اليوتيوب)/i,
+    /\bhow\s+to\s+(?:download|convert|listen\s+to)\b/i,
+    /\b(?:mp3|music|song|video)\s+(?:downloader|converter|download\s+app)\b/i
   ];
   return !blocked.some(pattern => pattern.test(value));
 }
