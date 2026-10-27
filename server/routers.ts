@@ -142,7 +142,7 @@ export const appRouter = router({
       // The old v1-style experience is a useful number of relevant results, not a
       // page that stops at one or two rows just because an external provider timed out.
       if (results.length < input.limit) {
-        const databaseSongs = (await findSongs(searchQuery, Math.min(50, Math.max(input.limit * 2, input.limit)), false, query ? 0 : input.offset)).filter(song => isLikelyMusicTitle(song.title, song.artist ?? ""));
+        const databaseSongs = (await findSongs(searchQuery || undefined, Math.min(50, Math.max(input.limit * 2, input.limit)), false, query ? 0 : input.offset)).filter(song => isLikelyMusicTitle(song.title, song.artist ?? ""));
         if (databaseSongs.length) {
           const mappedSongs = databaseSongs.map(song => ({
             ...song,
