@@ -8,7 +8,7 @@ import { ENV } from "./_core/env";
 import { LOCAL_ADMIN_OPEN_ID, sdk } from "./_core/sdk";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
-import { createOpaqueToken, formatDuration, isLikelyMusicTitle, makeSlug, normalizeArabic } from "./catalog";
+import { createOpaqueToken, formatDuration, isLikelyMusicTitle, makeSlug, normalizeArabic, normalizeSearchQuery } from "./catalog";
 import { findAlbumBySlug, findArtistBySlug, findSongBySlug, findSongByToken, findSongs, findSongsBySlugs, getDb, listAlbums, listArtists, updateDrizzleSongStatus } from "./db";
 import { findCatalogKeyword, getSupabaseAdmin, indexYouTubeTitleQueries, listCatalogKeywords, persistImportedRows, updateSupabaseSongStatus, upsertCatalogKeyword } from "./supabase";
 import { getAnalyticsSummary, getSiteSettings, hashRequestValue, listSearchLogs, listTakedowns, recordAnalyticsEvent, recordSearchLog, submitTakedown, updateSiteSettings, updateTakedown } from "./admin-observability";
@@ -63,11 +63,7 @@ export const appRouter = router({
       // Match the legacy v1 search behavior: users commonly search with
       // "تحميل", "تنزيل", MP3/MP4 appended to the actual song title. Those
       // utility words should not be sent as part of the provider/catalog query.
-      const searchQuery = query
-        ?.split(/\s+/)
-        .filter(word => !/^(?:تحميل|تنزيل|download|mp3|mp4|اغاني|أغاني|اغنية|أغنية)$/i.test(word))
-        .join(" ")
-        .trim() || query;
+      const searchQuery = query ? normalizeSearchQuery(query) : undefined;
       let source = "none";
       let results: ReturnType<typeof youtubeResult>[] | Awaited<ReturnType<typeof findSongs>> = [];
 
