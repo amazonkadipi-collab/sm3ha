@@ -25,7 +25,7 @@ const SEARCH_ACTION_WORDS = new Set(["تحميل", "تنزيل", "download", "mp
 
 /** Remove download/format boilerplate without discarding the actual topic (e.g. "اغاني"). */
 export function normalizeSearchQuery(value: string) {
-  const words = value.trim().split(/\\s+/).filter(Boolean);
+  const words = value.trim().split(/\s+/).filter(Boolean);
   const meaningful = words.filter(word => !SEARCH_ACTION_WORDS.has(normalizeArabic(word)));
   return meaningful.join(" ").trim() || words.join(" ");
 }
