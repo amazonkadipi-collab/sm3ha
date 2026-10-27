@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createOpaqueToken, makeSlug, normalizeArabic, searchDemoSongs } from "./catalog";
+import { createOpaqueToken, isRelevantSearchResult, makeSlug, normalizeArabic, normalizeSearchQuery } from "./catalog";
 
 describe("catalog utilities", () => {
   it("normalizes common Arabic variants", () => {
@@ -17,10 +17,35 @@ describe("catalog utilities", () => {
     expect(createOpaqueToken()).not.toBe(token);
     expect(createOpaqueToken("demo-layla")).toBe(createOpaqueToken("demo-layla"));
   });
+});
 
-  it("searches demo catalog by title or artist", () => {
-    expect(searchDemoSongs("ليلة").length).toBeGreaterThan(0);
-    expect(searchDemoSongs("نورا")[0]?.artist).toContain("نورا");
-    expect(searchDemoSongs("does-not-exist")).toHaveLength(0);
+describe("v1-style search archive normalization", () => {
+  it("removes download utility words and generic music categories from a specific song query", () => {
+    const query = normalizeSearchQuery("تحميل اغاني عمرو دياب MP3");
+    expect(query).toBe("عمرو دياب");
+    expect(makeSlug(query)).toBe("عمرو-دياب");
+  });
+
+  it("keeps a generic music query usable when no specific term remains", () => {
+    expect(normalizeSearchQuery("تحميل اغاني")).toBe("اغاني");
+    expect(makeSlug(normalizeSearchQuery("تحميل اغاني"))).toBe("اغاني");
+  });
+
+  it("normalizes Arabic hamza variants before creating an archive slug", () => {
+    expect(makeSlug(normalizeSearchQuery("تنزيل أغاني إيمان"))).toBe("ايمان");
+  });
+
+  it("filters stale cached results that do not match a multi-word artist query", () => {
+    expect(isRelevantSearchResult("تحميل اغاني عمرو دياب", "يا أنا يا لأ", "عمرو دياب", "عمرو-دياب-يا-انا")).toBe(true);
+    expect(isRelevantSearchResult("تحميل اغاني عمرو دياب", "نمبر وان", "محمد رمضان", "محمد-رمضان-نمبر-وان")).toBe(false);
+  });
+
+  it("keeps generic music archives broad", () => {
+    expect(isRelevantSearchResult("تحميل اغاني", "أغنية جديدة", "فنان", "اغنيه-جديده")).toBe(true);
+  });
+
+  it("does not erase a specific query when it already contains no utility words", () => {
+    expect(normalizeSearchQuery("يزن حمدان")).toBe("يزن حمدان");
+    expect(makeSlug(normalizeSearchQuery("يزن حمدان"))).toBe("يزن-حمدان");
   });
 });

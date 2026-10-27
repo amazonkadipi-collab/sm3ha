@@ -222,7 +222,9 @@ async function saveKeyword(supabase: SupabaseClient, query: string, resultSlugs:
   const slug = makeSlug(normalizedQuery);
   if (!slug) return false;
   const { data: existing } = await supabase.from("catalog_keywords").select("search_count,result_slugs,result_count,source,indexable").eq("slug", slug).maybeSingle();
-  const previousSlugs = existing?.indexable === false ? [] : Array.isArray(existing?.result_slugs) ? existing.result_slugs.map(String) : [];
+  // A fresh user search must replace this query archive with its current results.
+  // Derived/title-index updates still merge so they can enrich existing archives.
+  const previousSlugs = countSearch || existing?.indexable === false ? [] : Array.isArray(existing?.result_slugs) ? existing.result_slugs.map(String) : [];
   const mergedSlugs = Array.from(new Set([...previousSlugs, ...incomingSlugs])).filter(Boolean).slice(0, 500);
   const searchCount = Number(existing?.search_count ?? 0) + (countSearch ? 1 : 0);
   const now = new Date().toISOString();
