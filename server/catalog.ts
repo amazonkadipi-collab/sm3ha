@@ -22,11 +22,11 @@ export function normalizeArabic(value: string) {
 }
 
 const SEARCH_ACTION_WORDS = new Set(["تحميل", "تنزيل", "download", "mp3", "mp4"]);
-const SEARCH_CATEGORY_WORDS = new Set(["اغاني", "اغنيه", "اغنيه", "موسيقى", "music", "songs", "song"]);
+const SEARCH_CATEGORY_WORDS = new Set(["اغاني", "اغنيه", "موسيقى", "music", "songs", "song"]);
 
 /** Normalize v1-style search phrases without discarding a generic music-only query. */
 export function normalizeSearchQuery(value: string) {
-  const words = value.trim().split(/\\s+/).filter(Boolean);
+  const words = value.trim().split(/\s+/).filter(Boolean);
   const withoutActions = words.filter(word => !SEARCH_ACTION_WORDS.has(normalizeArabic(word)));
   const meaningful = withoutActions.filter(word => !SEARCH_CATEGORY_WORDS.has(normalizeArabic(word)));
   return (meaningful.length ? meaningful : withoutActions).join(" ").trim() || value.trim();
