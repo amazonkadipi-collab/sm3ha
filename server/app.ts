@@ -4,7 +4,7 @@ import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerStorageProxy } from "./_core/storageProxy";
 import { appRouter } from "./routers";
 import { createContext } from "./_core/context";
-import { makeSlug } from "./catalog";
+import { makeSlug, normalizeSearchQuery } from "./catalog";
 import { COOKIE_NAME } from "@shared/const";
 import { ENV } from "./_core/env";
 import { countIndexableKeywords, listSitemapKeywords } from "./supabase";
@@ -87,7 +87,7 @@ export function createApp() {
   app.get("/search", (req, res, next) => {
     const query = typeof req.query.q === "string" ? req.query.q.trim() : "";
     if (!query) return next();
-    const slug = makeSlug(query);
+    const slug = makeSlug(normalizeSearchQuery(query));
     if (!slug || slug === "song") return next();
     return res.redirect(301, `/s/${encodeURIComponent(slug)}`);
   });
