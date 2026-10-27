@@ -66,7 +66,7 @@ export default function SearchPage() {
         {isError && <div className="reference-empty">تعذر تحميل النتائج حالياً.</div>}
         {!isLoading && !isError && visibleRows.length === 0 && <div className="reference-empty">لا توجد نتائج في هذه الصفحة.</div>}
         {!isLoading && !isError && visibleRows.map(song => (
-          <Link key={song.id} href={workflowLinks.song(song.slug)} className="reference-result-row">
+          <Link key={song.id} href={song.mediaUrl} className="reference-result-row">
             <span><Music2 size={16} /></span>
             <strong>{song.title}</strong>
             <small>{song.artist || "الفنان غير محدد"} · {song.duration}</small>
