@@ -8,7 +8,7 @@ import { ENV } from "./_core/env";
 import { LOCAL_ADMIN_OPEN_ID, sdk } from "./_core/sdk";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
-import { createOpaqueToken, formatDuration, isLikelyMusicTitle, makeSlug, normalizeArabic } from "./catalog";
+import { createOpaqueToken, formatDuration, isLikelyMusicTitle, makeSlug, normalizeArabic, normalizeSearchQuery } from "./catalog";
 import { findAlbumBySlug, findArtistBySlug, findSongBySlug, findSongByToken, findSongs, findSongsBySlugs, getDb, listAlbums, listArtists, updateDrizzleSongStatus } from "./db";
 import { findCatalogKeyword, getSupabaseAdmin, indexYouTubeTitleQueries, listCatalogKeywords, persistImportedRows, updateSupabaseSongStatus, upsertCatalogKeyword } from "./supabase";
 import { getAnalyticsSummary, getSiteSettings, hashRequestValue, listSearchLogs, listTakedowns, recordAnalyticsEvent, recordSearchLog, submitTakedown, updateSiteSettings, updateTakedown } from "./admin-observability";
@@ -63,11 +63,7 @@ export const appRouter = router({
       // Match the legacy v1 search behavior: users commonly search with
       // "تحميل", "تنزيل", MP3/MP4 appended to the actual song title. Those
       // utility words should not be sent as part of the provider/catalog query.
-      const searchQuery = query
-        ?.split(/\s+/)
-        .filter(word => !/^(?:تحميل|تنزيل|download|mp3|mp4|اغاني|أغاني|اغنية|أغنية)$/i.test(word))
-        .join(" ")
-        .trim() || query;
+      const searchQuery = query ? normalizeSearchQuery(query) : undefined;
       let source = "none";
       let results: ReturnType<typeof youtubeResult>[] | Awaited<ReturnType<typeof findSongs>> = [];
 
@@ -77,7 +73,7 @@ export const appRouter = router({
       if (query) {
         const keyword = await findCatalogKeyword(makeSlug(searchQuery));
         if (keyword?.result_slugs?.length) {
-          const cachedSongs = await findSongsBySlugs(keyword.result_slugs, input.limit);
+          const cachedSongs = (await findSongsBySlugs(keyword.result_slugs, input.limit)).filter(song => isLikelyMusicTitle(song.title, song.artist ?? ""));
           if (cachedSongs.length) {
             const missingDurationIds = cachedSongs.filter(song => !(song.durationSeconds > 0)).map(song => song.providerVideoId).filter(Boolean);
             let repairedDurations = new Map<string, number>();
@@ -134,7 +130,7 @@ export const appRouter = router({
       if (results.length === 0 && query) {
         const keyword = await findCatalogKeyword(makeSlug(searchQuery));
         if (keyword?.result_slugs?.length) {
-          const cachedSongs = await findSongsBySlugs(keyword.result_slugs, input.limit);
+          const cachedSongs = (await findSongsBySlugs(keyword.result_slugs, input.limit)).filter(song => isLikelyMusicTitle(song.title, song.artist ?? ""));
           if (cachedSongs.length) {
             results = cachedSongs.map(song => ({ ...song, artist: "", album: "", duration: formatDuration(song.durationSeconds ?? 0), mediaUrl: `/media?d=${encodeURIComponent(song.opaqueToken)}` }));
             source = "keyword";
@@ -146,7 +142,7 @@ export const appRouter = router({
       // The old v1-style experience is a useful number of relevant results, not a
       // page that stops at one or two rows just because an external provider timed out.
       if (results.length < input.limit) {
-        const databaseSongs = await findSongs(searchQuery, Math.min(50, Math.max(input.limit * 2, input.limit)), false, query ? 0 : input.offset);
+        const databaseSongs = (await findSongs(searchQuery, Math.min(50, Math.max(input.limit * 2, input.limit)), false, query ? 0 : input.offset)).filter(song => isLikelyMusicTitle(song.title, song.artist ?? ""));
         if (databaseSongs.length) {
           const mappedSongs = databaseSongs.map(song => ({
             ...song,
