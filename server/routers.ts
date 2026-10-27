@@ -63,7 +63,7 @@ export const appRouter = router({
       // Match the legacy v1 search behavior: users commonly search with
       // "تحميل", "تنزيل", MP3/MP4 appended to the actual song title. Those
       // utility words should not be sent as part of the provider/catalog query.
-      const searchQuery = query ? normalizeSearchQuery(query) : undefined;
+      const searchQuery = normalizeSearchQuery(query ?? "");
       let source = "none";
       let results: ReturnType<typeof youtubeResult>[] | Awaited<ReturnType<typeof findSongs>> = [];
 
