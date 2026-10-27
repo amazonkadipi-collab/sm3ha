@@ -415,39 +415,22 @@ export function serveStatic(app: express.Express) {
     return res.redirect(301, "/s/" + encodeURIComponent(slug));
   });
 
-  app.get("/artists", async (req, res, next) => {
+  // The legacy v1 site does not expose standalone song, artist, or album pages.
+  // Return a real HTTP 404 for these routes rather than serving the SPA shell with status 200.
+  const renderLegacyUnsupportedRoute = async (req: express.Request, res: express.Response) => {
     try {
       const template = await fs.promises.readFile(path.join(publicPath, "index.html"), "utf-8");
-      const rendered = await renderArtistsArchiveShell(req, template);
-      if (rendered.status === 404) {
-        res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
-        return res.status(404).type("html").send(rendered.html);
-      }
-      res.setHeader("X-Robots-Tag", "index, follow");
-      return res.status(200).type("html").send(rendered.html);
+      const rendered = renderNotFoundShell(req, template);
+      res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
+      return res.status(404).type("html").send(rendered.html);
     } catch (error) {
-      console.warn("[SEO] artists archive render failed:", error);
-      return next(error);
+      console.warn("[SEO] unsupported legacy route render failed:", error);
+      return res.status(404).type("text/plain").send("Not found");
     }
-  });
+  };
 
-  for (const [route, kind] of [["/song/:slug", "song"], ["/artists/:slug", "artist"], ["/album/:slug", "album"]] as const) {
-    app.get(route, async (req, res, next) => {
-      try {
-        const template = await fs.promises.readFile(path.join(publicPath, "index.html"), "utf-8");
-        const rendered = await renderEntityShell(req, template, kind);
-        if (rendered.status === 404) {
-          res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
-          return res.status(404).type("html").send(renderNotFoundShell(req, template).html);
-        }
-        res.setHeader("X-Robots-Tag", "index, follow");
-        return res.status(200).type("html").send(rendered.html);
-      } catch (error) {
-        console.warn(`[SEO] ${kind} server render failed:`, error);
-        return next(error);
-      }
-    });
-  }
+  app.get(["/artists", "/albums"], renderLegacyUnsupportedRoute);
+  app.get(["/song/:slug", "/artists/:slug", "/album/:slug"], renderLegacyUnsupportedRoute);
 
   app.get("/s/*", async (req, res, next) => {
     try {
