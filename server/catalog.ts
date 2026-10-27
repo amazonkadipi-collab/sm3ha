@@ -21,6 +21,17 @@ export function normalizeArabic(value: string) {
   return value.toLocaleLowerCase("ar").normalize("NFKD").replace(/[\u064B-\u065F\u0670]/g, "").replace(/[إأآا]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي").trim();
 }
 
+const SEARCH_ACTION_WORDS = new Set(["تحميل", "تنزيل", "download", "mp3", "mp4"]);
+const SEARCH_CATEGORY_WORDS = new Set(["اغاني", "اغنيه", "اغنيه", "موسيقى", "music", "songs", "song"]);
+
+/** Normalize v1-style search phrases without discarding a generic music-only query. */
+export function normalizeSearchQuery(value: string) {
+  const words = value.trim().split(/\\s+/).filter(Boolean);
+  const withoutActions = words.filter(word => !SEARCH_ACTION_WORDS.has(normalizeArabic(word)));
+  const meaningful = withoutActions.filter(word => !SEARCH_CATEGORY_WORDS.has(normalizeArabic(word)));
+  return (meaningful.length ? meaningful : withoutActions).join(" ").trim() || value.trim();
+}
+
 export function makeSlug(value: string) {
   return normalizeArabic(value).replace(/[^a-zA-Z0-9\u0600-\u06FF]+/g, "-").replace(/^-+|-+$/g, "") || "song";
 }
