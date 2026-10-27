@@ -97,8 +97,8 @@ export const appRouter = router({
           const genericTerms = new Set(["تحميل", "تنزيل", "download", "mp3", "mp4", "اغاني", "اغنيه", "موسيقى", "music", "songs", "song"]);
           const meaningfulTokens = Array.from(new Set(
             normalizeArabic(searchQuery)
-              .replace(/[^a-z0-9\\u0600-\\u06FF\\s]/gi, " ")
-              .split(/\\s+/)
+              .replace(/[^a-z0-9\u0600-\u06FF\s]/gi, " ")
+              .split(/\s+/)
               .filter(token => token.length >= 2 && !genericTerms.has(token))
           ));
           const youtubeRows = providerRows.filter(row => {
