@@ -5,4 +5,4 @@ Disallow: /api/
 Disallow: /media
 Disallow: /videos_dl
 
-Sitemap: https://www.sm3ha.online/sitemap.xml
+Sitemap: https://sm3ha.online/sitemap.xml
